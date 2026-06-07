@@ -1,0 +1,35 @@
+def get_dashboard_stats() -> dict:
+    return {
+        "total_records": 50064,
+        "text_records": 213,
+        "origin_places": [
+            {"label": "新加坡", "value": 12680},
+            {"label": "泰国", "value": 8420},
+            {"label": "越南", "value": 5160},
+            {"label": "马来西亚", "value": 4980},
+        ],
+        "destination_places": [
+            {"label": "广东潮州", "value": 18420},
+            {"label": "广东汕头", "value": 11150},
+            {"label": "福建厦门", "value": 4620},
+            {"label": "广东揭阳", "value": 3960},
+        ],
+        "kinship_distribution": [
+            {"label": "母亲", "value": 46},
+            {"label": "祖母", "value": 19},
+            {"label": "父母", "value": 38},
+            {"label": "妻子", "value": 27},
+        ],
+        "money_distribution": [
+            {"label": "八元", "value": 22},
+            {"label": "十元", "value": 31},
+            {"label": "十五元", "value": 15},
+            {"label": "二十元", "value": 12},
+        ],
+        "timeline": [
+            {"label": "1920s", "value": 44},
+            {"label": "1930s", "value": 78},
+            {"label": "1940s", "value": 61},
+            {"label": "1950s", "value": 30},
+        ],
+    }

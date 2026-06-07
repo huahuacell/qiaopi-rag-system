@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pydantic
+python-dotenv
+pandas
+openpyxl
+jieba
+numpy
+scikit-learn
+pytest
+httpx
+
+# Optional vector search dependency for the backend phase:
+# faiss-cpu
+

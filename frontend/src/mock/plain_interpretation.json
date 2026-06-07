@@ -1,0 +1,57 @@
+{
+  "record_id": "CSQP-SFHC-TEXT-001",
+  "generated_text": "这封侨批的意思是：寄信人在新加坡平安，托人带回八元钱，请母亲收到后用于购买米粮和药品。",
+  "summary": [
+    "寄信人在新加坡报平安。",
+    "寄信人汇给母亲八元。",
+    "汇款用于米粮和药费。"
+  ],
+  "slots": {
+    "sender": "陈生",
+    "recipient": "母亲",
+    "origin_place": "新加坡",
+    "destination_place": "广东潮州",
+    "money": "八元",
+    "purpose": "米粮和药费"
+  },
+  "evidence": [
+    {
+      "source_field": "original_text",
+      "source_text": "今托水客附上银八元",
+      "reason": "支持汇款金额",
+      "similarity_score": 0.95
+    },
+    {
+      "source_field": "original_text",
+      "source_text": "望收讫后置办米粮并药费",
+      "reason": "支持家用用途解读",
+      "similarity_score": 0.9
+    }
+  ],
+  "evidence_mapping": [
+    {
+      "target_span": "托人带回八元钱",
+      "source_field": "original_text",
+      "source_text": "今托水客附上银八元",
+      "reason": "生成片段由汇款证据支撑",
+      "similarity_score": 0.95
+    },
+    {
+      "target_span": "用于购买米粮和药品",
+      "source_field": "original_text",
+      "source_text": "置办米粮并药费",
+      "reason": "生成用途与原文一致",
+      "similarity_score": 0.9
+    }
+  ],
+  "consistency_check": {
+    "status": "passed",
+    "warnings": [],
+    "passed_rules": [
+      "money_supported_by_evidence",
+      "recipient_supported_by_evidence",
+      "purpose_supported_by_evidence"
+    ],
+    "failed_rules": []
+  }
+}

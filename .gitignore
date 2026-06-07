@@ -1,0 +1,94 @@
+# =========================
+# Environment / secrets
+# =========================
+.env
+*.env
+.env.*
+!.env.example
+
+# API keys must never be committed
+**/secrets.*
+**/*secret*
+**/*apikey*
+**/*api_key*
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+# Node / Vue / Vite
+# =========================
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# IDE / OS
+# =========================
+.vscode/
+.idea/
+
+.DS_Store
+Thumbs.db
+
+# =========================
+# Backend generated files
+# =========================
+
+# Root-level raw data is not part of the project structure.
+/raw/
+
+# Keep raw Excel data in private repo.
+# Do NOT ignore:
+# backend/data/raw/*.xlsx
+# backend/data/raw/*.xls
+
+# Ignore processed database and derived files
+backend/data/processed/*.db
+backend/data/processed/*.sqlite
+backend/data/processed/*.sqlite3
+backend/data/processed/*.csv
+
+# Ignore vector index files generated locally
+backend/data/index/*
+
+# Ignore generated outputs and caches
+backend/outputs/generated_results.json
+backend/outputs/*.csv
+backend/outputs/*.jsonl
+
+# Keep scaffold output placeholders
+!backend/outputs/generated_results.json
+!backend/outputs/evaluation_results.csv
+
+# Keep folder placeholders
+!backend/data/raw/.gitkeep
+!backend/data/processed/.gitkeep
+!backend/data/index/.gitkeep
+!backend/outputs/.gitkeep
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/

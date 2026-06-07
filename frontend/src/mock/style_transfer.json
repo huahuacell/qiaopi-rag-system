@@ -1,0 +1,50 @@
+{
+  "generated_text": "慈母大人膝下敬禀者：男在星洲平安，勿以为念。今托水客奉上银八元，伏乞查收，以备家中米粮药费之用。谨此禀安。",
+  "summary": [
+    "将白话家书转换为更接近侨批的敬禀语气。",
+    "保留报平安、亲属称谓、汇款金额和家用目的。"
+  ],
+  "slots": {
+    "recipient": "母亲",
+    "origin_place": "新加坡",
+    "money": "八元",
+    "purpose": "家用",
+    "input_preview": "母亲，我在新加坡平安，寄回八元给家里买米和药。"
+  },
+  "evidence": [
+    {
+      "source_field": "style_pattern",
+      "source_text": "慈母大人膝下",
+      "reason": "使用侨批常见的尊敬亲属开头",
+      "similarity_score": 0.88
+    },
+    {
+      "source_field": "original_text",
+      "source_text": "附上银八元",
+      "reason": "保留汇款金额",
+      "similarity_score": 0.94
+    }
+  ],
+  "evidence_mapping": [
+    {
+      "target_span": "慈母大人膝下敬禀者",
+      "source_field": "style_pattern",
+      "source_text": "慈母大人膝下",
+      "reason": "使用侨批常见的尊敬亲属开头",
+      "similarity_score": 0.88
+    },
+    {
+      "target_span": "奉上银八元",
+      "source_field": "original_text",
+      "source_text": "附上银八元",
+      "reason": "保留汇款金额",
+      "similarity_score": 0.94
+    }
+  ],
+  "consistency_check": {
+    "status": "passed",
+    "warnings": [],
+    "passed_rules": ["money_preserved", "recipient_preserved", "no_real_api_call"],
+    "failed_rules": []
+  }
+}

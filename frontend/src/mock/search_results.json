@@ -1,0 +1,70 @@
+{
+  "mode": "hybrid",
+  "query": "八元",
+  "total": 3,
+  "results": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-001",
+      "title": "新加坡寄往潮州的家书",
+      "origin_place": "新加坡",
+      "destination_place": "广东潮州",
+      "date": "1936",
+      "sender": "陈生",
+      "recipient": "母亲",
+      "kinship": "母亲",
+      "money": "八元",
+      "snippet": "寄信人托水客带回八元，请母亲用于购买米粮和药品。",
+      "score": 0.93,
+      "evidence": [
+        {
+          "source_field": "original_text",
+          "source_text": "附上银八元以备家用",
+          "reason": "命中汇款金额关键词",
+          "similarity_score": 0.93
+        }
+      ]
+    },
+    {
+      "record_id": "CSQP-SFHC-TEXT-002",
+      "title": "寄给祖母的汇款短札",
+      "origin_place": "新加坡",
+      "destination_place": "广东潮州",
+      "date": "1938",
+      "sender": "林文",
+      "recipient": "祖母",
+      "kinship": "祖母",
+      "money": "十元",
+      "snippet": "寄信人在新加坡报平安，并请祖母查收十元汇款。",
+      "score": 0.87,
+      "evidence": [
+        {
+          "source_field": "normalized_text",
+          "source_text": "请祖母收十元",
+          "reason": "亲属关系和汇款金额证据",
+          "similarity_score": 0.87
+        }
+      ]
+    },
+    {
+      "record_id": "CSQP-SFHC-TEXT-003",
+      "title": "寄给父母的家用书信",
+      "origin_place": "泰国",
+      "destination_place": "广东汕头",
+      "date": "1941",
+      "sender": "郑侨",
+      "recipient": "父母",
+      "kinship": "父母",
+      "money": "十五元",
+      "snippet": "寄给父母的书信，说明寄回十五元以供家用和学费。",
+      "score": 0.79,
+      "evidence": [
+        {
+          "source_field": "original_text",
+          "source_text": "十五元作家用",
+          "reason": "语义匹配家庭支持主题",
+          "similarity_score": 0.79
+        }
+      ]
+    }
+  ]
+}
