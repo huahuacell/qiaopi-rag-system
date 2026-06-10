@@ -68,6 +68,10 @@ backend/data/processed/*.db
 backend/data/processed/*.sqlite
 backend/data/processed/*.sqlite3
 backend/data/processed/*.csv
+!backend/data/processed/qiaopi_amount_mentions.csv
+!backend/data/processed/qiaopi_place_mentions.csv
+!backend/data/processed/qiaopi_entity_mentions.csv
+!backend/data/processed/qiaopi_evidence_spans.csv
 
 # Ignore vector index files generated locally
 backend/data/index/*
