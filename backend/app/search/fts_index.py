@@ -120,9 +120,12 @@ def search_fts(
             {FTS_TABLE}.title_reference,
             {FTS_TABLE}.sender,
             {FTS_TABLE}.recipient,
+            r.date_text,
+            r.main_intent,
             {FTS_TABLE}.unit_text,
             (-bm25({FTS_TABLE}) * r.weight) AS score,
-            r.evidence_type
+            r.evidence_type,
+            r.source_column
         FROM {FTS_TABLE}
         JOIN qiaopi_retrieval_units AS r
             ON r.unit_id = {FTS_TABLE}.unit_id

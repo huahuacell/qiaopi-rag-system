@@ -2,7 +2,7 @@
 
 Base URL: `http://localhost:8000`
 
-All responses are deterministic mock JSON in the scaffold phase. Field names are stable and should not be renamed without explicit contract updates.
+Field names are stable and should not be renamed without explicit contract updates.
 
 ## Step A Data Foundation
 
@@ -27,6 +27,7 @@ Core tables:
 - `qiaopi_place_mentions`
 - `qiaopi_evidence_spans`
 - `qiaopi_retrieval_units`
+- `qiaopi_retrieval_units_fts`
 - `qiaopi_generation_cache`
 - `qiaopi_query_logs`
 
@@ -34,7 +35,7 @@ Core tables:
 
 SQLite FTS5/BM25 search is built over retrieval units by `python -m app.ingestion.build_database`. It returns retrieval-unit-level matches and does not replace future semantic search.
 
-Current limitation: this step does not implement Qwen generation, FAISS semantic search, or new business API routes.
+Current limitation: Step B1 does not implement Qwen generation, FAISS semantic search, RAG generation, reranking, aggregation, or complex hybrid search.
 
 ## GET /api/health
 
@@ -44,15 +45,9 @@ Response:
 {
   "status": "healthy",
   "version": "0.1.0",
-  "message": "Qiaopi RAG mock backend is running"
+  "message": "Qiaopi RAG backend is running"
 }
 ```
-
-Fields:
-
-- `status`: backend state.
-- `version`: scaffold version.
-- `message`: human-readable status.
 
 ## GET /api/dashboard/stats
 
@@ -60,21 +55,39 @@ Response:
 
 ```json
 {
-  "total_records": 50064,
-  "text_records": 213,
-  "origin_places": [{"label": "Singapore", "value": 12680}],
-  "destination_places": [{"label": "Guangdong Chaozhou", "value": 18420}],
-  "kinship_distribution": [{"label": "mother", "value": 46}],
-  "money_distribution": [{"label": "eight yuan", "value": 22}],
-  "timeline": [{"label": "1930s", "value": 78}]
+  "total_text_records": 213,
+  "full_text_count": 202,
+  "metadata_only_count": 11,
+  "retrieval_unit_count": 1959,
+  "fts_row_count": 1959,
+  "amount_mention_count": 482,
+  "entity_mention_count": 4312,
+  "place_mention_count": 1134,
+  "evidence_count": 1097,
+  "remittance_record_count": 206
 }
 ```
 
-Fields:
+## GET /api/dashboard/distributions
 
-- `total_records`: metadata row count placeholder.
-- `text_records`: text row count placeholder.
-- Distribution arrays use `label` and `value`.
+Response:
+
+```json
+{
+  "text_quality_distribution": [{"label": "medium", "value": 92}],
+  "main_intent_distribution": [{"label": "instruction", "value": 83}],
+  "relationship_distribution": [{"label": "son_to_parent", "value": 80}],
+  "unit_type_distribution": [{"label": "record_full", "value": 213}],
+  "top_places": [{"label": "新加坡", "value": 230}],
+  "top_countries_or_regions": [{"label": "广东侨乡", "value": 420}],
+  "year_distribution": [{"label": "1931", "value": 8}]
+}
+```
+
+Each distribution item uses:
+
+- `label`: bucket name.
+- `value`: row count.
 
 ## POST /api/search/keyword
 
@@ -82,13 +95,10 @@ Request:
 
 ```json
 {
-  "query": "eight yuan",
-  "filters": {
-    "origin_place": "Singapore",
-    "destination_place": "Guangdong Chaozhou"
-  },
-  "page": 1,
-  "page_size": 10
+  "query": "母亲 寄款 查收",
+  "top_k": 10,
+  "unit_types": [],
+  "filters": {}
 }
 ```
 
@@ -96,42 +106,29 @@ Response:
 
 ```json
 {
-  "mode": "keyword",
-  "query": "eight yuan",
-  "total": 2,
+  "query": "母亲 寄款 查收",
+  "top_k": 10,
   "results": [
     {
-      "record_id": "CSQP-SFHC-TEXT-001",
-      "title": "Letter from Singapore to Chaozhou",
-      "origin_place": "Singapore",
-      "destination_place": "Guangdong Chaozhou",
-      "date": "1936",
-      "sender": "Chen Sheng",
-      "recipient": "mother",
-      "kinship": "mother",
-      "money": "eight yuan",
-      "snippet": "Sent eight yuan home and asked mother to use it for rice and medicine.",
-      "score": 0.93,
-      "evidence": [
-        {
-          "source_field": "original_text",
-          "source_text": "attached eight yuan for household use",
-          "reason": "Keyword match on remittance amount",
-          "similarity_score": 0.93
-        }
-      ]
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "unit_id": "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+      "unit_type": "remittance",
+      "title_reference": "题名文本",
+      "sender": "寄批人",
+      "recipient": "收批人",
+      "date_text": "癸九月十一日",
+      "main_intent": "remittance",
+      "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "snippet": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "bm25_score": 0.000007,
+      "evidence_type": "remittance",
+      "source_column": "evidence_remittance"
     }
   ]
 }
 ```
 
-## POST /api/search/semantic
-
-Same request and response shape as keyword search. `mode` is `semantic`; `score` means semantic similarity.
-
-## POST /api/search/hybrid
-
-Same request and response shape as keyword search. `mode` is `hybrid`; `score` combines keyword and semantic placeholder signals.
+Search uses SQLite FTS5/BM25 over `qiaopi_retrieval_units_fts`. Results are retrieval-unit-level. Step B2 may add reranking, record aggregation, and richer filters.
 
 ## GET /api/records/{record_id}
 
@@ -139,31 +136,56 @@ Response:
 
 ```json
 {
-  "record_id": "CSQP-SFHC-TEXT-001",
-  "title": "Letter from Singapore to Chaozhou",
-  "metadata": {
-    "origin_place": "Singapore",
-    "destination_place": "Guangdong Chaozhou",
-    "date": "1936",
-    "sender": "Chen Sheng",
-    "recipient": "mother",
-    "kinship": "mother",
-    "money": "eight yuan"
-  },
-  "original_text": "Qiaopi-style source text placeholder",
-  "normalized_text": "Normalized plain text placeholder",
-  "entities": [],
-  "evidence": []
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "title_reference": "题名文本",
+  "sender": "寄批人",
+  "recipient": "收批人",
+  "sender_name_clean": "寄批人名",
+  "recipient_name_clean": "收批人名",
+  "date_text": "癸九月十一日",
+  "year_normalized": "",
+  "body_clean": "清洗后正文",
+  "body_core": "正文核心内容",
+  "main_intent": "remittance",
+  "theme_tags": "theme_remittance；theme_family_affection",
+  "text_quality_level": "high",
+  "has_full_text": 1,
+  "has_remittance": 1,
+  "relationship_type": "son_to_parent",
+  "place_mentions_normalized": "新加坡；广东侨乡",
+  "retrieval_keywords": "母亲；寄款；查收",
+  "rag_summary_text": "RAG 摘要文本",
+  "style_reference_text": "风格样本文本",
+  "raw_fields": {
+    "record_id": "CSQP-SFHC-TEXT-017"
+  }
 }
 ```
 
-Fields:
+If the record does not exist, returns HTTP 404.
 
-- `metadata`: stable record-level fields used by search, filtering, and display.
-- `original_text`: source Qiaopi text or placeholder.
-- `normalized_text`: readable normalized text or placeholder.
-- `entities`: extracted entity objects.
-- `evidence`: evidence objects tied to the record.
+## GET /api/records/{record_id}/amounts
+
+Response:
+
+```json
+{
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "amounts": [
+    {
+      "mention_id": "CSQP-SFHC-TEXT-017-AMT-001",
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "raw_text": "洋银肆元",
+      "amount_text": "肆元",
+      "amount_number": 4,
+      "currency": "洋银",
+      "sentence": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "is_primary_candidate": 1,
+      "source_field": "body_clean"
+    }
+  ]
+}
+```
 
 ## GET /api/records/{record_id}/entities
 
@@ -171,93 +193,91 @@ Response:
 
 ```json
 {
-  "record_id": "CSQP-SFHC-TEXT-001",
+  "record_id": "CSQP-SFHC-TEXT-017",
   "entities": [
     {
-      "entity_type": "money",
-      "value": "eight yuan",
-      "source_text": "attached eight yuan",
-      "confidence": 0.91
+      "mention_id": "CSQP-SFHC-TEXT-017-ENT-0001",
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "entity_type": "kinship",
+      "value": "母亲",
+      "source_text": "慈亲",
+      "normalized_text": "母亲",
+      "source_field": "body_clean",
+      "confidence": 0.9
     }
   ]
 }
 ```
 
-## GET /api/records/{record_id}/similar
-
-Response shape matches search responses:
-
-```json
-{
-  "mode": "similar",
-  "query": "CSQP-SFHC-TEXT-001",
-  "total": 1,
-  "results": []
-}
-```
-
-## POST /api/generation/plain-interpretation
-
-Request:
-
-```json
-{
-  "record_id": "CSQP-SFHC-TEXT-001",
-  "original_text": ""
-}
-```
+## GET /api/records/{record_id}/places
 
 Response:
 
 ```json
 {
-  "record_id": "CSQP-SFHC-TEXT-001",
-  "generated_text": "Plain Chinese interpretation placeholder",
-  "summary": ["Sender reports safety", "Sender remits eight yuan"],
-  "slots": {
-    "sender": "Chen Sheng",
-    "recipient": "mother",
-    "money": "eight yuan"
-  },
-  "evidence": [],
-  "evidence_mapping": [],
-  "consistency_check": {
-    "status": "passed",
-    "warnings": [],
-    "passed_rules": ["money_supported_by_evidence"],
-    "failed_rules": []
-  }
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "places": [
+    {
+      "mention_id": "CSQP-SFHC-TEXT-017-PLC-001",
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "alias_text": "星洲",
+      "normalized_place": "新加坡",
+      "country_or_region": "新加坡",
+      "source_field": "body_clean"
+    }
+  ]
 }
 ```
 
-## POST /api/generation/style-transfer
+## GET /api/records/{record_id}/evidence
 
-Request:
+Response:
 
 ```json
 {
-  "plain_text": "Mother, I am safe in Singapore and send eight yuan home.",
-  "slots": {
-    "recipient": "mother",
-    "money": "eight yuan"
-  }
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "evidence": [
+    {
+      "evidence_id": "CSQP-SFHC-TEXT-017-EVID-0001",
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "evidence_type": "remittance",
+      "evidence_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "source_column": "body_clean",
+      "start_char": 12,
+      "end_char": 35
+    }
+  ]
 }
 ```
 
-Response shape:
+## GET /api/records/{record_id}/retrieval-units
+
+Response:
 
 ```json
 {
-  "generated_text": "Qiaopi-style generated text placeholder",
-  "summary": ["Converted plain letter into respectful Qiaopi style"],
-  "slots": {},
-  "evidence": [],
-  "evidence_mapping": [],
-  "consistency_check": {
-    "status": "passed",
-    "warnings": [],
-    "passed_rules": [],
-    "failed_rules": []
-  }
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "retrieval_units": [
+    {
+      "unit_id": "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "unit_type": "remittance",
+      "source_column": "evidence_remittance",
+      "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "title_reference": "题名文本",
+      "sender": "寄批人",
+      "recipient": "收批人",
+      "date_text": "癸九月十一日",
+      "main_intent": "remittance",
+      "theme_tags": "theme_remittance",
+      "style_keywords": "慈亲；膝下；查收",
+      "relationship_type": "son_to_parent",
+      "place_mentions_normalized": "新加坡",
+      "retrieval_keywords": "母亲；寄款；查收",
+      "weight": 1.5,
+      "evidence_type": "remittance",
+      "fts_text": "母亲 寄款 查收 新加坡"
+    }
+  ]
 }
 ```
