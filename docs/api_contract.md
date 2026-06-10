@@ -4,6 +4,38 @@ Base URL: `http://localhost:8000`
 
 All responses are deterministic mock JSON in the scaffold phase. Field names are stable and should not be renamed without explicit contract updates.
 
+## Step A Data Foundation
+
+Processed source data:
+
+- `backend/data/processed/qiaopi_213_wide_table.csv`
+- `backend/data/processed/qiaopi_213_wide_table.xlsx` as fallback if the CSV is missing
+- `backend/data/processed/qiaopi_amount_mentions.csv`
+- `backend/data/processed/qiaopi_entity_mentions.csv`
+- `backend/data/processed/qiaopi_place_mentions.csv`
+- `backend/data/processed/qiaopi_evidence_spans.csv`
+
+Local SQLite database path:
+
+- `backend/data/processed/qiaopi.db`
+
+Core tables:
+
+- `qiaopi_text_records`
+- `qiaopi_amount_mentions`
+- `qiaopi_entity_mentions`
+- `qiaopi_place_mentions`
+- `qiaopi_evidence_spans`
+- `qiaopi_retrieval_units`
+- `qiaopi_generation_cache`
+- `qiaopi_query_logs`
+
+`qiaopi_retrieval_units` stores record-level, body, evidence, style, and RAG summary retrieval units with stable `unit_id`, traceable source columns, evidence type, weight, and normalized `fts_text`.
+
+SQLite FTS5/BM25 search is built over retrieval units by `python -m app.ingestion.build_database`. It returns retrieval-unit-level matches and does not replace future semantic search.
+
+Current limitation: this step does not implement Qwen generation, FAISS semantic search, or new business API routes.
+
 ## GET /api/health
 
 Response:
@@ -229,4 +261,3 @@ Response shape:
   }
 }
 ```
-
