@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -44,6 +44,7 @@ class SearchRequest(BaseModel):
     top_k: int = Field(default=10, ge=1, le=100)
     unit_types: List[str] = Field(default_factory=list)
     filters: Dict[str, Any] = Field(default_factory=dict)
+    expansion_mode: Literal["strict", "balanced", "broad"] = "balanced"
 
 
 class SearchResult(BaseModel):
@@ -57,15 +58,58 @@ class SearchResult(BaseModel):
     main_intent: str
     unit_text: str
     snippet: str
+    matched_text: str
+    matched_reason: str
     bm25_score: float
+    final_score: float
+    original_hit_count: int
+    strong_hit_count: int
+    medium_hit_count: int
+    weak_hit_count: int
     evidence_type: str
     source_column: str
 
 
+class GroupedMatchedUnit(BaseModel):
+    unit_id: str
+    unit_type: str
+    unit_text: str
+    source_column: str
+    evidence_type: str
+    bm25_score: float
+    final_score: float
+    matched_reason: str
+    original_hit_count: int
+    strong_hit_count: int
+    medium_hit_count: int
+    weak_hit_count: int
+
+
+class GroupedSearchRecord(BaseModel):
+    record_id: str
+    title_reference: str
+    sender: str
+    recipient: str
+    date_text: str
+    main_intent: str
+    best_score: float
+    matched_units: List[GroupedMatchedUnit]
+
+
 class SearchResponse(BaseModel):
     query: str
+    normalized_query: str
+    expanded_query: str
+    expansion_mode: Literal["strict", "balanced", "broad"]
+    original_terms: List[str]
+    strong_expansion_terms: List[str]
+    medium_expansion_terms: List[str]
+    weak_expansion_terms: List[str]
+    expansion_terms: List[str]
     top_k: int
+    semantic_enabled: bool
     results: List[SearchResult]
+    grouped_by_record: List[GroupedSearchRecord]
 
 
 class AmountMention(BaseModel):

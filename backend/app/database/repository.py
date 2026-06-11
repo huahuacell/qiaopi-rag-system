@@ -574,25 +574,47 @@ def fetch_retrieval_units(record_id: str) -> list[dict[str, Any]]:
 def _matches_filters(row: Mapping[str, Any], filters: Mapping[str, Any]) -> bool:
     if not filters:
         return True
-    allowed_exact_keys = {
+    exact_keys = {
         "record_id",
         "unit_id",
-        "unit_type",
         "sender",
         "recipient",
         "date_text",
         "main_intent",
+        "relationship_type",
+        "text_quality_level",
+        "year_normalized",
         "evidence_type",
         "source_column",
     }
     for key, value in filters.items():
         if value in (None, "", []):
             continue
-        if key in allowed_exact_keys and str(row.get(key, "")) != str(value):
+        if key in exact_keys and str(row.get(key, "")) != str(value):
+            return False
+        if key == "unit_type" and str(row.get("unit_type", "")) != str(value):
             return False
         if key == "unit_types":
             values = {str(item) for item in value}
             if str(row.get("unit_type", "")) not in values:
+                return False
+        if key == "theme" and str(value) not in str(row.get("theme_tags", "")):
+            return False
+        if key == "place":
+            haystack = "；".join(
+                [
+                    str(row.get("place_mentions_normalized", "")),
+                    str(row.get("normalized_places", "")),
+                ]
+            )
+            if str(value) not in haystack:
+                return False
+        if key == "country_or_region":
+            if str(value) not in str(row.get("countries_or_regions", "")):
+                return False
+        if key == "has_remittance":
+            expected = 1 if str(value).lower() in {"1", "true", "yes"} else 0
+            if _safe_int(row.get("has_remittance")) != expected:
                 return False
     return True
 
@@ -610,21 +632,45 @@ def _fetch_top_retrieval_units(top_k: int, unit_types: Iterable[str] | None) -> 
         rows = connection.execute(
             f"""
             SELECT
-                unit_id,
-                record_id,
-                unit_type,
-                title_reference,
-                sender,
-                recipient,
-                date_text,
-                main_intent,
-                unit_text,
+                r.unit_id,
+                r.record_id,
+                r.unit_type,
+                r.title_reference,
+                r.sender,
+                r.recipient,
+                r.date_text,
+                r.main_intent,
+                r.unit_text,
                 0.0 AS score,
-                evidence_type,
-                source_column
-            FROM qiaopi_retrieval_units
+                0.0 AS bm25_score,
+                r.evidence_type,
+                r.source_column,
+                r.theme_tags,
+                r.style_keywords,
+                r.relationship_type,
+                r.place_mentions_normalized,
+                r.retrieval_keywords,
+                r.fts_text,
+                r.weight,
+                t.text_quality_level,
+                t.has_remittance,
+                t.year_normalized,
+                COALESCE(p.normalized_places, '') AS normalized_places,
+                COALESCE(p.countries_or_regions, '') AS countries_or_regions
+            FROM qiaopi_retrieval_units AS r
+            JOIN qiaopi_text_records AS t
+                ON t.record_id = r.record_id
+            LEFT JOIN (
+                SELECT
+                    record_id,
+                    GROUP_CONCAT(DISTINCT normalized_place) AS normalized_places,
+                    GROUP_CONCAT(DISTINCT country_or_region) AS countries_or_regions
+                FROM qiaopi_place_mentions
+                GROUP BY record_id
+            ) AS p
+                ON p.record_id = r.record_id
             {unit_type_clause}
-            ORDER BY weight DESC, unit_id ASC
+            ORDER BY r.weight DESC, r.unit_id ASC
             LIMIT ?
             """,
             params,

@@ -123,15 +123,39 @@ def search_fts(
             r.date_text,
             r.main_intent,
             {FTS_TABLE}.unit_text,
-            (-bm25({FTS_TABLE}) * r.weight) AS score,
+            bm25({FTS_TABLE}) AS bm25_score,
+            bm25({FTS_TABLE}) AS score,
             r.evidence_type,
-            r.source_column
+            r.source_column,
+            r.theme_tags,
+            r.style_keywords,
+            r.relationship_type,
+            r.place_mentions_normalized,
+            r.retrieval_keywords,
+            r.fts_text,
+            r.weight,
+            t.text_quality_level,
+            t.has_remittance,
+            t.year_normalized,
+            COALESCE(p.normalized_places, '') AS normalized_places,
+            COALESCE(p.countries_or_regions, '') AS countries_or_regions
         FROM {FTS_TABLE}
         JOIN qiaopi_retrieval_units AS r
             ON r.unit_id = {FTS_TABLE}.unit_id
+        JOIN qiaopi_text_records AS t
+            ON t.record_id = r.record_id
+        LEFT JOIN (
+            SELECT
+                record_id,
+                GROUP_CONCAT(DISTINCT normalized_place) AS normalized_places,
+                GROUP_CONCAT(DISTINCT country_or_region) AS countries_or_regions
+            FROM qiaopi_place_mentions
+            GROUP BY record_id
+        ) AS p
+            ON p.record_id = r.record_id
         WHERE {FTS_TABLE} MATCH ?
         {unit_type_clause}
-        ORDER BY score DESC, {FTS_TABLE}.unit_id ASC
+        ORDER BY bm25_score ASC, {FTS_TABLE}.unit_id ASC
         LIMIT ?
         """,
         params,
