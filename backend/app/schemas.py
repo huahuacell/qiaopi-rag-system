@@ -1,4 +1,6 @@
-from typing import Dict, List, Optional
+from __future__ import annotations
+
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -15,71 +17,215 @@ class ChartItem(BaseModel):
 
 
 class DashboardStatsResponse(BaseModel):
-    total_records: int
-    text_records: int
-    origin_places: List[ChartItem]
-    destination_places: List[ChartItem]
-    kinship_distribution: List[ChartItem]
-    money_distribution: List[ChartItem]
-    timeline: List[ChartItem]
+    total_text_records: int
+    full_text_count: int
+    metadata_only_count: int
+    retrieval_unit_count: int
+    fts_row_count: int
+    amount_mention_count: int
+    entity_mention_count: int
+    place_mention_count: int
+    evidence_count: int
+    remittance_record_count: int
 
 
-class EvidenceItem(BaseModel):
-    source_field: str
-    source_text: str
-    reason: str
-    similarity_score: float = Field(ge=0.0, le=1.0)
+class DashboardDistributionsResponse(BaseModel):
+    text_quality_distribution: List[ChartItem]
+    main_intent_distribution: List[ChartItem]
+    relationship_distribution: List[ChartItem]
+    unit_type_distribution: List[ChartItem]
+    top_places: List[ChartItem]
+    top_countries_or_regions: List[ChartItem]
+    year_distribution: List[ChartItem]
 
 
 class SearchRequest(BaseModel):
     query: str = ""
-    filters: Dict[str, Optional[str]] = Field(default_factory=dict)
-    page: int = Field(default=1, ge=1)
-    page_size: int = Field(default=10, ge=1, le=100)
+    top_k: int = Field(default=10, ge=1, le=100)
+    unit_types: List[str] = Field(default_factory=list)
+    filters: Dict[str, Any] = Field(default_factory=dict)
+    expansion_mode: Literal["strict", "balanced", "broad"] = "balanced"
 
 
 class SearchResult(BaseModel):
     record_id: str
-    title: str
-    origin_place: str
-    destination_place: str
-    date: str
+    unit_id: str
+    unit_type: str
+    title_reference: str
     sender: str
     recipient: str
-    kinship: str
-    money: str
+    date_text: str
+    main_intent: str
+    unit_text: str
     snippet: str
-    score: float = Field(ge=0.0, le=1.0)
-    evidence: List[EvidenceItem]
+    matched_text: str
+    matched_reason: str
+    bm25_score: float
+    final_score: float
+    original_hit_count: int
+    strong_hit_count: int
+    medium_hit_count: int
+    weak_hit_count: int
+    evidence_type: str
+    source_column: str
+
+
+class GroupedMatchedUnit(BaseModel):
+    unit_id: str
+    unit_type: str
+    unit_text: str
+    source_column: str
+    evidence_type: str
+    bm25_score: float
+    final_score: float
+    matched_reason: str
+    original_hit_count: int
+    strong_hit_count: int
+    medium_hit_count: int
+    weak_hit_count: int
+
+
+class GroupedSearchRecord(BaseModel):
+    record_id: str
+    title_reference: str
+    sender: str
+    recipient: str
+    date_text: str
+    main_intent: str
+    best_score: float
+    matched_units: List[GroupedMatchedUnit]
 
 
 class SearchResponse(BaseModel):
-    mode: str
     query: str
-    total: int
+    normalized_query: str
+    expanded_query: str
+    expansion_mode: Literal["strict", "balanced", "broad"]
+    original_terms: List[str]
+    strong_expansion_terms: List[str]
+    medium_expansion_terms: List[str]
+    weak_expansion_terms: List[str]
+    expansion_terms: List[str]
+    top_k: int
+    semantic_enabled: bool
     results: List[SearchResult]
+    grouped_by_record: List[GroupedSearchRecord]
+
+
+class AmountMention(BaseModel):
+    mention_id: str
+    record_id: str
+    raw_text: str
+    amount_text: str
+    amount_number: Optional[float] = None
+    currency: str
+    sentence: str
+    is_primary_candidate: Optional[int] = None
+    source_field: str
 
 
 class EntityItem(BaseModel):
+    mention_id: Optional[str] = None
+    record_id: Optional[str] = None
     entity_type: str
     value: str
     source_text: str
-    confidence: float = Field(ge=0.0, le=1.0)
+    normalized_text: str = ""
+    source_field: str = ""
+    confidence: Optional[float] = None
+
+
+class PlaceMention(BaseModel):
+    mention_id: str
+    record_id: str
+    alias_text: str
+    normalized_place: str
+    country_or_region: str
+    source_field: str
+
+
+class EvidenceItem(BaseModel):
+    evidence_id: Optional[str] = None
+    record_id: Optional[str] = None
+    evidence_type: Optional[str] = None
+    evidence_text: Optional[str] = None
+    source_column: Optional[str] = None
+    start_char: Optional[int] = None
+    end_char: Optional[int] = None
+    source_field: Optional[str] = None
+    source_text: Optional[str] = None
+    reason: Optional[str] = None
+    similarity_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+
+
+class RetrievalUnit(BaseModel):
+    unit_id: str
+    record_id: str
+    unit_type: str
+    source_column: str
+    unit_text: str
+    title_reference: str
+    sender: str
+    recipient: str
+    date_text: str
+    main_intent: str
+    theme_tags: str
+    style_keywords: str
+    relationship_type: str
+    place_mentions_normalized: str
+    retrieval_keywords: str
+    weight: float
+    evidence_type: str
+    fts_text: str
 
 
 class RecordDetailResponse(BaseModel):
     record_id: str
-    title: str
-    metadata: Dict[str, str]
-    original_text: str
-    normalized_text: str
-    entities: List[EntityItem]
-    evidence: List[EvidenceItem]
+    title_reference: str
+    sender: str
+    recipient: str
+    sender_name_clean: str
+    recipient_name_clean: str
+    date_text: str
+    year_normalized: str
+    body_clean: str
+    body_core: str
+    main_intent: str
+    theme_tags: str
+    text_quality_level: str
+    has_full_text: int
+    has_remittance: int
+    relationship_type: str
+    place_mentions_normalized: str
+    retrieval_keywords: str
+    rag_summary_text: str
+    style_reference_text: str
+    raw_fields: Dict[str, Any]
+
+
+class AmountsResponse(BaseModel):
+    record_id: str
+    amounts: List[AmountMention]
 
 
 class EntityResponse(BaseModel):
     record_id: str
     entities: List[EntityItem]
+
+
+class PlacesResponse(BaseModel):
+    record_id: str
+    places: List[PlaceMention]
+
+
+class EvidenceResponse(BaseModel):
+    record_id: str
+    evidence: List[EvidenceItem]
+
+
+class RetrievalUnitsResponse(BaseModel):
+    record_id: str
+    retrieval_units: List[RetrievalUnit]
 
 
 class EvidenceMappingItem(BaseModel):
@@ -124,4 +270,3 @@ class StyleTransferResponse(BaseModel):
     evidence: List[EvidenceItem]
     evidence_mapping: List[EvidenceMappingItem]
     consistency_check: ConsistencyCheck
-

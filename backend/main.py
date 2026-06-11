@@ -1,17 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.dashboard_routes import router as dashboard_router
+from app.api.dashboard import router as dashboard_router
 from app.api.generation_routes import router as generation_router
-from app.api.record_routes import router as record_router
-from app.api.search_routes import router as search_router
+from app.api.records import router as record_router
+from app.api.search import router as search_router
 from app.schemas import HealthResponse
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Qiaopi RAG System API",
-        description="Local-only mock API for the Qiaopi NLP/RAG scaffold.",
+        description="SQLite-backed API for the Qiaopi NLP/RAG backend foundation.",
         version="0.1.0",
     )
 
@@ -28,7 +28,7 @@ def create_app() -> FastAPI:
         return HealthResponse(
             status="healthy",
             version="0.1.0",
-            message="Qiaopi RAG mock backend is running",
+            message="Qiaopi RAG backend is running",
         )
 
     app.include_router(dashboard_router)
@@ -39,4 +39,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-

@@ -63,11 +63,10 @@ Thumbs.db
 # backend/data/raw/*.xlsx
 # backend/data/raw/*.xls
 
-# Ignore processed database and derived files
+# Ignore processed database files. Processed CSV/XLSX files are source data.
 backend/data/processed/*.db
 backend/data/processed/*.sqlite
 backend/data/processed/*.sqlite3
-backend/data/processed/*.csv
 
 # Ignore vector index files generated locally
 backend/data/index/*
