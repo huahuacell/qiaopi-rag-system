@@ -35,7 +35,13 @@ Core tables:
 
 SQLite FTS5/BM25 search is built over retrieval units by `python -m app.ingestion.build_database`. It returns retrieval-unit-level matches and does not replace future semantic search.
 
-Current limitation: Step B1 does not implement Qwen generation, FAISS semantic search, RAG generation, reranking, aggregation, or complex hybrid search.
+Step B2 adds precision-aware qiaopi-domain query expansion, staged retrieval, Python reranking, matched reasons, and record-level aggregation for search display.
+
+Step C adds RAG evidence context and qiaopi style context construction. These APIs prepare traceable context blocks for later generation but do not call Qwen.
+
+Step D1 adds a Qwen generation foundation for prompt preview, evidence-grounded modern interpretation, and qiaopi-style drafting. Qwen calls are disabled unless environment variables explicitly enable them.
+
+Step F adds optional semantic retrieval over `qiaopi_retrieval_units`. Build the local semantic index with `python -m app.ingestion.build_semantic_index` after rebuilding the SQLite database. Runtime semantic retrieval remains disabled until `SEMANTIC_SEARCH_ENABLED=true` and index files exist. Generated content is not historical source material and must be displayed with evidence references.
 
 ## GET /api/health
 
@@ -91,6 +97,15 @@ Each distribution item uses:
 
 ## POST /api/search/keyword
 
+Search pipeline:
+
+- Normalize unsafe punctuation and whitespace before sending text into FTS5.
+- Expand modern Chinese terms to weighted qiaopi-domain groups: original terms, strong expansion terms, medium expansion terms, and weak expansion terms.
+- Retrieve first-stage candidates from `qiaopi_retrieval_units_fts` with SQLite FTS5/BM25.
+- Use `expansion_mode` to control precision: `strict` uses original + strong terms, `balanced` stages original/strong first and adds medium or weak terms only if needed, and `broad` uses all terms while still applying coverage penalties.
+- Rerank candidates in Python using BM25, unit-type boosts, query coverage, weak-only penalties, and penalties for very short `closing` or signature-like units.
+- Return unit-level results and `grouped_by_record` for record-level display.
+
 Request:
 
 ```json
@@ -98,7 +113,8 @@ Request:
   "query": "母亲 寄款 查收",
   "top_k": 10,
   "unit_types": [],
-  "filters": {}
+  "filters": {},
+  "expansion_mode": "balanced"
 }
 ```
 
@@ -107,7 +123,16 @@ Response:
 ```json
 {
   "query": "母亲 寄款 查收",
+  "normalized_query": "母亲 寄款 查收",
+  "expanded_query": "母亲 寄款 查收 慈亲 萱堂 家母 大人 膝下 批款 寄上 汇上 付去 兹托 带去 奉上 收讫 照收 如数查收 收用 检收 祈收 严慈 批局 查明",
+  "expansion_mode": "balanced",
+  "original_terms": ["母亲", "寄款", "查收"],
+  "strong_expansion_terms": ["慈亲", "萱堂", "家母", "批款", "寄上", "汇上", "收讫", "照收", "如数查收"],
+  "medium_expansion_terms": ["大人", "膝下", "阿母", "阿妈", "付去", "兹托", "带去", "奉上", "收用", "检收", "祈收"],
+  "weak_expansion_terms": ["严慈", "批局", "查明"],
+  "expansion_terms": ["慈亲", "萱堂", "家母", "批款", "寄上", "汇上"],
   "top_k": 10,
+  "semantic_enabled": false,
   "results": [
     {
       "record_id": "CSQP-SFHC-TEXT-017",
@@ -120,15 +145,830 @@ Response:
       "main_intent": "remittance",
       "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
       "snippet": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
-      "bm25_score": 0.000007,
+      "matched_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "matched_reason": "命中寄款片段；原始查询命中“查收”；中扩展命中“带去”；弱扩展命中“批局”",
+      "bm25_score": -0.000007,
+      "semantic_score": 0,
+      "final_score": 1.8399826,
+      "retrieval_sources": [],
+      "original_hit_count": 1,
+      "strong_hit_count": 0,
+      "medium_hit_count": 1,
+      "weak_hit_count": 1,
       "evidence_type": "remittance",
       "source_column": "evidence_remittance"
+    }
+  ],
+  "grouped_by_record": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "title_reference": "题名文本",
+      "sender": "寄批人",
+      "recipient": "收批人",
+      "date_text": "癸九月十一日",
+      "main_intent": "remittance",
+      "best_score": 1.8399826,
+      "matched_units": [
+        {
+          "unit_id": "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+          "unit_type": "remittance",
+          "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+          "source_column": "evidence_remittance",
+          "evidence_type": "remittance",
+          "bm25_score": -0.000007,
+          "final_score": 1.8399826,
+          "matched_reason": "命中寄款片段；原始查询命中“查收”；中扩展命中“带去”；弱扩展命中“批局”",
+          "original_hit_count": 1,
+          "semantic_score": 0,
+          "retrieval_sources": [],
+          "strong_hit_count": 0,
+          "medium_hit_count": 1,
+          "weak_hit_count": 1
+        }
+      ]
     }
   ]
 }
 ```
 
-Search uses SQLite FTS5/BM25 over `qiaopi_retrieval_units_fts`. Results are retrieval-unit-level. Step B2 may add reranking, record aggregation, and richer filters.
+`results` are reranked retrieval-unit matches. `grouped_by_record` contains one item per record and up to three top matched units per record. `matched_reason` must cite actual hit terms; if a unit only matches a broad type without core terms, it is marked as such and penalized.
+
+## POST /api/search/advanced
+
+Request shape matches keyword search. Supported filters:
+
+- `main_intent`
+- `theme`
+- `relationship_type`
+- `place`
+- `country_or_region`
+- `has_remittance`
+- `text_quality_level`
+- `year_normalized`
+- `unit_type`
+
+Example request:
+
+```json
+{
+  "query": "读书 勤俭",
+  "top_k": 10,
+  "unit_types": ["instruction", "body_core"],
+  "filters": {
+    "main_intent": "instruction"
+  },
+  "expansion_mode": "balanced"
+}
+```
+
+Response shape is the same as `/api/search/keyword`, with `semantic_enabled` set to `false`.
+
+## GET /api/search/semantic/status
+
+Purpose: safely diagnose whether semantic retrieval is available in the running backend process.
+
+Response:
+
+```json
+{
+  "semantic_enabled": true,
+  "configured_enabled": true,
+  "index_exists": true,
+  "metadata_exists": true,
+  "embedding_provider": "local",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "index_path": "backend/data/index/qiaopi_retrieval_units.faiss",
+  "metadata_path": "backend/data/index/qiaopi_retrieval_units_meta.jsonl",
+  "vector_count": 1959,
+  "error_message": null
+}
+```
+
+If semantic search is disabled or the index is missing, the endpoint returns HTTP 200 with `semantic_enabled=false` and an `error_message`. It never returns embedding or generation API keys.
+
+## POST /api/search/semantic
+
+Purpose: retrieve `qiaopi_retrieval_units` by embedding similarity. This endpoint does not do query expansion or BM25 reranking.
+
+Request:
+
+```json
+{
+  "query": "母亲寄款查收",
+  "top_k": 10,
+  "unit_types": ["remittance", "body_core"],
+  "filters": {}
+}
+```
+
+Response:
+
+```json
+{
+  "query": "母亲寄款查收",
+  "top_k": 10,
+  "semantic_enabled": true,
+  "results": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "unit_id": "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+      "unit_type": "remittance",
+      "title_reference": "题名文本",
+      "sender": "寄批人",
+      "recipient": "收批人",
+      "date_text": "癸九月十一日",
+      "main_intent": "remittance",
+      "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "snippet": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "matched_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "matched_reason": "语义向量相似度命中",
+      "bm25_score": 0,
+      "semantic_score": 0.8123,
+      "final_score": 0.8123,
+      "retrieval_sources": ["semantic"],
+      "original_hit_count": 0,
+      "strong_hit_count": 0,
+      "medium_hit_count": 0,
+      "weak_hit_count": 0,
+      "evidence_type": "remittance",
+      "source_column": "evidence_remittance"
+    }
+  ],
+  "error_message": null,
+  "index_backend": "faiss"
+}
+```
+
+If `SEMANTIC_SEARCH_ENABLED=false` or index files are missing, the endpoint returns HTTP 200 with `semantic_enabled=false`, empty `results`, and a controlled `error_message`.
+
+## POST /api/search/hybrid
+
+Hybrid search combines advanced keyword retrieval with semantic retrieval using reciprocal rank fusion (`fusion_method: "rrf"`). If semantic search is disabled, misconfigured, or missing index files, it returns the keyword results with `fusion_method: "keyword_fallback"` and does not fake semantic scores.
+
+Example request:
+
+```json
+{
+  "query": "新加坡 平安",
+  "top_k": 10,
+  "unit_types": ["safety", "body_core", "record_full"],
+  "filters": {},
+  "expansion_mode": "balanced"
+}
+```
+
+Response shape is the same as `/api/search/keyword`, with:
+
+```json
+{
+  "semantic_enabled": true,
+  "fusion_method": "rrf",
+  "error_message": null
+}
+```
+
+Each result includes:
+
+- `bm25_score`: score from keyword/FTS retrieval when present.
+- `semantic_score`: embedding similarity when present.
+- `final_score`: fused RRF score for hybrid responses.
+- `retrieval_sources`: `["keyword"]`, `["semantic"]`, or `["keyword", "semantic"]`.
+
+## POST /api/rag/context
+
+Purpose: prepare traceable evidence context for future qiaopi interpretation, question answering, or plain Chinese explanation. This endpoint can use keyword, semantic, or hybrid retrieval via `retrieval_mode`. It does not call Qwen.
+
+Request:
+
+```json
+{
+  "query": "母亲寄款查收的侨批内容",
+  "top_k": 8,
+  "unit_types": ["body_core", "remittance", "family_care", "instruction", "rag_summary"],
+  "filters": {},
+  "expansion_mode": "balanced",
+  "retrieval_mode": "hybrid"
+}
+```
+
+Response:
+
+```json
+{
+  "query": "母亲寄款查收的侨批内容",
+  "normalized_query": "母亲寄款查收的侨批内容 母亲 寄款 查收",
+  "expanded_query": "母亲寄款查收的侨批内容 母亲 寄款 查收 慈亲 萱堂 家母 批款 寄上 汇上 收讫 照收 如数查收 大人 膝下 阿母 阿妈 付去 兹托 带去 奉上 收用 检收 祈收 严慈 批局 查明",
+  "expansion_mode": "balanced",
+  "semantic_enabled": false,
+  "contexts": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "unit_id": "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+      "unit_type": "remittance",
+      "title_reference": "题名文本",
+      "sender": "寄批人",
+      "recipient": "收批人",
+      "date_text": "癸九月十一日",
+      "main_intent": "remittance",
+      "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "source_column": "evidence_remittance",
+      "evidence_type": "remittance",
+      "matched_reason": "命中寄款片段；原始查询命中“查收”",
+      "final_score": 1.8399826
+    }
+  ],
+  "grouped_contexts": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "title_reference": "题名文本",
+      "sender": "寄批人",
+      "recipient": "收批人",
+      "date_text": "癸九月十一日",
+      "main_intent": "remittance",
+      "best_score": 1.8399826,
+      "matched_units": [
+        {
+          "unit_id": "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+          "unit_type": "remittance",
+          "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+          "source_column": "evidence_remittance",
+          "evidence_type": "remittance",
+          "bm25_score": -0.000007,
+          "final_score": 1.8399826,
+          "matched_reason": "命中寄款片段；原始查询命中“查收”",
+          "original_hit_count": 1,
+          "strong_hit_count": 0,
+          "medium_hit_count": 1,
+          "weak_hit_count": 1
+        }
+      ]
+    }
+  ],
+  "prompt_context": "【检索问题】\n母亲寄款查收的侨批内容\n\n【相关侨批证据 1】\n来源记录：CSQP-SFHC-TEXT-017\n题名：题名文本\n寄批人：寄批人\n收批人：收批人\n日期：癸九月十一日\n证据类型：remittance\n来源字段：evidence_remittance\n原文片段：兹寄批局，带去洋银肆元，至照查收，以安家计。",
+  "evidence_count": 1,
+  "source_record_count": 1
+}
+```
+
+`contexts` are deduplicated by `unit_text` and selected to avoid overloading the prompt with too many units from the same record when enough records are available. Traceability fields are preserved: `record_id`, `unit_id`, `source_column`, and `evidence_type`.
+
+`prompt_context` format:
+
+```text
+【检索问题】
+母亲寄款查收的侨批内容
+
+【相关侨批证据 1】
+来源记录：CSQP-SFHC-TEXT-017
+题名：...
+寄批人：...
+收批人：...
+日期：...
+证据类型：remittance
+来源字段：evidence_remittance
+原文片段：...
+```
+
+Current limitations:
+
+- This RAG context endpoint does not call Qwen; it only prepares evidence for generation endpoints.
+- Semantic retrieval is optional and falls back to keyword retrieval when disabled or missing an index.
+- `semantic_enabled` reports whether semantic retrieval participated in this response.
+
+## POST /api/rag/style-context
+
+Purpose: prepare qiaopi style examples for future plain Chinese to qiaopi-style generation. This endpoint returns grouped slot examples only; it does not generate a final qiaopi-style letter.
+
+Request:
+
+```json
+{
+  "query": "母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。",
+  "top_k": 3,
+  "filters": {},
+  "expansion_mode": "balanced"
+}
+```
+
+Response:
+
+```json
+{
+  "query": "母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。",
+  "normalized_query": "母亲您好 我在新加坡平安 寄八元回家 请弟弟好好读书 母亲 平安 寄款 读书 新加坡 慈亲 大人 膝下 安好 无恙 勿念 汇款 批款 查收 勤学 学业 务望",
+  "expanded_query": "母亲您好 我在新加坡平安 寄八元回家 请弟弟好好读书 母亲 平安 寄款 读书 新加坡 慈亲 大人 膝下 安好 无恙 勿念 汇款 批款 查收 勤学 学业 务望 萱堂 家母 批款 寄上 汇上 勤读 学业 星洲 叻坡 石叻 阿母 阿妈 付去 兹托 带去 奉上 书馆 课程 成绩 温习 南洋 严慈 安康 批局 教训",
+  "expansion_mode": "balanced",
+  "semantic_enabled": false,
+  "style_slots": {
+    "opening": [
+      {
+        "record_id": "CSQP-SFHC-TEXT-017",
+        "unit_id": "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "unit_type": "opening",
+        "title_reference": "题名文本",
+        "unit_text": "慈亲大人膝下：",
+        "source_column": "evidence_opening",
+        "evidence_type": "opening",
+        "matched_reason": "命中开头称谓；原始查询命中“慈亲/膝下”",
+        "final_score": 2.14
+      }
+    ],
+    "safety": [],
+    "remittance": [],
+    "family_care": [],
+    "instruction": [],
+    "closing": [],
+    "style_reference": []
+  },
+  "grouped_contexts": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "title_reference": "题名文本",
+      "sender": "寄批人",
+      "recipient": "收批人",
+      "date_text": "癸九月十一日",
+      "main_intent": "remittance",
+      "best_score": 2.14,
+      "matched_units": [
+        {
+          "unit_id": "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+          "unit_type": "opening",
+          "unit_text": "慈亲大人膝下：",
+          "source_column": "evidence_opening",
+          "evidence_type": "opening",
+          "bm25_score": -0.000007,
+          "final_score": 2.14,
+          "matched_reason": "命中开头称谓；原始查询命中“慈亲/膝下”",
+          "original_hit_count": 2,
+          "strong_hit_count": 0,
+          "medium_hit_count": 0,
+          "weak_hit_count": 0
+        }
+      ]
+    }
+  ],
+  "prompt_context": "【用户白话输入】\n母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。\n\n【开头称谓样例】\n1. 慈亲大人膝下：\n来源：CSQP-SFHC-TEXT-017\n\n【报平安样例】\n暂无可用样例。",
+  "source_record_count": 1
+}
+```
+
+`style_slots` always contains these keys:
+
+- `opening`
+- `safety`
+- `remittance`
+- `family_care`
+- `instruction`
+- `closing`
+- `style_reference`
+
+Each slot returns up to `top_k` examples. A slot with no matching result returns an empty list.
+
+Rule-based style hints are deterministic:
+
+- If the query contains `母亲`, `妈妈`, or `阿嬷`, opening retrieval is helped by terms such as `慈亲`, `母亲`, `大人`, and `膝下`.
+- If the query contains `平安` or `安好`, safety retrieval is prioritized.
+- If the query contains `寄`, `钱`, `元`, or `汇款`, remittance retrieval is prioritized.
+- If the query contains `读书`, `学习`, or `勤奋`, instruction retrieval is prioritized.
+- If the query contains `保重` or `身体`, family-care retrieval is prioritized.
+
+`prompt_context` format:
+
+```text
+【用户白话输入】
+母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。
+
+【开头称谓样例】
+1. 慈亲大人膝下：
+来源：CSQP-SFHC-TEXT-017
+
+【报平安样例】
+...
+
+【寄款表达样例】
+...
+
+【问候保重样例】
+...
+
+【嘱托表达样例】
+...
+
+【结尾署名样例】
+...
+
+【综合风格参考】
+...
+```
+
+Current limitations:
+
+- This style context endpoint does not call Qwen; it only prepares style examples for generation endpoints.
+- Style context currently uses deterministic keyword/slot retrieval.
+- `semantic_enabled` is currently `false` for style context.
+- The endpoint returns context and examples only, not generated qiaopi text.
+
+## POST /api/generation/preview-prompt
+
+Purpose: preview how retrieved RAG/style context is converted into chat messages without calling Qwen. This endpoint works when Qwen is disabled.
+
+Request:
+
+```json
+{
+  "task_type": "style-transfer",
+  "input_text": "母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。",
+  "top_k": 3,
+  "filters": {},
+  "expansion_mode": "balanced"
+}
+```
+
+Response:
+
+```json
+{
+  "task_type": "style-transfer",
+  "input_text": "母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。",
+  "prompt_context": "【用户白话输入】\n母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。\n\n【开头称谓样例】\n1. 慈亲大人膝下：\n来源：CSQP-SFHC-TEXT-017",
+  "messages": [
+    {
+      "role": "system",
+      "content": "你是侨批文体改写助手。..."
+    },
+    {
+      "role": "user",
+      "content": "请把用户白话内容改写为侨批体草稿。..."
+    }
+  ],
+  "evidence_references": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "unit_id": "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+      "unit_type": "opening",
+      "title_reference": "题名文本",
+      "source_column": "evidence_opening",
+      "evidence_type": "opening",
+      "unit_text": "慈亲大人膝下："
+    }
+  ]
+}
+```
+
+For `task_type: "interpret"`, `input_text` is treated as the interpretation query. An optional `record_id` can be provided to build context from a specific record.
+
+## POST /api/generation/interpret
+
+Purpose: generate a concise modern Chinese explanation of qiaopi content based on retrieved evidence.
+
+Request:
+
+```json
+{
+  "query": "这封侨批主要说了什么？",
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "top_k": 8,
+  "filters": {},
+  "expansion_mode": "balanced",
+  "dry_run": false
+}
+```
+
+Behavior:
+
+- If `record_id` is provided, the endpoint uses that record's retrieval units as primary context.
+- If `record_id` is absent, the endpoint uses `/api/rag/context` retrieval logic.
+- If `dry_run` is `true`, Qwen is not called and `messages` are returned for review.
+- If Qwen is disabled or misconfigured, the endpoint returns a controlled `error_message` and prompt preview data instead of crashing.
+
+Response:
+
+```json
+{
+  "task_type": "interpret",
+  "query": "这封侨批主要说了什么？",
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "semantic_enabled": false,
+  "prompt_context": "【检索问题】\n这封侨批主要说了什么？\n\n【相关侨批证据 1】\n来源记录：CSQP-SFHC-TEXT-017\n...",
+  "generated_text": "【生成解读】...",
+  "evidence_references": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "unit_id": "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+      "unit_type": "body_core",
+      "title_reference": "题名文本",
+      "source_column": "body_core",
+      "evidence_type": "body_core",
+      "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。"
+    }
+  ],
+  "model": "qwen-plus",
+  "dry_run": false,
+  "messages": [
+    {
+      "role": "system",
+      "content": "你是侨批历史文献解读助手。..."
+    }
+  ],
+  "error_message": null,
+  "validation_report": {
+    "is_consistent": true,
+    "risk_level": "low",
+    "summary": "解释文本通过规则式证据一致性检查。",
+    "preserved_facts": ["源证据中的汇款信息已覆盖"],
+    "possible_hallucinations": [],
+    "missing_required_facts": [],
+    "unsupported_new_facts": [],
+    "evidence_coverage": {
+      "has_evidence_references": true,
+      "evidence_count": 8,
+      "covered_unit_types": ["body_core", "remittance"]
+    },
+    "checks": [
+      {
+        "name": "amount_support_check",
+        "status": "pass",
+        "message": "解释文本未新增证据外金额。"
+      }
+    ]
+  }
+}
+```
+
+Interpretation prompt requirements:
+
+- Use modern Chinese to explain the qiaopi content.
+- Explain who wrote to whom.
+- State whether there is remittance, amount, and purpose.
+- Explain main emotion and instructions.
+- Do not invent information missing from evidence.
+- Say `不确定` when evidence is insufficient.
+- Clearly mark the output as generated interpretation, not historical source text.
+
+## POST /api/generation/style-transfer
+
+Purpose: convert plain Chinese into a qiaopi-style generated draft using real retrieved qiaopi style examples.
+
+Request:
+
+```json
+{
+  "plain_text": "母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。",
+  "top_k": 3,
+  "filters": {},
+  "expansion_mode": "balanced",
+  "dry_run": false
+}
+```
+
+Behavior:
+
+- Uses `/api/rag/style-context` logic to retrieve examples for `opening`, `safety`, `remittance`, `family_care`, `instruction`, `closing`, and `style_reference`.
+- If `dry_run` is `true`, Qwen is not called and prompt messages are returned.
+- If Qwen is disabled or misconfigured, the endpoint returns a controlled `error_message` and prompt preview data instead of crashing.
+
+Response:
+
+```json
+{
+  "task_type": "style-transfer",
+  "plain_text": "母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。",
+  "semantic_enabled": false,
+  "style_slots": {
+    "opening": [
+      {
+        "record_id": "CSQP-SFHC-TEXT-017",
+        "unit_id": "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "unit_type": "opening",
+        "title_reference": "题名文本",
+        "unit_text": "慈亲大人膝下：",
+        "source_column": "evidence_opening",
+        "evidence_type": "opening",
+        "matched_reason": "命中开头称谓；原始查询命中“慈亲/膝下”",
+        "final_score": 2.14
+      }
+    ],
+    "safety": [],
+    "remittance": [],
+    "family_care": [],
+    "instruction": [],
+    "closing": [],
+    "style_reference": []
+  },
+  "prompt_context": "【用户白话输入】\n母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。\n...",
+  "generated_text": "【生成侨批体草稿】...",
+  "evidence_references": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "unit_id": "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+      "unit_type": "opening",
+      "title_reference": "题名文本",
+      "source_column": "evidence_opening",
+      "evidence_type": "opening",
+      "unit_text": "慈亲大人膝下："
+    }
+  ],
+  "model": "qwen-plus",
+  "dry_run": false,
+  "messages": [
+    {
+      "role": "system",
+      "content": "你是侨批文体改写助手。..."
+    }
+  ],
+  "error_message": null,
+  "validation_report": {
+    "is_consistent": true,
+    "risk_level": "low",
+    "summary": "规则校验完成：生成文本与输入事实基本一致。",
+    "preserved_facts": ["输入金额已保留"],
+    "possible_hallucinations": [],
+    "missing_required_facts": [],
+    "unsupported_new_facts": [],
+    "evidence_coverage": {
+      "has_evidence_references": true,
+      "evidence_count": 21,
+      "covered_unit_types": ["opening", "safety", "remittance", "instruction", "closing", "style_reference"]
+    },
+    "checks": [
+      {
+        "name": "amount_consistency",
+        "status": "pass",
+        "message": "输入金额在生成文本中以等值中文金额形式保留。"
+      }
+    ]
+  }
+}
+```
+
+Style transfer prompt requirements:
+
+- Write qiaopi-style text from the user's plain Chinese.
+- Reference real qiaopi examples without copying long passages verbatim.
+- Preserve user-provided people, places, amounts, and instructions.
+- Do not add amounts, dates, or names absent from user input.
+- Output generated draft, style-basis explanation, and reference evidence list.
+- Clearly mark the output as generated content, not historical source text.
+
+## POST /api/validation/consistency-check
+
+Purpose: run deterministic evidence and fact consistency checks on generated outputs. This endpoint does not call Qwen.
+
+Style-transfer request:
+
+```json
+{
+  "task_type": "style-transfer",
+  "input_text": "母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。",
+  "generated_text": "慈亲大人膝下：儿客居叻埠平安，兹奉上大洋银捌元，祈查收。另望胞弟勤学向上。儿谨禀。",
+  "evidence_references": [],
+  "record_id": null
+}
+```
+
+Interpretation request:
+
+```json
+{
+  "task_type": "interpret",
+  "input_text": "这封侨批主要说了什么？",
+  "generated_text": "生成解读：这封侨批提到寄款查收，并嘱家中照用。",
+  "evidence_references": [],
+  "record_id": "CSQP-SFHC-TEXT-017"
+}
+```
+
+Response:
+
+```json
+{
+  "validation_report": {
+    "is_consistent": true,
+    "risk_level": "medium",
+    "summary": "规则校验完成：生成文本与输入事实基本一致。",
+    "preserved_facts": [
+      "母亲称谓已保留为亲属/尊称表达",
+      "新加坡地点已以允许别名保留",
+      "输入金额已保留",
+      "弟弟读书嘱托已保留"
+    ],
+    "possible_hallucinations": [
+      "生成文本未明确标注为生成草稿"
+    ],
+    "missing_required_facts": [],
+    "unsupported_new_facts": [],
+    "evidence_coverage": {
+      "has_evidence_references": false,
+      "evidence_count": 0,
+      "covered_unit_types": []
+    },
+    "checks": [
+      {
+        "name": "amount_consistency",
+        "status": "pass",
+        "message": "输入金额在生成文本中以等值中文金额形式保留。"
+      },
+      {
+        "name": "place_consistency",
+        "status": "pass",
+        "message": "输入地点新加坡在生成文本中以新加坡/星洲/叻/叻埠/石叻等允许别名保留。"
+      }
+    ]
+  }
+}
+```
+
+Risk levels:
+
+- `low`: no suspicious fact drift and evidence references are present.
+- `medium`: missing evidence references or non-critical warnings require review.
+- `high`: unsupported new amounts, dates, names, or places were detected.
+
+The generation endpoints attach `validation_report` after successful live generation. For `dry_run=true`, disabled Qwen, timeout, or any empty `generated_text`, `validation_report` is `null`.
+
+Current validation limitations:
+
+- Validation is rule-based and deterministic.
+- It reduces hallucination risk but cannot guarantee perfect historical accuracy.
+- It only checks supported fact categories: people, places, amounts, dates, kinship, remittance, study, and safety expressions.
+- It does not use FAISS, embeddings, or Qwen.
+
+## Qwen Configuration
+
+Generation uses these environment variables:
+
+```text
+QWEN_API_KEY=
+QWEN_BASE_URL=
+QWEN_MODEL=qwen-plus
+QWEN_TIMEOUT_SECONDS=60
+QWEN_ENABLED=false
+```
+
+`QWEN_ENABLED=false` or a missing API key means live generation is disabled. Dry runs and prompt preview still work without a real key. API keys are never returned in responses or logs.
+
+## GET /api/generation/qwen-status
+
+Purpose: safely diagnose whether the running backend process has Qwen generation enabled. This endpoint never returns `QWEN_API_KEY` or any secret value.
+
+Response:
+
+```json
+{
+  "enabled": true,
+  "api_key_configured": true,
+  "base_url_configured": true,
+  "model": "qwen-plus",
+  "timeout_seconds": 60,
+  "project_env_exists": true,
+  "backend_env_exists": false,
+  "live_generation_ready": true
+}
+```
+
+If `/api/generation/style-transfer` still returns a disabled message while `qwen-status.live_generation_ready` is `true`, then the request is likely hitting a stale process or a different port.
+
+## Semantic Retrieval Configuration
+
+Semantic retrieval uses these environment variables:
+
+```text
+SEMANTIC_SEARCH_ENABLED=false
+EMBEDDING_PROVIDER=local
+EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5
+EMBEDDING_DIM=
+EMBEDDING_BATCH_SIZE=32
+FAISS_INDEX_DIR=backend/data/index
+FAISS_INDEX_PATH=backend/data/index/qiaopi_retrieval_units.faiss
+FAISS_METADATA_PATH=backend/data/index/qiaopi_retrieval_units_meta.jsonl
+
+QWEN_EMBEDDING_API_KEY=
+QWEN_EMBEDDING_BASE_URL=
+QWEN_EMBEDDING_MODEL=
+```
+
+Build command:
+
+```powershell
+cd backend
+python -m app.ingestion.build_database
+python -m app.ingestion.build_semantic_index
+```
+
+For deterministic local tests without external models:
+
+```powershell
+python -m app.ingestion.build_semantic_index --provider hash
+```
+
+`backend/data/index/*` is generated artifact data and should not contain committed secrets. `.env.example` is documentation only; real runtime configuration is read from `.env` files, not from `.env.example`.
+
+Current limitations:
+
+- Semantic search is disabled by default and requires an index build plus `SEMANTIC_SEARCH_ENABLED=true`.
+- Qwen requires environment variables before live generation.
+- Generated content is not historical source material.
+- Generated content must be displayed with evidence references.
 
 ## GET /api/records/{record_id}
 

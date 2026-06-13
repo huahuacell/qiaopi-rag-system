@@ -1,113 +1,270 @@
-from app.generation.qwen_client import QwenClient
-from app.schemas import PlainInterpretationRequest, StyleTransferRequest
+from __future__ import annotations
+
+from typing import Any, Mapping
+
+from app.database.repository import insert_query_log
+from app.llm.prompts import build_interpretation_prompt, build_style_transfer_prompt
+from app.llm.qwen_client import QwenClient, QwenClientError
+from app.schemas import (
+    GenerationInterpretRequest,
+    GenerationStyleTransferRequest,
+    PromptPreviewRequest,
+)
+from app.search.context_builder import (
+    build_rag_context,
+    build_record_rag_context,
+    build_style_context,
+)
+from app import settings
+from app.validation.consistency_checker import validate_generation_consistency
 
 
-def _common_evidence() -> list:
-    return [
-        {
-            "source_field": "original_text",
-            "source_text": "今托水客附上银八元",
-            "reason": "支持汇款金额",
-            "similarity_score": 0.95,
-        },
-        {
-            "source_field": "original_text",
-            "source_text": "望收讫后置办米粮并药费",
-            "reason": "支持家用用途解读",
-            "similarity_score": 0.9,
-        },
-    ]
+def _text(value: Any) -> str:
+    return "" if value is None else str(value).strip()
 
 
-def generate_plain_interpretation(request: PlainInterpretationRequest) -> dict:
-    QwenClient().generate("plain-interpretation-placeholder")
+def _evidence_reference(item: Mapping[str, Any]) -> dict[str, str]:
     return {
-        "record_id": request.record_id or "CSQP-SFHC-TEXT-001",
-        "generated_text": "这封侨批的意思是：寄信人在新加坡平安，托人带回八元钱，请母亲收到后用于购买米粮和药品。",
-        "summary": [
-            "寄信人在新加坡报平安。",
-            "寄信人汇给母亲八元。",
-            "汇款用于米粮和药费。",
-        ],
-        "slots": {
-            "sender": "陈生",
-            "recipient": "母亲",
-            "origin_place": "新加坡",
-            "destination_place": "广东潮州",
-            "money": "八元",
-            "purpose": "米粮和药费",
-        },
-        "evidence": _common_evidence(),
-        "evidence_mapping": [
-            {
-                "target_span": "托人带回八元钱",
-                "source_field": "original_text",
-                "source_text": "今托水客附上银八元",
-                "reason": "生成片段由汇款证据支撑",
-                "similarity_score": 0.95,
-            },
-            {
-                "target_span": "用于购买米粮和药品",
-                "source_field": "original_text",
-                "source_text": "置办米粮并药费",
-                "reason": "生成用途与原文一致",
-                "similarity_score": 0.9,
-            },
-        ],
-        "consistency_check": {
-            "status": "passed",
-            "warnings": [],
-            "passed_rules": [
-                "money_supported_by_evidence",
-                "recipient_supported_by_evidence",
-                "purpose_supported_by_evidence",
-            ],
-            "failed_rules": [],
-        },
+        "record_id": _text(item.get("record_id")),
+        "unit_id": _text(item.get("unit_id")),
+        "unit_type": _text(item.get("unit_type")),
+        "title_reference": _text(item.get("title_reference")),
+        "source_column": _text(item.get("source_column")),
+        "evidence_type": _text(item.get("evidence_type")),
+        "unit_text": _text(item.get("unit_text")),
     }
 
 
-def generate_style_transfer(request: StyleTransferRequest) -> dict:
-    QwenClient().generate("style-transfer-placeholder")
-    plain_text = request.plain_text.strip()
+def _references_from_contexts(contexts: list[Mapping[str, Any]]) -> list[dict[str, str]]:
+    references: list[dict[str, str]] = []
+    seen_unit_ids: set[str] = set()
+    for context in contexts:
+        unit_id = _text(context.get("unit_id"))
+        if not unit_id or unit_id in seen_unit_ids:
+            continue
+        seen_unit_ids.add(unit_id)
+        references.append(_evidence_reference(context))
+    return references
+
+
+def _references_from_style_slots(
+    style_slots: Mapping[str, list[Mapping[str, Any]]],
+) -> list[dict[str, str]]:
+    references: list[dict[str, str]] = []
+    seen_unit_ids: set[str] = set()
+    for examples in style_slots.values():
+        for example in examples:
+            unit_id = _text(example.get("unit_id"))
+            if not unit_id or unit_id in seen_unit_ids:
+                continue
+            seen_unit_ids.add(unit_id)
+            references.append(_evidence_reference(example))
+    return references
+
+
+def _log_generation_request(
+    *,
+    endpoint: str,
+    query: str,
+    filters: Mapping[str, Any],
+    top_k: int,
+    returned_count: int,
+) -> None:
+    try:
+        insert_query_log(
+            endpoint=endpoint,
+            query=query,
+            filters=filters,
+            top_k=top_k,
+            returned_count=returned_count,
+        )
+    except Exception:
+        return
+
+
+def _generate_or_preview(
+    *,
+    messages: list[dict[str, str]],
+    dry_run: bool,
+) -> tuple[str, bool, str | None]:
+    if dry_run:
+        return "", True, None
+
+    try:
+        return (
+            QwenClient().generate_chat_completion(messages),
+            False,
+            None,
+        )
+    except QwenClientError as exc:
+        return "", True, str(exc)
+
+
+def _validation_report_or_none(
+    *,
+    task_type: str,
+    input_text: str,
+    generated_text: str,
+    evidence_references: list[Mapping[str, Any]],
+    record_id: str | None = None,
+) -> dict[str, Any] | None:
+    if not generated_text.strip():
+        return None
+    return validate_generation_consistency(
+        task_type=task_type,
+        input_text=input_text,
+        generated_text=generated_text,
+        evidence_references=evidence_references,
+        record_id=record_id,
+    )
+
+
+def _rag_context_for_interpretation(request: GenerationInterpretRequest) -> dict[str, Any]:
+    if request.record_id:
+        return build_record_rag_context(
+            query=request.query,
+            record_id=request.record_id,
+            top_k=request.top_k,
+            filters=request.filters,
+            expansion_mode=request.expansion_mode,
+        )
+    return build_rag_context(
+        query=request.query,
+        top_k=request.top_k,
+        unit_types=[],
+        filters=request.filters,
+        expansion_mode=request.expansion_mode,
+    )
+
+
+def generate_interpretation(request: GenerationInterpretRequest) -> dict[str, Any]:
+    context = _rag_context_for_interpretation(request)
+    evidence_references = _references_from_contexts(context["contexts"])
+    messages = build_interpretation_prompt(
+        query=request.query,
+        prompt_context=context["prompt_context"],
+        evidence_references=evidence_references,
+    )
+    generated_text, effective_dry_run, error_message = _generate_or_preview(
+        messages=messages,
+        dry_run=request.dry_run,
+    )
+    _log_generation_request(
+        endpoint="/api/generation/interpret",
+        query=request.query,
+        filters={**request.filters, **({"record_id": request.record_id} if request.record_id else {})},
+        top_k=request.top_k,
+        returned_count=len(evidence_references),
+    )
     return {
-        "generated_text": "慈母大人膝下敬禀者：男在星洲平安，勿以为念。今托水客奉上银八元，伏乞查收，以备家中米粮药费之用。谨此禀安。",
-        "summary": [
-            "将白话家书转换为更接近侨批的敬禀语气。",
-            "保留报平安、亲属称谓、汇款金额和家用目的。",
-        ],
-        "slots": {
-            "recipient": request.slots.get("recipient", "母亲"),
-            "origin_place": request.slots.get("origin_place", "新加坡"),
-            "money": request.slots.get("money", "八元"),
-            "purpose": request.slots.get("purpose", "家用"),
-            "input_preview": plain_text[:80],
-        },
-        "evidence": _common_evidence(),
-        "evidence_mapping": [
-            {
-                "target_span": "慈母大人膝下敬禀者",
-                "source_field": "style_pattern",
-                "source_text": "慈母大人膝下",
-                "reason": "使用侨批常见的尊敬亲属开头",
-                "similarity_score": 0.88,
-            },
-            {
-                "target_span": "奉上银八元",
-                "source_field": "original_text",
-                "source_text": "附上银八元",
-                "reason": "保留汇款金额",
-                "similarity_score": 0.94,
-            },
-        ],
-        "consistency_check": {
-            "status": "passed",
-            "warnings": [],
-            "passed_rules": [
-                "money_preserved",
-                "recipient_preserved",
-                "no_real_api_call",
-            ],
-            "failed_rules": [],
-        },
+        "task_type": "interpret",
+        "query": request.query,
+        "record_id": request.record_id,
+        "semantic_enabled": context["semantic_enabled"],
+        "prompt_context": context["prompt_context"],
+        "generated_text": generated_text,
+        "evidence_references": evidence_references,
+        "model": settings.QWEN_MODEL,
+        "dry_run": effective_dry_run,
+        "messages": messages,
+        "error_message": error_message,
+        "validation_report": _validation_report_or_none(
+            task_type="interpret",
+            input_text=request.query,
+            generated_text=generated_text,
+            evidence_references=evidence_references,
+            record_id=request.record_id,
+        ),
+    }
+
+
+def generate_style_transfer(request: GenerationStyleTransferRequest) -> dict[str, Any]:
+    context = build_style_context(
+        query=request.plain_text,
+        top_k=request.top_k,
+        filters=request.filters,
+        expansion_mode=request.expansion_mode,
+    )
+    evidence_references = _references_from_style_slots(context["style_slots"])
+    messages = build_style_transfer_prompt(
+        plain_text=request.plain_text,
+        prompt_context=context["prompt_context"],
+        evidence_references=evidence_references,
+    )
+    generated_text, effective_dry_run, error_message = _generate_or_preview(
+        messages=messages,
+        dry_run=request.dry_run,
+    )
+    _log_generation_request(
+        endpoint="/api/generation/style-transfer",
+        query=request.plain_text,
+        filters=request.filters,
+        top_k=request.top_k,
+        returned_count=len(evidence_references),
+    )
+    return {
+        "task_type": "style-transfer",
+        "plain_text": request.plain_text,
+        "semantic_enabled": context["semantic_enabled"],
+        "style_slots": context["style_slots"],
+        "prompt_context": context["prompt_context"],
+        "generated_text": generated_text,
+        "evidence_references": evidence_references,
+        "model": settings.QWEN_MODEL,
+        "dry_run": effective_dry_run,
+        "messages": messages,
+        "error_message": error_message,
+        "validation_report": _validation_report_or_none(
+            task_type="style-transfer",
+            input_text=request.plain_text,
+            generated_text=generated_text,
+            evidence_references=evidence_references,
+        ),
+    }
+
+
+def preview_prompt(request: PromptPreviewRequest) -> dict[str, Any]:
+    if request.task_type == "style-transfer":
+        context = build_style_context(
+            query=request.input_text,
+            top_k=request.top_k,
+            filters=request.filters,
+            expansion_mode=request.expansion_mode,
+        )
+        evidence_references = _references_from_style_slots(context["style_slots"])
+        messages = build_style_transfer_prompt(
+            plain_text=request.input_text,
+            prompt_context=context["prompt_context"],
+            evidence_references=evidence_references,
+        )
+    else:
+        interpret_request = GenerationInterpretRequest(
+            query=request.input_text,
+            record_id=request.record_id,
+            top_k=request.top_k,
+            filters=request.filters,
+            expansion_mode=request.expansion_mode,
+            dry_run=True,
+        )
+        context = _rag_context_for_interpretation(interpret_request)
+        evidence_references = _references_from_contexts(context["contexts"])
+        messages = build_interpretation_prompt(
+            query=request.input_text,
+            prompt_context=context["prompt_context"],
+            evidence_references=evidence_references,
+        )
+
+    _log_generation_request(
+        endpoint="/api/generation/preview-prompt",
+        query=request.input_text,
+        filters={**request.filters, **({"record_id": request.record_id} if request.record_id else {})},
+        top_k=request.top_k,
+        returned_count=len(evidence_references),
+    )
+    return {
+        "task_type": request.task_type,
+        "input_text": request.input_text,
+        "prompt_context": context["prompt_context"],
+        "messages": messages,
+        "evidence_references": evidence_references,
     }

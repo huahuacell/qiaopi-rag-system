@@ -3,11 +3,12 @@ from __future__ import annotations
 import re
 from typing import Any, Mapping
 
-from app.schemas import SearchRequest
+from app.schemas import SearchRequest, SemanticSearchRequest
 from app.search.advanced_retriever import retrieve_advanced
-from app.search.hybrid_retriever import retrieve_hybrid_fallback
+from app.search.hybrid_retriever import retrieve_hybrid
 from app.search.keyword_retriever import retrieve_keyword
 from app.search.query_expansion import QueryExpansion, terms_for_expansion_mode
+from app.search.semantic_retriever import semantic_search
 
 
 def _snippet(unit_text: str, query: str, length: int = 120) -> str:
@@ -50,7 +51,9 @@ def _unit_result(row: Mapping[str, Any], query: str) -> dict[str, Any]:
         "matched_text": row.get("matched_text", unit_text),
         "matched_reason": row.get("matched_reason", ""),
         "bm25_score": float(row.get("bm25_score") or 0.0),
+        "semantic_score": float(row.get("semantic_score") or 0.0),
         "final_score": float(row.get("final_score") or 0.0),
+        "retrieval_sources": list(row.get("retrieval_sources") or []),
         "original_hit_count": int(row.get("original_hit_count") or 0),
         "strong_hit_count": int(row.get("strong_hit_count") or 0),
         "medium_hit_count": int(row.get("medium_hit_count") or 0),
@@ -84,6 +87,8 @@ def _response(
             for row in retrieval_result["results"]
         ],
         "grouped_by_record": retrieval_result["grouped_by_record"],
+        "fusion_method": retrieval_result.get("fusion_method"),
+        "error_message": retrieval_result.get("error_message"),
     }
 
 
@@ -110,7 +115,7 @@ def run_advanced_search(request: SearchRequest) -> dict[str, Any]:
 
 
 def run_hybrid_search(request: SearchRequest) -> dict[str, Any]:
-    retrieval_result = retrieve_hybrid_fallback(
+    retrieval_result = retrieve_hybrid(
         query=request.query,
         top_k=request.top_k,
         unit_types=request.unit_types,
@@ -122,3 +127,23 @@ def run_hybrid_search(request: SearchRequest) -> dict[str, Any]:
         retrieval_result,
         semantic_enabled=bool(retrieval_result.get("semantic_enabled", False)),
     )
+
+
+def run_semantic_search(request: SemanticSearchRequest) -> dict[str, Any]:
+    retrieval_result = semantic_search(
+        query=request.query,
+        top_k=request.top_k,
+        unit_types=request.unit_types,
+        filters=request.filters,
+    )
+    return {
+        "query": request.query,
+        "top_k": request.top_k,
+        "semantic_enabled": bool(retrieval_result.get("semantic_enabled", False)),
+        "results": [
+            _unit_result(row, request.query)
+            for row in retrieval_result.get("results", [])
+        ],
+        "error_message": retrieval_result.get("error_message"),
+        "index_backend": retrieval_result.get("index_backend"),
+    }

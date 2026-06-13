@@ -571,6 +571,52 @@ def fetch_retrieval_units(record_id: str) -> list[dict[str, Any]]:
     return _rows_to_dicts(rows)
 
 
+def fetch_all_retrieval_units() -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                r.unit_id,
+                r.record_id,
+                r.unit_type,
+                r.source_column,
+                r.unit_text,
+                r.title_reference,
+                r.sender,
+                r.recipient,
+                r.date_text,
+                r.main_intent,
+                r.theme_tags,
+                r.style_keywords,
+                r.relationship_type,
+                r.place_mentions_normalized,
+                r.retrieval_keywords,
+                r.weight,
+                r.evidence_type,
+                r.fts_text,
+                t.text_quality_level,
+                t.has_remittance,
+                t.year_normalized,
+                COALESCE(p.normalized_places, '') AS normalized_places,
+                COALESCE(p.countries_or_regions, '') AS countries_or_regions
+            FROM qiaopi_retrieval_units AS r
+            JOIN qiaopi_text_records AS t
+                ON t.record_id = r.record_id
+            LEFT JOIN (
+                SELECT
+                    record_id,
+                    GROUP_CONCAT(DISTINCT normalized_place) AS normalized_places,
+                    GROUP_CONCAT(DISTINCT country_or_region) AS countries_or_regions
+                FROM qiaopi_place_mentions
+                GROUP BY record_id
+            ) AS p
+                ON p.record_id = r.record_id
+            ORDER BY r.unit_id
+            """
+        ).fetchall()
+    return _rows_to_dicts(rows)
+
+
 def _matches_filters(row: Mapping[str, Any], filters: Mapping[str, Any]) -> bool:
     if not filters:
         return True
@@ -697,3 +743,28 @@ def search_retrieval_units(
             )
     filtered_results = [row for row in results if _matches_filters(row, filters)]
     return filtered_results[:top_k]
+
+
+def insert_query_log(
+    *,
+    endpoint: str,
+    query: str,
+    filters: Mapping[str, Any] | None,
+    top_k: int,
+    returned_count: int,
+) -> None:
+    filters_json = json.dumps(filters or {}, ensure_ascii=False, sort_keys=True)
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO qiaopi_query_logs (
+                endpoint,
+                query,
+                filters_json,
+                top_k,
+                returned_count
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (endpoint, query, filters_json, top_k, returned_count),
+        )
