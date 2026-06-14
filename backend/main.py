@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.dashboard import router as dashboard_router
 from app.api.generation import router as generation_router
+from app.api.metadata import router as metadata_router
 from app.api.rag import router as rag_router
 from app.api.records import router as record_router
 from app.api.search import router as search_router
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard_router)
     app.include_router(search_router)
     app.include_router(record_router)
+    app.include_router(metadata_router)
     app.include_router(rag_router)
     app.include_router(generation_router)
     app.include_router(validation_router)

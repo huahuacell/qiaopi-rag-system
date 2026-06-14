@@ -18,6 +18,9 @@ class ChartItem(BaseModel):
 
 class DashboardStatsResponse(BaseModel):
     total_text_records: int
+    metadata_record_count: int = 0
+    metadata_linked_text_count: int = 0
+    metadata_link_candidate_count: int = 0
     full_text_count: int
     metadata_only_count: int
     retrieval_unit_count: int
@@ -45,6 +48,106 @@ class SearchRequest(BaseModel):
     unit_types: List[str] = Field(default_factory=list)
     filters: Dict[str, Any] = Field(default_factory=dict)
     expansion_mode: Literal["strict", "balanced", "broad"] = "balanced"
+
+
+class MetadataStatsResponse(BaseModel):
+    total_metadata_records: int
+    linked_text_count: int
+    unlinked_metadata_count: int
+    link_candidate_count: int
+    has_remittance_count: int
+    needs_review_count: int
+    year_min: Optional[int] = None
+    year_max: Optional[int] = None
+
+
+class MetadataDistributionsResponse(BaseModel):
+    year_distribution: List[ChartItem]
+    country_or_region_distribution: List[ChartItem]
+    origin_place_distribution: List[ChartItem]
+    destination_place_distribution: List[ChartItem]
+    relationship_distribution: List[ChartItem]
+    theme_distribution: List[ChartItem]
+    has_remittance_distribution: List[ChartItem]
+
+
+class MetadataSearchRequest(BaseModel):
+    query: str = ""
+    top_k: int = Field(default=20, ge=1, le=100)
+    filters: Dict[str, Any] = Field(default_factory=dict)
+
+
+class MetadataSearchResult(BaseModel):
+    metadata_id: str
+    title_clean: str
+    sender_raw: str
+    recipient_raw: str
+    date_text: str
+    year_normalized: str
+    origin_place: str
+    destination_place: str
+    country_or_region: str
+    remittance_raw: str
+    has_remittance: int
+    has_linked_text: int
+    linked_record_id: str
+    score: float
+    snippet: str
+
+
+class MetadataSearchResponse(BaseModel):
+    query: str
+    top_k: int
+    results: List[MetadataSearchResult]
+
+
+class MetadataDetailResponse(BaseModel):
+    metadata_id: str
+    source_index: int
+    title_raw: str
+    title_clean: str
+    sender_raw: str
+    recipient_raw: str
+    sender_name_clean: str
+    recipient_name_clean: str
+    date_text: str
+    year_normalized: str
+    era_text: str
+    origin_place: str
+    destination_place: str
+    place_mentions: str
+    country_or_region: str
+    remittance_raw: str
+    amount_number: Optional[float] = None
+    currency: str
+    has_remittance: int
+    kinship_terms: str
+    relationship_type: str
+    theme_tags: str
+    main_intent: str
+    has_linked_text: int
+    linked_record_id: str
+    parse_confidence: float
+    needs_review: int
+    warnings: str
+    raw_json: Dict[str, Any]
+    created_at: str
+
+
+class MetadataLinkedTextResponse(BaseModel):
+    metadata_id: str
+    has_linked_text: bool
+    linked_record_id: Optional[str] = None
+    record_detail_summary: Optional[Dict[str, Any]] = None
+    message: Optional[str] = None
+
+
+class MetadataLinkStatsResponse(BaseModel):
+    auto_link_count: int
+    candidate_link_count: int
+    unlinked_full_text_count: int
+    link_method_distribution: List[ChartItem]
+    average_link_confidence: float
 
 
 class SearchResult(BaseModel):

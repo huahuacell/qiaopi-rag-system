@@ -22,6 +22,10 @@ Local SQLite database path:
 Core tables:
 
 - `qiaopi_text_records`
+- `qiaopi_metadata_records`
+- `qiaopi_metadata_fts`
+- `qiaopi_text_metadata_links`
+- `qiaopi_text_metadata_link_candidates`
 - `qiaopi_amount_mentions`
 - `qiaopi_entity_mentions`
 - `qiaopi_place_mentions`
@@ -43,6 +47,8 @@ Step D1 adds a Qwen generation foundation for prompt preview, evidence-grounded 
 
 Step F adds optional semantic retrieval over `qiaopi_retrieval_units`. Build the local semantic index with `python -m app.ingestion.build_semantic_index` after rebuilding the SQLite database. Runtime semantic retrieval remains disabled until `SEMANTIC_SEARCH_ENABLED=true` and index files exist. Generated content is not historical source material and must be displayed with evidence references.
 
+Step G adds a large-scale 50064-record metadata catalog layer for archive browsing, metadata search, statistics, timeline views, place distribution, and links to the 213 full-text records. Metadata-only records are catalog records, not full-text evidence. They must not be inserted into `qiaopi_retrieval_units`, `qiaopi_retrieval_units_fts`, the semantic index, RAG context, or Qwen generation prompts. Only linked 213 full-text records may be used for RAG or generation tasks.
+
 ## GET /api/health
 
 Response:
@@ -62,6 +68,9 @@ Response:
 ```json
 {
   "total_text_records": 213,
+  "metadata_record_count": 50064,
+  "metadata_linked_text_count": 1,
+  "metadata_link_candidate_count": 4,
   "full_text_count": 202,
   "metadata_only_count": 11,
   "retrieval_unit_count": 1959,
@@ -969,6 +978,157 @@ Current limitations:
 - Qwen requires environment variables before live generation.
 - Generated content is not historical source material.
 - Generated content must be displayed with evidence references.
+
+## Metadata Catalog Layer
+
+Purpose: Step G adds a 50064-record archive catalog layer. It supports metadata search, archive browsing, statistics, timeline views, place distribution, and links back to the 213 full-text qiaopi records.
+
+Build commands:
+
+```powershell
+cd backend
+python -m app.ingestion.build_metadata_database
+python -m app.ingestion.link_metadata_text_records
+```
+
+Tables:
+
+- `qiaopi_metadata_records`
+- `qiaopi_metadata_fts`
+- `qiaopi_text_metadata_links`
+- `qiaopi_text_metadata_link_candidates`
+
+Evidence boundary:
+
+- Metadata-only records are not full-text evidence.
+- Metadata-only records must not be used in `qiaopi_retrieval_units`, `qiaopi_retrieval_units_fts`, FAISS semantic retrieval, RAG context, or Qwen prompts.
+- If a metadata record is linked, generation must use the linked 213 full-text `record_id` as evidence, not the metadata-only fields.
+
+Linking rules:
+
+- `link_confidence >= 0.92`: auto-link one best metadata record to a full-text `record_id`.
+- `0.75 <= confidence < 0.92`: store as a manual-review candidate.
+- `confidence < 0.75`: ignore.
+
+## GET /api/metadata/stats
+
+Response:
+
+```json
+{
+  "total_metadata_records": 50064,
+  "linked_text_count": 1,
+  "unlinked_metadata_count": 50063,
+  "link_candidate_count": 4,
+  "has_remittance_count": 10,
+  "needs_review_count": 24934,
+  "year_min": 1915,
+  "year_max": 2003
+}
+```
+
+## GET /api/metadata/distributions
+
+Response:
+
+```json
+{
+  "year_distribution": [{"label": "1969", "value": 1221}],
+  "country_or_region_distribution": [{"label": "泰国", "value": 24307}],
+  "origin_place_distribution": [{"label": "新加坡", "value": 18520}],
+  "destination_place_distribution": [{"label": "广东潮安", "value": 10550}],
+  "relationship_distribution": [{"label": "child_to_parent", "value": 16015}],
+  "theme_distribution": [{"label": "theme_archive_catalog", "value": 50064}],
+  "has_remittance_distribution": [
+    {"label": "true", "value": 10},
+    {"label": "false", "value": 50054}
+  ]
+}
+```
+
+## POST /api/metadata/search
+
+Uses `qiaopi_metadata_fts` for metadata search. It does not search full-text evidence, RAG retrieval units, or generated text.
+
+Request:
+
+```json
+{
+  "query": "新加坡 母亲 寄款",
+  "top_k": 20,
+  "filters": {
+    "year_from": 1930,
+    "year_to": 1955,
+    "country_or_region": "新加坡",
+    "has_remittance": true,
+    "has_linked_text": true
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "query": "新加坡 母亲 寄款",
+  "top_k": 20,
+  "results": [
+    {
+      "metadata_id": "CSQP-META-001389",
+      "title_clean": "新加坡夏碧粧寄广东母亲侨批",
+      "sender_raw": "夏碧粧",
+      "recipient_raw": "母亲",
+      "date_text": "[不详]",
+      "year_normalized": "",
+      "origin_place": "新加坡",
+      "destination_place": "广东",
+      "country_or_region": "新加坡",
+      "remittance_raw": "",
+      "has_remittance": 0,
+      "has_linked_text": 0,
+      "linked_record_id": "",
+      "score": -2.5,
+      "snippet": "新加坡夏碧粧寄广东母亲侨批"
+    }
+  ]
+}
+```
+
+Supported filters: `year_from`, `year_to`, `country_or_region`, `origin_place`, `destination_place`, `place`, `has_remittance`, `has_linked_text`, `needs_review`, `relationship_type`, and `main_intent`.
+
+## GET /api/metadata/{metadata_id}
+
+Returns the parsed metadata catalog record plus the original Excel row in `raw_json`.
+
+## GET /api/metadata/{metadata_id}/linked-text
+
+If linked, returns `linked_record_id` and a full-text record summary. If not linked, returns:
+
+```json
+{
+  "metadata_id": "CSQP-META-000001",
+  "has_linked_text": false,
+  "linked_record_id": null,
+  "record_detail_summary": null,
+  "message": "This metadata record has no linked full-text qiaopi record."
+}
+```
+
+This endpoint never generates or infers missing full text.
+
+## GET /api/metadata/links/stats
+
+Response:
+
+```json
+{
+  "auto_link_count": 1,
+  "candidate_link_count": 4,
+  "unlinked_full_text_count": 212,
+  "link_method_distribution": [{"label": "field_composite", "value": 1}],
+  "average_link_confidence": 0.92
+}
+```
 
 ## GET /api/records/{record_id}
 
