@@ -182,11 +182,9 @@ def test_knowledge_graph_does_not_promote_metadata_to_retrieval_units(metadata_l
     assert metadata_unit_count == 0
 
 
-def test_knowledge_graph_step_has_no_graph_api_neo4j_or_viewer():
+def test_knowledge_graph_build_step_has_no_neo4j_or_viewer():
     repo_root = Path(__file__).resolve().parents[2]
 
-    assert not (repo_root / "backend" / "app" / "api" / "graph.py").exists()
-    assert not (repo_root / "backend" / "app" / "services" / "graph_service.py").exists()
     assert not (repo_root / "backend" / "app" / "graph" / "neo4j_exporter.py").exists()
     assert not (repo_root / "backend" / "app" / "graph" / "neo4j_importer.py").exists()
     assert not (repo_root / "kg-viewer").exists()

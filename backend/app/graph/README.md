@@ -3,9 +3,9 @@
 This directory contains the isolated knowledge graph layer. Step H1 implements
 the SQLite foundation: deterministic node/edge table creation and a rebuildable
 graph builder. Step H1.1 adds logical edge deduplication, amount node
-deduplication, and evidence aggregation. It does not implement Neo4j
-integration, Graph API routes, graph service endpoints, graph analytics,
-frontend integration, or a viewer.
+deduplication, and evidence aggregation. Step H2 implements read-only Graph API
+endpoints backed by the SQLite KG tables. It does not implement Neo4j
+integration, graph analytics algorithms, frontend integration, or a viewer.
 
 ## 1. Purpose
 
@@ -22,7 +22,7 @@ The graph should answer questions such as:
 - Which relationships are supported by full-text evidence spans?
 - Which full-text records are linked to catalog-only metadata records?
 
-H1 implementation status:
+H2 implementation status:
 
 Implemented:
 
@@ -35,13 +35,17 @@ Implemented:
   amount form.
 - Evidence aggregation into `properties_json` for duplicate facts from multiple
   extraction sources.
+- Graph API endpoints based on SQLite KG tables.
+- Record-centered graph query.
+- Node neighbor query.
+- Limited graph overview query.
+- Place flow statistics.
 
 Not implemented yet:
 
-- Graph API routes or graph service endpoints.
 - `kg-viewer/`.
 - Neo4j import/export.
-- Graph analytics.
+- Advanced graph analytics.
 
 ## 2. Architectural boundaries
 
@@ -88,10 +92,11 @@ backend/app/ingestion/export_neo4j_graph.py
 backend/app/ingestion/import_neo4j_graph.py
 ```
 
-In H1, only `__init__.py`, `README.md`, `graph_builder.py`,
-`graph_repository.py`, `normalizers.py`, and
-`backend/app/ingestion/build_knowledge_graph.py` are implemented. Neo4j files,
-API routes, services, and analytics modules remain planned only.
+In H2, `__init__.py`, `README.md`, `graph_builder.py`,
+`graph_repository.py`, `normalizers.py`,
+`backend/app/ingestion/build_knowledge_graph.py`,
+`backend/app/api/graph.py`, and `backend/app/services/graph_service.py` are
+implemented. Neo4j files and analytics modules remain planned only.
 
 ## 3. Relationship with SQLite
 
@@ -213,7 +218,7 @@ The viewer should:
 - Not import files from `frontend/`.
 - Not modify `frontend/`.
 
-Step H1 does not create `kg-viewer/`.
+Step H2 does not create `kg-viewer/`.
 
 ## 7. Planned node types
 
@@ -296,10 +301,9 @@ The future build pipeline should be deterministic and rebuildable:
 The builder must not call Qwen, create embeddings, modify retrieval units, alter
 FTS tables, or change metadata linking behavior.
 
-## 11. Planned API endpoints
+## 11. Graph API endpoints
 
-Future graph endpoints are planned as read-only APIs over the derived graph
-layer:
+H2 implements these read-only APIs over the derived SQLite graph tables:
 
 ```text
 GET /api/graph/stats
@@ -307,6 +311,11 @@ GET /api/graph/record/{record_id}
 GET /api/graph/node/{node_id}/neighbors
 GET /api/graph/overview
 GET /api/graph/flows/places
+```
+
+Future analytics endpoints remain planned only:
+
+```text
 GET /api/graph/analytics/top-nodes
 GET /api/graph/analytics/centrality
 ```
@@ -321,7 +330,8 @@ Endpoint intent:
 - `/api/graph/analytics/top-nodes`: high-degree or weighted top nodes.
 - `/api/graph/analytics/centrality`: planned graph centrality outputs.
 
-Step H1 documents these endpoints only and does not implement them.
+The API reads from `qiaopi_kg_nodes` and `qiaopi_kg_edges`. It does not call
+Neo4j and does not feed metadata-only records into RAG or Qwen generation.
 
 ## 12. Future development stages
 
@@ -337,7 +347,7 @@ Step H1 documents these endpoints only and does not implement them.
 5. Add ingestion commands to build and validate `qiaopi_kg_nodes` and
    `qiaopi_kg_edges`. Completed for the H1 SQLite foundation.
 6. Optimize duplicate fact handling and evidence aggregation. Completed in H1.1.
-7. Add read-only graph service and API endpoints.
+7. Add read-only graph service and API endpoints. Completed in H2.
 8. Add graph analytics over the derived graph tables.
 9. Add optional Neo4j exporter/importer.
 10. Create the standalone `kg-viewer/` app using Vue 3, Vite, Element Plus, and
