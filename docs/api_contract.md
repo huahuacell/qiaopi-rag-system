@@ -1010,6 +1010,143 @@ Linking rules:
 - `0.75 <= confidence < 0.92`: store as a manual-review candidate.
 - `confidence < 0.75`: ignore.
 
+## Knowledge Graph Layer
+
+Purpose: Step H1 implements the isolated SQLite knowledge graph foundation for relationship modeling, visualization, and explanation across qiaopi records. Step H1.1 optimizes duplicate fact handling by merging duplicate logical edges and duplicate amount nodes while preserving evidence in `properties_json`. This layer remains derived from existing SQLite data. It does not implement Graph API routes, graph service endpoints, Neo4j integration, graph analytics, frontend integration, or a standalone viewer.
+
+Implementation status:
+
+Implemented:
+
+- SQLite KG tables: `qiaopi_kg_nodes` and `qiaopi_kg_edges`.
+- Deterministic build command: `python -m app.ingestion.build_knowledge_graph`.
+- Evidence-grounded node and edge construction from existing structured SQLite tables.
+- Logical edge deduplication by `record_id`, `source_node_id`, `target_node_id`, and `edge_type`.
+- Amount node deduplication by record, normalized amount, currency, and raw amount form.
+- Evidence aggregation into `properties_json` for duplicate facts from multiple extraction sources.
+
+Not implemented yet:
+
+- Graph API routes or graph service endpoints.
+- `kg-viewer/`.
+- Neo4j import/export.
+- Graph analytics.
+
+Separation from existing backend modules:
+
+- SQLite remains the source of truth.
+- The graph is a derived layer built from existing SQLite tables.
+- Graph logic belongs in future `backend/app/graph/`, `backend/app/api/graph.py`, `backend/app/services/graph_service.py`, and graph-specific ingestion commands.
+- Graph logic must not be mixed into `backend/app/search/`, `backend/app/rag/`, `backend/app/llm/`, `backend/app/validation/`, `backend/app/metadata/`, semantic search, metadata service, RAG context construction, or Qwen generation.
+- Metadata-only records are catalog-level records and are not full-text RAG evidence.
+- Existing `frontend/` must remain untouched.
+
+Implemented SQLite KG tables:
+
+- `qiaopi_kg_nodes`
+- `qiaopi_kg_edges`
+
+Planned `qiaopi_kg_nodes` fields:
+
+```text
+node_id
+node_type
+label
+normalized_label
+record_id
+source_table
+source_id
+properties_json
+created_at
+```
+
+Planned `qiaopi_kg_edges` fields:
+
+```text
+edge_id
+source_node_id
+target_node_id
+edge_type
+record_id
+evidence_text
+source_table
+source_id
+weight
+confidence
+properties_json
+created_at
+```
+
+Planned node types:
+
+- `record`: a 213-record full-text qiaopi item. It may support RAG explanation when backed by full-text evidence.
+- `metadata_record`: a 50064-record catalog item. It must not be treated as full-text evidence.
+- `person`: sender, recipient, kinship expression, or mentioned person.
+- `place`: origin, destination, country/region, or mentioned place.
+- `amount`: remittance amount or amount mention.
+- `date`: original date expression or normalized year.
+- `theme`: controlled or derived topic label.
+- `evidence`: full-text evidence span. It may support RAG explanation only when derived from a 213 full-text record.
+
+Planned edge types:
+
+- `SENT_BY`
+- `RECEIVED_BY`
+- `MENTIONS_PERSON`
+- `MENTIONS_PLACE`
+- `SENT_FROM`
+- `SENT_TO`
+- `HAS_AMOUNT`
+- `HAS_DATE`
+- `HAS_THEME`
+- `SUPPORTED_BY`
+- `LINKED_TO_METADATA`
+
+Important edge provenance:
+
+- Important edges should preserve `record_id`, `evidence_text`, `source_table`, `source_id`, `confidence`, and `properties_json` where available.
+- Full-text evidence spans should be preserved for evidence-grounded graph relationships.
+- Metadata-derived relationships can support browsing and visualization but must not be promoted to RAG evidence unless linked back to a full-text `record` or `evidence` node.
+- Duplicate logical edges are merged before insert using `record_id`, `source_node_id`, `target_node_id`, and `edge_type`.
+- When duplicate edges are merged, top-level columns keep the first or strongest support while `properties_json` preserves aggregate `evidence_texts`, `source_tables`, `source_ids`, `confidences`, `raw_labels`, and `deduplicated_count`.
+- Duplicate amount mentions for the same record and normalized amount become one logical `amount` node and one `HAS_AMOUNT` edge where possible; raw amount forms and evidence texts remain in `properties_json`.
+
+Planned Graph APIs:
+
+```text
+GET /api/graph/stats
+GET /api/graph/record/{record_id}
+GET /api/graph/node/{node_id}/neighbors
+GET /api/graph/overview
+GET /api/graph/flows/places
+GET /api/graph/analytics/top-nodes
+GET /api/graph/analytics/centrality
+```
+
+Future Neo4j integration:
+
+- Neo4j is a future derived graph database layer, not a replacement for SQLite.
+- Future Neo4j exporters/importers should read from `qiaopi_kg_nodes` and `qiaopi_kg_edges`.
+- Neo4j must remain optional and must not be required for normal backend startup.
+- No real Neo4j implementation exists in Step H1.
+
+Future standalone `kg-viewer/`:
+
+- A future `kg-viewer/` app will be independent from `frontend/`.
+- It should use Vue 3, Vite, Element Plus, and ECharts.
+- It should match the existing frontend's data-workbench layout style with a left sidebar, top header, and card-based main area.
+- It should call `/api/graph/*` endpoints for graph preview and demo recording.
+- It must not import files from `frontend/`, modify `frontend/`, or depend on `frontend/` internals.
+
+Important limitations:
+
+- The graph builder is SQLite-only and rebuilds derived `qiaopi_kg_nodes` and `qiaopi_kg_edges`.
+- No graph API route is implemented yet.
+- No Neo4j exporter, importer, driver, or schema is implemented yet.
+- No `kg-viewer/` app is created yet.
+- The graph is for relationship modeling, visualization, and explanation. It does not replace SQLite, FTS5/BM25 search, FAISS semantic search, RAG context, Qwen generation, validation, or metadata APIs.
+- Metadata-only records must not become full-text RAG evidence.
+
 ## GET /api/metadata/stats
 
 Response:

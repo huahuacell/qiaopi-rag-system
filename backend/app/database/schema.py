@@ -16,6 +16,8 @@ TABLES: tuple[str, ...] = (
     "qiaopi_place_mentions",
     "qiaopi_evidence_spans",
     "qiaopi_retrieval_units",
+    "qiaopi_kg_nodes",
+    "qiaopi_kg_edges",
     "qiaopi_generation_cache",
     "qiaopi_query_logs",
 )
@@ -201,6 +203,39 @@ CREATE_TABLE_STATEMENTS: tuple[str, ...] = (
     );
     """,
     """
+    CREATE TABLE IF NOT EXISTS qiaopi_kg_nodes (
+        node_id TEXT PRIMARY KEY,
+        node_type TEXT NOT NULL,
+        label TEXT NOT NULL,
+        normalized_label TEXT NOT NULL,
+        record_id TEXT,
+        source_table TEXT,
+        source_id TEXT,
+        properties_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS qiaopi_kg_edges (
+        edge_id TEXT PRIMARY KEY,
+        source_node_id TEXT NOT NULL,
+        target_node_id TEXT NOT NULL,
+        edge_type TEXT NOT NULL,
+        record_id TEXT,
+        evidence_text TEXT,
+        source_table TEXT,
+        source_id TEXT,
+        weight REAL NOT NULL DEFAULT 1.0,
+        confidence REAL NOT NULL DEFAULT 0.0,
+        properties_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(source_node_id) REFERENCES qiaopi_kg_nodes(node_id)
+            ON DELETE CASCADE,
+        FOREIGN KEY(target_node_id) REFERENCES qiaopi_kg_nodes(node_id)
+            ON DELETE CASCADE
+    );
+    """,
+    """
     CREATE TABLE IF NOT EXISTS qiaopi_generation_cache (
         cache_id TEXT PRIMARY KEY,
         task_type TEXT NOT NULL,
@@ -246,6 +281,14 @@ CREATE_INDEX_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_evidence_spans_type ON qiaopi_evidence_spans(evidence_type);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_retrieval_units_record ON qiaopi_retrieval_units(record_id);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_retrieval_units_type ON qiaopi_retrieval_units(unit_type);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_nodes_node_id ON qiaopi_kg_nodes(node_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_nodes_type ON qiaopi_kg_nodes(node_type);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_nodes_record ON qiaopi_kg_nodes(record_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_edge_id ON qiaopi_kg_edges(edge_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_type ON qiaopi_kg_edges(edge_type);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_record ON qiaopi_kg_edges(record_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_source ON qiaopi_kg_edges(source_node_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_target ON qiaopi_kg_edges(target_node_id);",
 )
 
 
