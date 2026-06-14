@@ -9,7 +9,7 @@ numpy
 scikit-learn
 pytest
 httpx
+faiss-cpu
 
 # Optional vector search dependency for the backend phase:
-# faiss-cpu
-
+# sentence-transformers

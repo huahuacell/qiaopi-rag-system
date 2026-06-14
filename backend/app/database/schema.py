@@ -8,6 +8,9 @@ from app.database.connection import get_connection
 
 TABLES: tuple[str, ...] = (
     "qiaopi_text_records",
+    "qiaopi_metadata_records",
+    "qiaopi_text_metadata_links",
+    "qiaopi_text_metadata_link_candidates",
     "qiaopi_amount_mentions",
     "qiaopi_entity_mentions",
     "qiaopi_place_mentions",
@@ -18,6 +21,7 @@ TABLES: tuple[str, ...] = (
 )
 
 DROP_TABLES: tuple[str, ...] = (
+    "qiaopi_metadata_fts",
     "qiaopi_retrieval_units_fts",
     *reversed(TABLES),
 )
@@ -46,6 +50,76 @@ CREATE_TABLE_STATEMENTS: tuple[str, ...] = (
         rag_summary_text TEXT,
         style_reference_text TEXT,
         raw_json TEXT NOT NULL
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS qiaopi_metadata_records (
+        metadata_id TEXT PRIMARY KEY,
+        source_index INTEGER NOT NULL,
+        title_raw TEXT,
+        title_clean TEXT,
+        sender_raw TEXT,
+        recipient_raw TEXT,
+        sender_name_clean TEXT,
+        recipient_name_clean TEXT,
+        date_text TEXT,
+        year_normalized TEXT,
+        era_text TEXT,
+        origin_place TEXT,
+        destination_place TEXT,
+        place_mentions TEXT,
+        country_or_region TEXT,
+        remittance_raw TEXT,
+        amount_number REAL,
+        currency TEXT,
+        has_remittance INTEGER NOT NULL DEFAULT 0,
+        kinship_terms TEXT,
+        relationship_type TEXT,
+        theme_tags TEXT,
+        main_intent TEXT,
+        has_linked_text INTEGER NOT NULL DEFAULT 0,
+        linked_record_id TEXT,
+        parse_confidence REAL NOT NULL DEFAULT 0.0,
+        needs_review INTEGER NOT NULL DEFAULT 0,
+        warnings TEXT,
+        raw_json TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS qiaopi_text_metadata_links (
+        link_id TEXT PRIMARY KEY,
+        record_id TEXT NOT NULL,
+        metadata_id TEXT NOT NULL,
+        link_method TEXT NOT NULL,
+        link_confidence REAL NOT NULL,
+        title_similarity REAL NOT NULL,
+        matched_fields_json TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(record_id),
+        UNIQUE(metadata_id),
+        FOREIGN KEY(record_id) REFERENCES qiaopi_text_records(record_id)
+            ON DELETE CASCADE,
+        FOREIGN KEY(metadata_id) REFERENCES qiaopi_metadata_records(metadata_id)
+            ON DELETE CASCADE
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS qiaopi_text_metadata_link_candidates (
+        candidate_id TEXT PRIMARY KEY,
+        record_id TEXT NOT NULL,
+        metadata_id TEXT NOT NULL,
+        candidate_method TEXT NOT NULL,
+        candidate_confidence REAL NOT NULL,
+        title_similarity REAL NOT NULL,
+        matched_fields_json TEXT NOT NULL,
+        reason TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(record_id, metadata_id),
+        FOREIGN KEY(record_id) REFERENCES qiaopi_text_records(record_id)
+            ON DELETE CASCADE,
+        FOREIGN KEY(metadata_id) REFERENCES qiaopi_metadata_records(metadata_id)
+            ON DELETE CASCADE
     );
     """,
     """
@@ -154,6 +228,16 @@ CREATE_INDEX_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_intent ON qiaopi_text_records(main_intent);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_quality ON qiaopi_text_records(text_quality_level);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_year ON qiaopi_text_records(year_normalized);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_year ON qiaopi_metadata_records(year_normalized);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_country ON qiaopi_metadata_records(country_or_region);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_origin ON qiaopi_metadata_records(origin_place);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_destination ON qiaopi_metadata_records(destination_place);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_linked ON qiaopi_metadata_records(has_linked_text);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_remittance ON qiaopi_metadata_records(has_remittance);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_links_record ON qiaopi_text_metadata_links(record_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_links_metadata ON qiaopi_text_metadata_links(metadata_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_candidates_record ON qiaopi_text_metadata_link_candidates(record_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_candidates_metadata ON qiaopi_text_metadata_link_candidates(metadata_id);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_amount_mentions_record ON qiaopi_amount_mentions(record_id);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_entity_mentions_record ON qiaopi_entity_mentions(record_id);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_entity_mentions_type ON qiaopi_entity_mentions(entity_type);",
