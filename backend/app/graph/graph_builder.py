@@ -150,6 +150,14 @@ class SQLiteKnowledgeGraphBuilder:
                     "recipient_name_clean": self._value(row, "recipient_name_clean"),
                     "date_text": self._value(row, "date_text"),
                     "year_normalized": self._value(row, "year_normalized"),
+                    "date_standard": self._value(row, "date_standard"),
+                    "date_year": self._number_or_text(row, "date_year"),
+                    "date_month": self._number_or_text(row, "date_month"),
+                    "date_day": self._number_or_text(row, "date_day"),
+                    "date_precision": self._value(row, "date_precision"),
+                    "date_calendar": self._value(row, "date_calendar"),
+                    "date_parse_confidence": self._number_or_text(row, "date_parse_confidence"),
+                    "date_parse_note": self._value(row, "date_parse_note"),
                     "main_intent": self._value(row, "main_intent"),
                     "theme_tags": self._value(row, "theme_tags"),
                     "text_quality": self._value(row, "text_quality_level", "text_quality"),
@@ -264,13 +272,21 @@ class SQLiteKnowledgeGraphBuilder:
         normalized_year = self._value(row, "year_normalized") or clean_text(
             raw_json.get("year_normalized")
         )
-        label = normalized_year or raw_date
+        date_standard = self._value(row, "date_standard") or clean_text(
+            raw_json.get("date_standard")
+        )
+        label = date_standard or normalized_year
         normalized_label = normalize_date_label(label)
         if not normalized_label:
             return
         date_node_id = f"date:{normalized_label}"
         uncertainty = is_uncertain_date(raw_date) if raw_date else False
-        confidence = UNCERTAIN_CONFIDENCE if uncertainty else INFERRED_CONFIDENCE
+        confidence = (
+            self._float_value(row, "date_parse_confidence", INFERRED_CONFIDENCE)
+            if date_standard
+            else UNCERTAIN_CONFIDENCE if uncertainty else INFERRED_CONFIDENCE
+        )
+        source_column = "date_standard" if date_standard else "year_normalized"
         self._upsert_node(
             node_id=date_node_id,
             node_type="date",
@@ -281,6 +297,15 @@ class SQLiteKnowledgeGraphBuilder:
             properties={
                 "raw_date_text": raw_date,
                 "year_normalized": normalized_year,
+                "date_standard": date_standard,
+                "date_year": self._number_or_text(row, "date_year"),
+                "date_month": self._number_or_text(row, "date_month"),
+                "date_day": self._number_or_text(row, "date_day"),
+                "date_precision": self._value(row, "date_precision"),
+                "date_calendar": self._value(row, "date_calendar"),
+                "date_parse_confidence": self._number_or_text(row, "date_parse_confidence"),
+                "date_parse_note": self._value(row, "date_parse_note"),
+                "source_column": source_column,
                 "uncertain": uncertainty,
             },
         )
@@ -295,6 +320,15 @@ class SQLiteKnowledgeGraphBuilder:
             properties={
                 "raw_date_text": raw_date,
                 "year_normalized": normalized_year,
+                "date_standard": date_standard,
+                "date_year": self._number_or_text(row, "date_year"),
+                "date_month": self._number_or_text(row, "date_month"),
+                "date_day": self._number_or_text(row, "date_day"),
+                "date_precision": self._value(row, "date_precision"),
+                "date_calendar": self._value(row, "date_calendar"),
+                "date_parse_confidence": self._number_or_text(row, "date_parse_confidence"),
+                "date_parse_note": self._value(row, "date_parse_note"),
+                "source_column": source_column,
                 "uncertain": uncertainty,
             },
         )
@@ -647,6 +681,14 @@ class SQLiteKnowledgeGraphBuilder:
                     "recipient_raw": self._value(metadata, "recipient_raw"),
                     "date_text": self._value(metadata, "date_text"),
                     "year_normalized": self._value(metadata, "year_normalized"),
+                    "date_standard": self._value(metadata, "date_standard"),
+                    "date_year": self._number_or_text(metadata, "date_year"),
+                    "date_month": self._number_or_text(metadata, "date_month"),
+                    "date_day": self._number_or_text(metadata, "date_day"),
+                    "date_precision": self._value(metadata, "date_precision"),
+                    "date_calendar": self._value(metadata, "date_calendar"),
+                    "date_parse_confidence": self._number_or_text(metadata, "date_parse_confidence"),
+                    "date_parse_note": self._value(metadata, "date_parse_note"),
                     "origin_place": self._value(metadata, "origin_place"),
                     "destination_place": self._value(metadata, "destination_place"),
                     "catalog_only": True,

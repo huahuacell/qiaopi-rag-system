@@ -22,3 +22,55 @@ def test_database_can_be_built_with_expected_tables():
         assert count_rows(connection, "qiaopi_text_records") == 213
         assert count_rows(connection, "qiaopi_retrieval_units") > 213
         assert count_rows(connection, "qiaopi_retrieval_units_fts") > 213
+
+
+def test_text_database_populates_standard_dates_without_overwriting_raw_dates():
+    with get_connection() as connection:
+        traditional_row = connection.execute(
+            """
+            SELECT
+                date_text,
+                year_normalized,
+                date_standard,
+                date_year,
+                date_month,
+                date_day,
+                date_precision,
+                date_calendar,
+                date_parse_confidence,
+                date_parse_note
+            FROM qiaopi_text_records
+            WHERE record_id = 'CSQP-SFHC-TEXT-017'
+            """
+        ).fetchone()
+        no_year_row = connection.execute(
+            """
+            SELECT
+                date_text,
+                date_standard,
+                date_year,
+                date_month,
+                date_day,
+                date_precision
+            FROM qiaopi_text_records
+            WHERE record_id = 'CSQP-SFHC-TEXT-144'
+            """
+        ).fetchone()
+
+    assert traditional_row["date_text"] == "癸九月十一日"
+    assert traditional_row["year_normalized"] == "1933"
+    assert traditional_row["date_standard"] == "1933.9.11"
+    assert traditional_row["date_year"] == 1933
+    assert traditional_row["date_month"] == 9
+    assert traditional_row["date_day"] == 11
+    assert traditional_row["date_precision"] == "day"
+    assert traditional_row["date_calendar"] == "traditional_lunar_text"
+    assert traditional_row["date_parse_confidence"] == 0.85
+    assert "not converted to exact Gregorian calendar date" in traditional_row["date_parse_note"]
+
+    assert no_year_row["date_text"] == "九月十日（民国）"
+    assert no_year_row["date_standard"] == ""
+    assert no_year_row["date_year"] is None
+    assert no_year_row["date_month"] == 9
+    assert no_year_row["date_day"] == 10
+    assert no_year_row["date_precision"] == "month_day_no_year"

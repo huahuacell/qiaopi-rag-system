@@ -109,10 +109,9 @@ def test_graph_place_flows_returns_valid_list():
     assert len(payload["flows"][0]["record_ids_sample"]) <= 5
 
 
-def test_graph_api_step_has_no_neo4j_or_viewer():
+def test_graph_api_step_has_no_neo4j_modules():
     repo_root = Path(__file__).resolve().parents[2]
 
     assert not (repo_root / "backend" / "app" / "graph" / "neo4j_exporter.py").exists()
     assert not (repo_root / "backend" / "app" / "graph" / "neo4j_importer.py").exists()
-    assert not (repo_root / "kg-viewer").exists()
     assert (repo_root / "frontend").exists()

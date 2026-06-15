@@ -49,6 +49,21 @@ Step F adds optional semantic retrieval over `qiaopi_retrieval_units`. Build the
 
 Step G adds a large-scale 50064-record metadata catalog layer for archive browsing, metadata search, statistics, timeline views, place distribution, and links to the 213 full-text records. Metadata-only records are catalog records, not full-text evidence. They must not be inserted into `qiaopi_retrieval_units`, `qiaopi_retrieval_units_fts`, the semantic index, RAG context, or Qwen generation prompts. Only linked 213 full-text records may be used for RAG or generation tasks.
 
+Step Date-1 adds deterministic date normalization for `qiaopi_text_records` and `qiaopi_metadata_records`. Raw fields such as `date_text` and existing `year_normalized` values are preserved. The normalized display field is `date_standard` using `YYYY.M.D`, `YYYY.M`, or `YYYY` only when those parts are known. Missing month or day values are never defaulted to `1`.
+
+Normalized date fields:
+
+- `date_standard`: display date such as `1999.4.27`, `1933.9.11`, `1971.5`, or `1969`; empty when no complete year-bearing display date is safe.
+- `date_year`, `date_month`, `date_day`: parsed numeric parts. Missing parts remain null.
+- `date_precision`: one of `day`, `month`, `year`, `month_day_no_year`, or `unknown`.
+- `date_calendar`: one of `gregorian`, `roc`, `traditional_lunar_text`, or `unknown`.
+- `date_parse_confidence`: deterministic parser confidence from `0.0` to `1.0`.
+- `date_parse_note`: parser note for partial, unknown, or traditional-display-only dates.
+
+Supported examples include western dates (`1999年4月27日`, `1999-04-27`, `1999/04/27`, `1999.04.27`), ROC dates (`民国22年9月11日`, `民国二十二年九月十一日`), Chinese month/day numerals (`1933年九月十一日`), and traditional expressions with explicit western years (`癸(1933)九月十一日`, `辛（1911）阳月初十日`). ROC years use `western_year = roc_year + 1911`.
+
+Traditional Chinese month/day expressions are normalized for display only. They are not converted to exact Gregorian lunar-calendar dates. For example, `辛（1911）阳月初十日` becomes `1911.10.10` with `date_calendar = traditional_lunar_text` and a note explaining that no exact lunar-to-Gregorian conversion was attempted.
+
 ## GET /api/health
 
 Response:
@@ -1012,7 +1027,7 @@ Linking rules:
 
 ## Knowledge Graph Layer
 
-Purpose: Step H1 implements the isolated SQLite knowledge graph foundation for relationship modeling, visualization, and explanation across qiaopi records. Step H1.1 optimizes duplicate fact handling by merging duplicate logical edges and duplicate amount nodes while preserving evidence in `properties_json`. This layer remains derived from existing SQLite data. It does not implement Graph API routes, graph service endpoints, Neo4j integration, graph analytics, frontend integration, or a standalone viewer.
+Purpose: Step H1 implements the isolated SQLite knowledge graph foundation for relationship modeling, visualization, and explanation across qiaopi records. Step H1.1 optimizes duplicate fact handling by merging duplicate logical edges and duplicate amount nodes while preserving evidence in `properties_json`. Step H2 implements read-only Graph API endpoints backed by the SQLite KG tables. Step H3 adds a standalone `kg-viewer/` app for graph preview and demo recording. This layer remains derived from existing SQLite data. It does not implement Neo4j integration, advanced graph analytics, or official integration into `frontend/`.
 
 Implementation status:
 
@@ -1024,13 +1039,26 @@ Implemented:
 - Logical edge deduplication by `record_id`, `source_node_id`, `target_node_id`, and `edge_type`.
 - Amount node deduplication by record, normalized amount, currency, and raw amount form.
 - Evidence aggregation into `properties_json` for duplicate facts from multiple extraction sources.
+- Graph API endpoints based on SQLite KG tables.
+- Record-centered graph query.
+- Node neighbor query.
+- Limited graph overview query.
+- Place flow statistics.
+- Standalone `kg-viewer/`.
+- Vue 3, Vite, Element Plus, ECharts, and Axios viewer stack.
+- Graph stats display.
+- Record graph display.
+- Overview graph display.
+- Place flow table.
+- Node neighbor display.
+- Date nodes prefer `date_standard` labels such as `1933.9.11`; when
+  unavailable, they fall back to a known year such as `1969`.
 
 Not implemented yet:
 
-- Graph API routes or graph service endpoints.
-- `kg-viewer/`.
 - Neo4j import/export.
-- Graph analytics.
+- Advanced graph analytics.
+- Official integration into `frontend/`.
 
 Separation from existing backend modules:
 
@@ -1084,7 +1112,8 @@ Planned node types:
 - `person`: sender, recipient, kinship expression, or mentioned person.
 - `place`: origin, destination, country/region, or mentioned place.
 - `amount`: remittance amount or amount mention.
-- `date`: original date expression or normalized year.
+- `date`: normalized display date or normalized year. Raw `date_text` remains
+  available in `properties_json`.
 - `theme`: controlled or derived topic label.
 - `evidence`: full-text evidence span. It may support RAG explanation only when derived from a 213 full-text record.
 
@@ -1111,7 +1140,7 @@ Important edge provenance:
 - When duplicate edges are merged, top-level columns keep the first or strongest support while `properties_json` preserves aggregate `evidence_texts`, `source_tables`, `source_ids`, `confidences`, `raw_labels`, and `deduplicated_count`.
 - Duplicate amount mentions for the same record and normalized amount become one logical `amount` node and one `HAS_AMOUNT` edge where possible; raw amount forms and evidence texts remain in `properties_json`.
 
-Planned Graph APIs:
+Implemented Graph APIs:
 
 ```text
 GET /api/graph/stats
@@ -1119,31 +1148,194 @@ GET /api/graph/record/{record_id}
 GET /api/graph/node/{node_id}/neighbors
 GET /api/graph/overview
 GET /api/graph/flows/places
+```
+
+Planned future analytics APIs:
+
+```text
 GET /api/graph/analytics/top-nodes
 GET /api/graph/analytics/centrality
 ```
+
+The Graph API reads from the SQLite KG tables. SQLite remains the source of truth. Neo4j is not required for H2. The existing `frontend/` folder is untouched. Metadata-only records are not full-text RAG evidence.
+
+Graph node shape:
+
+```json
+{
+  "id": "record:CSQP-SFHC-TEXT-017",
+  "label": "癸(1933)九月十一日,越姚丁南寄潮安南桂家母亲大人",
+  "type": "record",
+  "category": "record",
+  "normalized_label": "CSQP-SFHC-TEXT-017",
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "properties": {}
+}
+```
+
+Graph edge shape:
+
+```json
+{
+  "id": "edge:SENT_BY:example",
+  "source": "record:CSQP-SFHC-TEXT-017",
+  "target": "person:姚丁南",
+  "type": "SENT_BY",
+  "label": "SENT_BY",
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "evidence_text": "",
+  "confidence": 0.95,
+  "properties": {}
+}
+```
+
+## GET /api/graph/stats
+
+Returns graph table counts and type distributions. If the KG tables do not exist or are empty, returns zero counts instead of crashing.
+
+Response:
+
+```json
+{
+  "node_count": 2187,
+  "edge_count": 4897,
+  "node_type_distribution": {
+    "record": 213,
+    "person": 324,
+    "place": 18
+  },
+  "edge_type_distribution": {
+    "HAS_THEME": 819,
+    "SUPPORTED_BY": 1097
+  }
+}
+```
+
+## GET /api/graph/record/{record_id}
+
+Returns a local graph centered on one full-text record. The query starts from `record:{record_id}`, then follows edges where `qiaopi_kg_edges.record_id` equals the requested record ID, so global person/place/theme nodes are included even when their own node row has an empty `record_id`.
+
+Response:
+
+```json
+{
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "nodes": [
+    {
+      "id": "record:CSQP-SFHC-TEXT-017",
+      "label": "癸(1933)九月十一日,越姚丁南寄潮安南桂家母亲大人",
+      "type": "record",
+      "category": "record",
+      "normalized_label": "CSQP-SFHC-TEXT-017",
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "properties": {}
+    }
+  ],
+  "edges": []
+}
+```
+
+If the record node does not exist, returns HTTP 404.
+
+## GET /api/graph/node/{node_id}/neighbors
+
+Returns incoming and outgoing neighboring edges for one graph node. Query parameters:
+
+- `depth`: `1` or `2`, default `1`.
+- `limit`: edge limit, default `50`, maximum `200`.
+
+Response:
+
+```json
+{
+  "node_id": "place:越南",
+  "center_node": {
+    "id": "place:越南",
+    "label": "越南",
+    "type": "place",
+    "category": "place",
+    "normalized_label": "越南",
+    "record_id": "",
+    "properties": {}
+  },
+  "nodes": [],
+  "edges": [],
+  "depth": 1,
+  "limit": 50
+}
+```
+
+If the node does not exist, returns HTTP 404. The endpoint is limited and must not return the full graph accidentally.
+
+## GET /api/graph/overview
+
+Returns a limited overview graph suitable for ECharts graph or Cytoscape previews. Query parameters:
+
+- `limit_nodes`: default `80`, maximum `200`.
+- `limit_edges`: default `120`, maximum `300`.
+
+Response:
+
+```json
+{
+  "nodes": [],
+  "edges": [],
+  "summary": {
+    "limit_nodes": 80,
+    "limit_edges": 120,
+    "returned_nodes": 80,
+    "returned_edges": 120
+  }
+}
+```
+
+The default response is limited and does not return all KG nodes.
+
+## GET /api/graph/flows/places
+
+Returns origin-destination place flow statistics based on `SENT_FROM` and `SENT_TO` edges. Query parameter:
+
+- `limit`: default `50`, maximum `200`.
+
+Response:
+
+```json
+{
+  "flows": [
+    {
+      "origin_place": "越南",
+      "destination_place": "广东潮安",
+      "count": 12,
+      "record_ids_sample": ["CSQP-SFHC-TEXT-017"]
+    }
+  ]
+}
+```
+
+Flows are sorted by `count` descending and each `record_ids_sample` contains at most five record IDs.
 
 Future Neo4j integration:
 
 - Neo4j is a future derived graph database layer, not a replacement for SQLite.
 - Future Neo4j exporters/importers should read from `qiaopi_kg_nodes` and `qiaopi_kg_edges`.
 - Neo4j must remain optional and must not be required for normal backend startup.
-- No real Neo4j implementation exists in Step H1.
+- No real Neo4j implementation exists in Step H2.
 
-Future standalone `kg-viewer/`:
+Standalone `kg-viewer/`:
 
-- A future `kg-viewer/` app will be independent from `frontend/`.
-- It should use Vue 3, Vite, Element Plus, and ECharts.
-- It should match the existing frontend's data-workbench layout style with a left sidebar, top header, and card-based main area.
-- It should call `/api/graph/*` endpoints for graph preview and demo recording.
+- H3 creates an independent `kg-viewer/` app.
+- It uses Vue 3, Vite, Element Plus, ECharts, and Axios.
+- It matches the existing frontend's data-workbench layout style with a left sidebar, top header, card-based main area, dashboard stat cards, graph cards, and table cards.
+- It calls `/api/graph/*` endpoints for graph preview and demo recording.
+- It displays graph stats, record graph, overview graph, place flow table, and node neighbors.
 - It must not import files from `frontend/`, modify `frontend/`, or depend on `frontend/` internals.
+- `frontend/` remains untouched.
 
 Important limitations:
 
 - The graph builder is SQLite-only and rebuilds derived `qiaopi_kg_nodes` and `qiaopi_kg_edges`.
-- No graph API route is implemented yet.
 - No Neo4j exporter, importer, driver, or schema is implemented yet.
-- No `kg-viewer/` app is created yet.
+- `kg-viewer/` is standalone and is not official integration into `frontend/`.
 - The graph is for relationship modeling, visualization, and explanation. It does not replace SQLite, FTS5/BM25 search, FAISS semantic search, RAG context, Qwen generation, validation, or metadata APIs.
 - Metadata-only records must not become full-text RAG evidence.
 
@@ -1235,7 +1427,7 @@ Supported filters: `year_from`, `year_to`, `country_or_region`, `origin_place`, 
 
 ## GET /api/metadata/{metadata_id}
 
-Returns the parsed metadata catalog record plus the original Excel row in `raw_json`.
+Returns the parsed metadata catalog record plus the original Excel row in `raw_json`. Metadata detail rows include the same normalized date fields as text records: `date_standard`, `date_year`, `date_month`, `date_day`, `date_precision`, `date_calendar`, `date_parse_confidence`, and `date_parse_note`.
 
 ## GET /api/metadata/{metadata_id}/linked-text
 
@@ -1280,7 +1472,15 @@ Response:
   "sender_name_clean": "寄批人名",
   "recipient_name_clean": "收批人名",
   "date_text": "癸九月十一日",
-  "year_normalized": "",
+  "year_normalized": "1933",
+  "date_standard": "1933.9.11",
+  "date_year": 1933,
+  "date_month": 9,
+  "date_day": 11,
+  "date_precision": "day",
+  "date_calendar": "traditional_lunar_text",
+  "date_parse_confidence": 0.85,
+  "date_parse_note": "Traditional Chinese month/day normalized for display; not converted to exact Gregorian calendar date.",
   "body_clean": "清洗后正文",
   "body_core": "正文核心内容",
   "main_intent": "remittance",

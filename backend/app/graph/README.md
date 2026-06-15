@@ -4,8 +4,10 @@ This directory contains the isolated knowledge graph layer. Step H1 implements
 the SQLite foundation: deterministic node/edge table creation and a rebuildable
 graph builder. Step H1.1 adds logical edge deduplication, amount node
 deduplication, and evidence aggregation. Step H2 implements read-only Graph API
-endpoints backed by the SQLite KG tables. It does not implement Neo4j
-integration, graph analytics algorithms, frontend integration, or a viewer.
+endpoints backed by the SQLite KG tables. Step H3 adds a standalone `kg-viewer/`
+app for graph preview and demo recording. It does not implement Neo4j
+integration, graph analytics algorithms, or official integration into
+`frontend/`.
 
 ## 1. Purpose
 
@@ -22,7 +24,7 @@ The graph should answer questions such as:
 - Which relationships are supported by full-text evidence spans?
 - Which full-text records are linked to catalog-only metadata records?
 
-H2 implementation status:
+H3 implementation status:
 
 Implemented:
 
@@ -40,12 +42,21 @@ Implemented:
 - Node neighbor query.
 - Limited graph overview query.
 - Place flow statistics.
+- Standalone `kg-viewer/`.
+- Vue 3, Vite, Element Plus, ECharts, and Axios viewer stack.
+- Graph stats display.
+- Record graph display.
+- Overview graph display.
+- Place flow table.
+- Node neighbor display.
+- Date nodes prefer `date_standard` labels such as `1933.9.11` and fall back
+  to `year_normalized` only when no standard display date is available.
 
 Not implemented yet:
 
-- `kg-viewer/`.
 - Neo4j import/export.
 - Advanced graph analytics.
+- Official integration into `frontend/`.
 
 ## 2. Architectural boundaries
 
@@ -199,15 +210,15 @@ Rules:
   `qiaopi_retrieval_units_fts`, the semantic index, RAG context, or Qwen
   generation prompts.
 
-## 6. Relationship with the future standalone kg-viewer
+## 6. Relationship with the standalone kg-viewer
 
-A future standalone viewer may be created at:
+H3 creates a standalone viewer at:
 
 ```text
 kg-viewer/
 ```
 
-The viewer should:
+The viewer:
 
 - Use Vue 3, Vite, Element Plus, and ECharts.
 - Match the existing frontend's data-workbench layout style.
@@ -218,9 +229,50 @@ The viewer should:
 - Not import files from `frontend/`.
 - Not modify `frontend/`.
 
-Step H2 does not create `kg-viewer/`.
+`frontend/` remains untouched. `kg-viewer/` visually matches the existing
+system style but does not import from `frontend/`.
 
-## 7. Planned node types
+## 7. Date Normalization
+
+Step Date-1 adds deterministic normalized date fields to
+`qiaopi_text_records` and `qiaopi_metadata_records`:
+
+```text
+date_standard
+date_year
+date_month
+date_day
+date_precision
+date_calendar
+date_parse_confidence
+date_parse_note
+```
+
+The graph builder preserves raw `date_text` and `year_normalized` values in
+`properties_json`. For `HAS_DATE` edges from text records, it uses
+`date_standard` as the date node label and node ID when available. If
+`date_standard` is empty but a year is available, it falls back to the year.
+Examples:
+
+```text
+date:1933.9.11
+date:1969
+```
+
+Supported source formats include western dates, ROC dates such as
+`民国22年9月11日`, Chinese month/day numerals, and traditional expressions with
+explicit western years such as `癸(1933)九月十一日` or
+`辛（1911）阳月初十日`. ROC dates use `western_year = roc_year + 1911`.
+
+`date_precision` is one of `day`, `month`, `year`, `month_day_no_year`, or
+`unknown`. `date_calendar` is one of `gregorian`, `roc`,
+`traditional_lunar_text`, or `unknown`. `date_parse_confidence` records the
+deterministic parser confidence.
+
+Traditional Chinese month/day expressions are normalized for display only.
+They are not converted to exact Gregorian lunar-calendar dates.
+
+## 8. Planned node types
 
 | Node type | Meaning | Source table | Example | Can be used as RAG evidence? |
 | --- | --- | --- | --- | --- |
@@ -229,11 +281,11 @@ Step H2 does not create `kg-viewer/`.
 | `person` | A sender, recipient, kinship expression, or mentioned person. | `qiaopi_text_records`, `qiaopi_metadata_records`, `qiaopi_entity_mentions` | `母亲`, `夏碧粧` | No by itself. It can participate in explanation only through supporting full-text evidence. |
 | `place` | An origin, destination, country/region, or mentioned place. | `qiaopi_text_records`, `qiaopi_metadata_records`, `qiaopi_place_mentions` | `新加坡`, `广东潮安` | No by itself. It can participate in explanation only through supporting full-text evidence. |
 | `amount` | A remittance amount or amount mention. | `qiaopi_amount_mentions` | `洋银肆元` | No by itself. It can support explanation when connected to full-text evidence. |
-| `date` | A date expression or normalized year. | `qiaopi_text_records`, `qiaopi_metadata_records` | `癸九月十一日`, `1931` | No by itself. It can support explanation when connected to full-text evidence. |
+| `date` | A normalized display date or normalized year. | `qiaopi_text_records`, `qiaopi_metadata_records` | `1933.9.11`, `1969` | No by itself. It can support explanation when connected to full-text evidence. |
 | `theme` | A controlled or derived topic label. | `qiaopi_text_records`, `qiaopi_metadata_records`, `qiaopi_evidence_spans` | `theme_remittance`, `theme_family_affection` | No by itself. It can support explanation when grounded in full-text evidence. |
 | `evidence` | A full-text evidence span from a qiaopi record. | `qiaopi_evidence_spans` | `兹寄批局，带去洋银肆元，至照查收，以安家计。` | Yes, only when derived from a 213 full-text record. |
 
-## 8. Planned edge types
+## 9. Planned edge types
 
 Every important edge should eventually preserve these provenance properties:
 
@@ -255,7 +307,7 @@ properties_json
 | `SENT_FROM` | `record` or `metadata_record` | `place` | `qiaopi_text_records`, `qiaopi_metadata_records`, `qiaopi_place_mentions` | Preserve when derived from full text; omit for metadata-only catalog fields. | `CSQP-SFHC-TEXT-017` `SENT_FROM` `新加坡` |
 | `SENT_TO` | `record` or `metadata_record` | `place` | `qiaopi_text_records`, `qiaopi_metadata_records`, `qiaopi_place_mentions` | Preserve when derived from full text; omit for metadata-only catalog fields. | `CSQP-SFHC-TEXT-017` `SENT_TO` `广东侨乡` |
 | `HAS_AMOUNT` | `record` or `evidence` | `amount` | `qiaopi_amount_mentions` | Yes. Amount edges should retain the amount sentence or supporting span. | Evidence span `HAS_AMOUNT` `洋银肆元` |
-| `HAS_DATE` | `record` or `metadata_record` | `date` | `qiaopi_text_records`, `qiaopi_metadata_records` | Preserve when the date is grounded in full text; omit for metadata-only catalog fields. | `CSQP-SFHC-TEXT-017` `HAS_DATE` `癸九月十一日` |
+| `HAS_DATE` | `record` or `metadata_record` | `date` | `qiaopi_text_records`, `qiaopi_metadata_records` | Preserve raw `date_text` in properties and prefer `date_standard` for the node label. | `CSQP-SFHC-TEXT-017` `HAS_DATE` `1933.9.11` |
 | `HAS_THEME` | `record`, `metadata_record`, or `evidence` | `theme` | `qiaopi_text_records`, `qiaopi_metadata_records`, `qiaopi_evidence_spans` | Preserve when the theme is assigned from a full-text span; omit for catalog-only themes. | `CSQP-SFHC-TEXT-017` `HAS_THEME` `theme_remittance` |
 | `SUPPORTED_BY` | `person`, `place`, `amount`, `date`, `theme`, or `record` | `evidence` | `qiaopi_evidence_spans` | Yes. This edge exists to make support explicit. | `洋银肆元` `SUPPORTED_BY` remittance evidence span |
 | `LINKED_TO_METADATA` | `record` | `metadata_record` | `qiaopi_text_metadata_links`, `qiaopi_text_metadata_link_candidates` | No. Preserve link method and confidence in properties instead. | `CSQP-SFHC-TEXT-017` `LINKED_TO_METADATA` `CSQP-META-001389` |
@@ -264,7 +316,7 @@ Metadata-derived edges can support browsing and visualization. They must not be
 presented as full-text evidence unless linked back to a full-text `record` or
 `evidence` node.
 
-## 9. Evidence-grounded graph design
+## 10. Evidence-grounded graph design
 
 The graph should be evidence-grounded where possible.
 
@@ -276,12 +328,13 @@ Design rules:
 - Treat metadata-derived nodes and edges as catalog context.
 - Keep metadata-only catalog context separate from full-text evidence.
 - Use deterministic normalization for labels, node IDs, and edge IDs.
+- Use `date_standard` for date labels when available; fall back to year only.
 - Store extraction details in `properties_json` instead of adding unstable
   top-level fields.
 - Surface confidence and source information in graph APIs so the viewer can
   distinguish full-text evidence from catalog-only relationships.
 
-## 10. Planned build pipeline
+## 11. Planned build pipeline
 
 The future build pipeline should be deterministic and rebuildable:
 
@@ -301,7 +354,7 @@ The future build pipeline should be deterministic and rebuildable:
 The builder must not call Qwen, create embeddings, modify retrieval units, alter
 FTS tables, or change metadata linking behavior.
 
-## 11. Graph API endpoints
+## 12. Graph API endpoints
 
 H2 implements these read-only APIs over the derived SQLite graph tables:
 
@@ -333,7 +386,7 @@ Endpoint intent:
 The API reads from `qiaopi_kg_nodes` and `qiaopi_kg_edges`. It does not call
 Neo4j and does not feed metadata-only records into RAG or Qwen generation.
 
-## 12. Future development stages
+## 13. Future development stages
 
 1. Finalize graph schema and ID conventions. Completed for the H1 SQLite
    foundation.
@@ -351,6 +404,6 @@ Neo4j and does not feed metadata-only records into RAG or Qwen generation.
 8. Add graph analytics over the derived graph tables.
 9. Add optional Neo4j exporter/importer.
 10. Create the standalone `kg-viewer/` app using Vue 3, Vite, Element Plus, and
-   ECharts.
+   ECharts. Completed in H3.
 11. Use the graph viewer for preview and demo recording while keeping it
-    independent from `frontend/`.
+    independent from `frontend/`. Completed in H3.

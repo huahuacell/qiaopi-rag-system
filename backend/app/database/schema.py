@@ -39,6 +39,14 @@ CREATE_TABLE_STATEMENTS: tuple[str, ...] = (
         recipient_name_clean TEXT,
         date_text TEXT,
         year_normalized TEXT,
+        date_standard TEXT,
+        date_year INTEGER,
+        date_month INTEGER,
+        date_day INTEGER,
+        date_precision TEXT,
+        date_calendar TEXT,
+        date_parse_confidence REAL,
+        date_parse_note TEXT,
         body_clean TEXT,
         body_core TEXT,
         main_intent TEXT,
@@ -66,6 +74,14 @@ CREATE_TABLE_STATEMENTS: tuple[str, ...] = (
         recipient_name_clean TEXT,
         date_text TEXT,
         year_normalized TEXT,
+        date_standard TEXT,
+        date_year INTEGER,
+        date_month INTEGER,
+        date_day INTEGER,
+        date_precision TEXT,
+        date_calendar TEXT,
+        date_parse_confidence REAL,
+        date_parse_note TEXT,
         era_text TEXT,
         origin_place TEXT,
         destination_place TEXT,
@@ -263,7 +279,11 @@ CREATE_INDEX_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_intent ON qiaopi_text_records(main_intent);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_quality ON qiaopi_text_records(text_quality_level);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_year ON qiaopi_text_records(year_normalized);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_date_standard ON qiaopi_text_records(date_standard);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_date_year ON qiaopi_text_records(date_year);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_year ON qiaopi_metadata_records(year_normalized);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_date_standard ON qiaopi_metadata_records(date_standard);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_date_year ON qiaopi_metadata_records(date_year);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_country ON qiaopi_metadata_records(country_or_region);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_origin ON qiaopi_metadata_records(origin_place);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_destination ON qiaopi_metadata_records(destination_place);",
@@ -291,6 +311,29 @@ CREATE_INDEX_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_target ON qiaopi_kg_edges(target_node_id);",
 )
 
+DATE_NORMALIZATION_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
+    "qiaopi_text_records": (
+        ("date_standard", "date_standard TEXT"),
+        ("date_year", "date_year INTEGER"),
+        ("date_month", "date_month INTEGER"),
+        ("date_day", "date_day INTEGER"),
+        ("date_precision", "date_precision TEXT"),
+        ("date_calendar", "date_calendar TEXT"),
+        ("date_parse_confidence", "date_parse_confidence REAL"),
+        ("date_parse_note", "date_parse_note TEXT"),
+    ),
+    "qiaopi_metadata_records": (
+        ("date_standard", "date_standard TEXT"),
+        ("date_year", "date_year INTEGER"),
+        ("date_month", "date_month INTEGER"),
+        ("date_day", "date_day INTEGER"),
+        ("date_precision", "date_precision TEXT"),
+        ("date_calendar", "date_calendar TEXT"),
+        ("date_parse_confidence", "date_parse_confidence REAL"),
+        ("date_parse_note", "date_parse_note TEXT"),
+    ),
+}
+
 
 def execute_statements(
     connection: sqlite3.Connection,
@@ -300,8 +343,20 @@ def execute_statements(
         connection.execute(statement)
 
 
+def ensure_date_normalization_columns(connection: sqlite3.Connection) -> None:
+    for table_name, columns in DATE_NORMALIZATION_COLUMNS.items():
+        existing_columns = {
+            str(row["name"])
+            for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        }
+        for column_name, column_definition in columns:
+            if column_name not in existing_columns:
+                connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_definition}")
+
+
 def create_tables(connection: sqlite3.Connection) -> None:
     execute_statements(connection, CREATE_TABLE_STATEMENTS)
+    ensure_date_normalization_columns(connection)
     execute_statements(connection, CREATE_INDEX_STATEMENTS)
 
 

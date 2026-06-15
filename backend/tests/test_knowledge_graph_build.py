@@ -147,6 +147,40 @@ def test_knowledge_graph_distributions_are_queryable(metadata_layer_ready):
     assert sum(edge_counts.values()) >= 1
 
 
+def test_knowledge_graph_date_nodes_prefer_standard_date(metadata_layer_ready):
+    build_knowledge_graph()
+
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                e.target_node_id,
+                n.label,
+                n.normalized_label,
+                n.properties_json,
+                e.properties_json AS edge_properties_json
+            FROM qiaopi_kg_edges AS e
+            JOIN qiaopi_kg_nodes AS n
+                ON n.node_id = e.target_node_id
+            WHERE e.record_id = ?
+                AND e.edge_type = 'HAS_DATE'
+            """,
+            ("CSQP-SFHC-TEXT-017",),
+        ).fetchone()
+
+    assert row is not None
+    assert row["target_node_id"] == "date:1933.9.11"
+    assert row["label"] == "1933.9.11"
+    assert row["normalized_label"] == "1933.9.11"
+
+    node_properties = json.loads(row["properties_json"])
+    edge_properties = json.loads(row["edge_properties_json"])
+    assert node_properties["raw_date_text"] == "癸九月十一日"
+    assert node_properties["date_standard"] == "1933.9.11"
+    assert node_properties["date_calendar"] == "traditional_lunar_text"
+    assert edge_properties["raw_date_text"] == "癸九月十一日"
+
+
 def test_knowledge_graph_contains_source_backed_node_types(metadata_layer_ready):
     stats = build_knowledge_graph()
     node_counts = stats["node_type_distribution"]
@@ -182,9 +216,8 @@ def test_knowledge_graph_does_not_promote_metadata_to_retrieval_units(metadata_l
     assert metadata_unit_count == 0
 
 
-def test_knowledge_graph_build_step_has_no_neo4j_or_viewer():
+def test_knowledge_graph_build_step_has_no_neo4j_modules():
     repo_root = Path(__file__).resolve().parents[2]
 
     assert not (repo_root / "backend" / "app" / "graph" / "neo4j_exporter.py").exists()
     assert not (repo_root / "backend" / "app" / "graph" / "neo4j_importer.py").exists()
-    assert not (repo_root / "kg-viewer").exists()
