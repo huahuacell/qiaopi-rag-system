@@ -8,6 +8,7 @@ from typing import Any, Iterable, Mapping, Optional
 from app.database.connection import get_connection
 from app.search.fts_index import search_fts
 from app.utils.date_normalizer import normalize_qiaopi_date
+from app.utils.place_normalizer import normalize_qiaopi_place_fields
 
 
 TEXT_RECORD_COLUMNS: tuple[str, ...] = (
@@ -35,7 +36,10 @@ TEXT_RECORD_COLUMNS: tuple[str, ...] = (
     "has_full_text",
     "has_remittance",
     "relationship_type",
+    "origin_place",
+    "destination_place",
     "place_mentions_normalized",
+    "country_or_region",
     "retrieval_keywords",
     "rag_summary_text",
     "style_reference_text",
@@ -280,6 +284,7 @@ def insert_text_records(
                 context_columns=("title_reference",),
             )
         )
+        record.update(normalize_qiaopi_place_fields(row).as_db_fields())
         record["has_full_text"] = _flag_or_none(row.get("has_full_text"))
         record["has_remittance"] = _flag_or_none(row.get("has_remittance"))
         record["raw_json"] = _json_dump(row)

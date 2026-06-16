@@ -55,7 +55,10 @@ CREATE_TABLE_STATEMENTS: tuple[str, ...] = (
         has_full_text INTEGER,
         has_remittance INTEGER,
         relationship_type TEXT,
+        origin_place TEXT,
+        destination_place TEXT,
         place_mentions_normalized TEXT,
+        country_or_region TEXT,
         retrieval_keywords TEXT,
         rag_summary_text TEXT,
         style_reference_text TEXT,
@@ -334,6 +337,12 @@ DATE_NORMALIZATION_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
 }
 
+TEXT_PLACE_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("origin_place", "origin_place TEXT"),
+    ("destination_place", "destination_place TEXT"),
+    ("country_or_region", "country_or_region TEXT"),
+)
+
 
 def execute_statements(
     connection: sqlite3.Connection,
@@ -354,9 +363,22 @@ def ensure_date_normalization_columns(connection: sqlite3.Connection) -> None:
                 connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_definition}")
 
 
+def ensure_text_place_columns(connection: sqlite3.Connection) -> None:
+    existing_columns = {
+        str(row["name"])
+        for row in connection.execute("PRAGMA table_info(qiaopi_text_records)").fetchall()
+    }
+    for column_name, column_definition in TEXT_PLACE_COLUMNS:
+        if column_name not in existing_columns:
+            connection.execute(
+                f"ALTER TABLE qiaopi_text_records ADD COLUMN {column_definition}"
+            )
+
+
 def create_tables(connection: sqlite3.Connection) -> None:
     execute_statements(connection, CREATE_TABLE_STATEMENTS)
     ensure_date_normalization_columns(connection)
+    ensure_text_place_columns(connection)
     execute_statements(connection, CREATE_INDEX_STATEMENTS)
 
 
