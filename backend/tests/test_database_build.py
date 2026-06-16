@@ -24,6 +24,33 @@ def test_database_can_be_built_with_expected_tables():
         assert count_rows(connection, "qiaopi_retrieval_units_fts") > 213
 
 
+def test_text_database_populates_normalized_place_fields():
+    with get_connection() as connection:
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(qiaopi_text_records)").fetchall()
+        }
+        row = connection.execute(
+            """
+            SELECT
+                origin_place,
+                destination_place,
+                country_or_region,
+                place_mentions_normalized,
+                raw_json
+            FROM qiaopi_text_records
+            WHERE record_id = 'CSQP-SFHC-TEXT-017'
+            """
+        ).fetchone()
+
+    assert {"origin_place", "destination_place", "country_or_region"}.issubset(columns)
+    assert row["origin_place"] == "越南"
+    assert row["destination_place"] == "广东潮安"
+    assert row["country_or_region"] == "越南；广东侨乡"
+    assert row["place_mentions_normalized"] == "越南；广东潮安"
+    assert '"origin_place": "越南"' in row["raw_json"]
+
+
 def test_text_database_populates_standard_dates_without_overwriting_raw_dates():
     with get_connection() as connection:
         traditional_row = connection.execute(

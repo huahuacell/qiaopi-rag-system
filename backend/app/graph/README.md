@@ -272,7 +272,99 @@ deterministic parser confidence.
 Traditional Chinese month/day expressions are normalized for display only.
 They are not converted to exact Gregorian lunar-calendar dates.
 
-## 8. Planned node types
+## 8. Kinship Normalization
+
+The graph builder normalizes common qiaopi kinship terms before creating
+`person` nodes. Matching is longest-first and supports embedded relationship
+phrases inside longer sender or recipient labels, such as `黄氏吾妻`,
+`荆妻李氏`, `潮汕祖母大人`, or `鹤巢乡李再赐胞兄`. This avoids duplicate
+nodes such as `person:慈亲` and `person:母亲`; source labels are kept in
+`properties_json.raw_labels`, and original `evidence_text` remains on edges.
+
+Current normalized kinship types:
+
+| Raw terms | Node label | `kinship_type` |
+| --- | --- | --- |
+| `吾妻`, `贤妻`, `荆妻`, `内妻`, `妻室`, `内人`, `拙荆`, `爱妻` | `妻子` | `wife` |
+| `慈亲`, `慈母`, `母亲`, `家慈`, `母亲大人` | `母亲` | `mother` |
+| `严亲`, `严父`, `父亲`, `家严`, `父亲大人` | `父亲` | `father` |
+| `双亲`, `父母`, `二亲` | `双亲` | `parents` |
+| `岳父母`, `岳双亲` | `岳父母` | `parents_in_law` |
+| `外祖父母` | `外祖父母` | `maternal_grandparents` |
+| `祖父母` | `祖父母` | `grandparents` |
+| `岳祖父母` | `岳祖父母` | `grandparents_in_law` |
+| `祖母`, `祖慈` | `祖母` | `grandmother` |
+| `祖父` | `祖父` | `grandfather` |
+| `外祖母` | `外祖母` | `maternal_grandmother` |
+| `外祖父` | `外祖父` | `maternal_grandfather` |
+| `岳母`, `岳慈亲` | `岳母` | `mother_in_law` |
+| `岳父` | `岳父` | `father_in_law` |
+| `岳祖母` | `岳祖母` | `grandmother_in_law` |
+| `岳祖父` | `岳祖父` | `grandfather_in_law` |
+| `兄长`, `胞兄`, `吾兄`, `兄台`, `姻兄`, `表兄`, `大兄` | `兄长` | `elder_brother` |
+| `胞弟`, `吾弟`, `贤弟`, `大弟`, `姻弟`, `英弟`, `下蓬英弟`, `逞大弟` | `弟弟` | `younger_brother` |
+| `吾姊`, `姻姊`, `大姊`, `姊`, `姐` | `姐姐` | `elder_sister` |
+| `胞妹`, `贤妹`, `妹` | `妹妹` | `younger_sister` |
+| `侄`, `侄儿`, `贤侄`, `族侄`, `宗侄`, `侄台`, `吾侄`, `内侄`, `两侄` | `侄子` | `nephew` |
+| `姨母`, `细姨母` | `姨母` | `aunt_maternal` |
+| `嫂`, `嫂嫂`, `表嫂`, `大嫂` | `嫂子` | `sister_in_law` |
+| `女儿` | `女儿` | `daughter` |
+| `男`, `儿`, `孩儿` | `儿子` | `son` |
+| `叔`, `叔父` | `叔父` | `uncle` |
+
+`男` is normalized to `儿子` only in qiaopi self-reference or signature
+contexts. Ordinary named-person contexts are not treated as `son`. `氏` alone
+and `先生` are not kinship terms. `双亲` remains `parents` and is not collapsed
+to `mother`. In-law parent and grandparent terms stay separate from blood
+parent and grandparent nodes: `岳慈亲` maps to `岳母`, and `岳祖母` maps to
+`岳祖母`, not `母亲` or `祖母`.
+
+Stable collective kinship terms remain collective nodes rather than being
+split. For example, `外祖父母` creates `person:外祖父母`, while `岳双亲` creates
+`person:岳父母`; both carry `is_collective_kinship`, `member_labels`, and
+`member_kinship_types` metadata. Parallel recipient labels can still contribute
+to more than one `person` node. For example, `岳祖母、岳慈亲` creates edges to
+both `person:岳祖母` and `person:岳母`, and mixed affinal sibling labels such as
+`妙姿姻姊、家国姻弟` create edges to both `person:姐姐` and `person:弟弟`. The
+same original raw label is preserved in each target node's `raw_labels`, and the
+same source `evidence_text` remains on each edge.
+
+Every `person` node now carries these properties when available:
+
+```text
+person_kind
+kinship_type
+raw_labels
+normalization_note
+confidence
+needs_review
+detected_terms
+is_collective_kinship
+member_labels
+member_kinship_types
+```
+
+`person_kind` is `kinship_term` for normalized relationship terms,
+`named_person` for concrete names such as `丁南`, and `unknown` only for
+unclear nodes that still need rule review. Named people use
+`kinship_type = none`.
+
+Known or suspected kinship terms that do not yet have a normalization rule are
+returned from `build_knowledge_graph()` in `kinship_needs_review`, grouped by
+raw label with counts and source samples.
+
+The build stats include `kinship_coverage` so each text record can be checked
+for whether it has at least one kinship term. The standalone audit command is:
+
+```text
+python -m app.graph.audit_kinship_coverage
+```
+
+It prints total person nodes, `named_person` / `kinship_term` / `unknown`
+counts, kinship edge distribution, record kinship coverage, top raw labels by
+`kinship_type`, and possible remaining unknown samples.
+
+## 9. Planned node types
 
 | Node type | Meaning | Source table | Example | Can be used as RAG evidence? |
 | --- | --- | --- | --- | --- |
@@ -285,7 +377,7 @@ They are not converted to exact Gregorian lunar-calendar dates.
 | `theme` | A controlled or derived topic label. | `qiaopi_text_records`, `qiaopi_metadata_records`, `qiaopi_evidence_spans` | `theme_remittance`, `theme_family_affection` | No by itself. It can support explanation when grounded in full-text evidence. |
 | `evidence` | A full-text evidence span from a qiaopi record. | `qiaopi_evidence_spans` | `兹寄批局，带去洋银肆元，至照查收，以安家计。` | Yes, only when derived from a 213 full-text record. |
 
-## 9. Planned edge types
+## 10. Planned edge types
 
 Every important edge should eventually preserve these provenance properties:
 
@@ -316,7 +408,7 @@ Metadata-derived edges can support browsing and visualization. They must not be
 presented as full-text evidence unless linked back to a full-text `record` or
 `evidence` node.
 
-## 10. Evidence-grounded graph design
+## 11. Evidence-grounded graph design
 
 The graph should be evidence-grounded where possible.
 
@@ -329,12 +421,14 @@ Design rules:
 - Keep metadata-only catalog context separate from full-text evidence.
 - Use deterministic normalization for labels, node IDs, and edge IDs.
 - Use `date_standard` for date labels when available; fall back to year only.
+- Normalize configured kinship aliases to standard `person` nodes while keeping
+  original terms in `raw_labels`.
 - Store extraction details in `properties_json` instead of adding unstable
   top-level fields.
 - Surface confidence and source information in graph APIs so the viewer can
   distinguish full-text evidence from catalog-only relationships.
 
-## 11. Planned build pipeline
+## 12. Planned build pipeline
 
 The future build pipeline should be deterministic and rebuildable:
 
@@ -354,7 +448,7 @@ The future build pipeline should be deterministic and rebuildable:
 The builder must not call Qwen, create embeddings, modify retrieval units, alter
 FTS tables, or change metadata linking behavior.
 
-## 12. Graph API endpoints
+## 13. Graph API endpoints
 
 H2 implements these read-only APIs over the derived SQLite graph tables:
 
@@ -386,7 +480,7 @@ Endpoint intent:
 The API reads from `qiaopi_kg_nodes` and `qiaopi_kg_edges`. It does not call
 Neo4j and does not feed metadata-only records into RAG or Qwen generation.
 
-## 13. Future development stages
+## 14. Future development stages
 
 1. Finalize graph schema and ID conventions. Completed for the H1 SQLite
    foundation.

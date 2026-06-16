@@ -1053,6 +1053,8 @@ Implemented:
 - Node neighbor display.
 - Date nodes prefer `date_standard` labels such as `1933.9.11`; when
   unavailable, they fall back to a known year such as `1969`.
+- Person nodes normalize configured qiaopi kinship aliases and embedded
+  relationship phrases while preserving raw labels and edge evidence.
 
 Not implemented yet:
 
@@ -1116,6 +1118,43 @@ Planned node types:
   available in `properties_json`.
 - `theme`: controlled or derived topic label.
 - `evidence`: full-text evidence span. It may support RAG explanation only when derived from a 213 full-text record.
+
+Person node kinship normalization:
+
+- The KG builder normalizes embedded qiaopi relationship phrases before
+  creating `person` nodes. Examples include `黄氏吾妻 -> 妻子 / wife`,
+  `荆妻李氏 -> 妻子 / wife`, `祖慈 -> 祖母 / grandmother`,
+  `岳慈亲 -> 岳母 / mother_in_law`, `岳祖母 -> 岳祖母 / grandmother_in_law`,
+  `胞兄 -> 兄长 / elder_brother`, `英弟 -> 弟弟 / younger_brother`,
+  `吾姊 -> 姐姐 / elder_sister`, `嫂嫂 -> 嫂子 / sister_in_law`, and
+  `女儿 -> 女儿 / daughter`.
+- Stable collective kinship terms remain collective nodes. `双亲`, `父母`,
+  and `二亲` map to `双亲 / parents`; `岳父母` and `岳双亲` map to
+  `岳父母 / parents_in_law`; `外祖父母` maps to
+  `外祖父母 / maternal_grandparents`; `祖父母` maps to
+  `祖父母 / grandparents`; and `岳祖父母` maps to
+  `岳祖父母 / grandparents_in_law`.
+- Parallel recipient labels may create more than one person edge. `岳祖母、岳慈亲`
+  contributes to both `岳祖母 / grandmother_in_law` and
+  `岳母 / mother_in_law`. Mixed labels such as `妙姿姻姊、家国姻弟` contribute
+  to both `姐姐 / elder_sister` and `弟弟 / younger_brother`.
+- `properties_json` for `person` nodes may include `person_kind`,
+  `kinship_type`, `raw_labels`, `normalization_note`, `confidence`,
+  `needs_review`, `detected_terms`, `is_collective_kinship`, `member_labels`,
+  and `member_kinship_types`.
+- `person_kind` is `kinship_term` for normalized relationship terms,
+  `named_person` for concrete names, and `unknown` only for unclear nodes that
+  need rule review. Named people use `kinship_type = none`.
+- `男` is treated as `儿子 / son` only in qiaopi self-reference or signature
+  contexts. `氏` alone and `先生` are not kinship terms. `双亲` remains
+  `parents` and is not collapsed to `mother`. `岳双亲` is not placed in
+  `person:双亲`; it is normalized to `person:岳父母`. In-law parent and
+  grandparent terms stay separate from blood parent and grandparent nodes.
+- Original source labels remain in `properties_json.raw_labels`, and original
+  edge `evidence_text` is preserved. The audit command
+  `python -m app.graph.audit_kinship_coverage` prints total person nodes,
+  person kind counts, kinship edge distribution, record kinship coverage, top
+  raw labels by `kinship_type`, and remaining unknown samples.
 
 Planned edge types:
 

@@ -32,6 +32,7 @@ SUPPORTED_EDGE_TYPES: tuple[str, ...] = (
     "SUPPORTED_BY",
     "LINKED_TO_METADATA",
 )
+ORDERED_JSON_LIST_KEYS = {"member_labels", "member_kinship_types"}
 
 
 @dataclass(frozen=True)
@@ -434,11 +435,20 @@ def _json_dump(value: Mapping[str, Any]) -> str:
     return json.dumps(_clean_json(value), ensure_ascii=False, sort_keys=True)
 
 
-def _clean_json(value: Any) -> Any:
+def _clean_json(value: Any, *, preserve_list_order: bool = False) -> Any:
     if isinstance(value, Mapping):
-        return {str(key): _clean_json(item) for key, item in value.items() if item not in (None, "")}
+        return {
+            str(key): _clean_json(
+                item,
+                preserve_list_order=str(key) in ORDERED_JSON_LIST_KEYS,
+            )
+            for key, item in value.items()
+            if item not in (None, "")
+        }
     if isinstance(value, (list, tuple, set)):
         cleaned = [_clean_json(item) for item in value if item not in (None, "")]
+        if preserve_list_order:
+            return cleaned
         try:
             return sorted(cleaned)
         except TypeError:

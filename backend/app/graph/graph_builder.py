@@ -24,11 +24,18 @@ from app.graph.graph_repository import (
     reset_kg_tables,
 )
 from app.graph.normalizers import (
+    KINSHIP_TERM,
+    NAMED_PERSON,
+    NO_KINSHIP_TYPE,
+    UNKNOWN_KINSHIP_TYPE,
+    UNKNOWN_PERSON_KIND,
+    KinshipNormalization,
     clean_text,
     is_uncertain_date,
     normalize_amount_number,
     normalize_amount_raw,
     normalize_date_label,
+    normalize_kinship_people,
     normalize_person_label,
     normalize_place_label,
     normalize_theme_label,
@@ -74,6 +81,8 @@ class SQLiteKnowledgeGraphBuilder:
         self.warnings: list[str] = []
         self._initial_tables = self._list_tables()
         self._columns_cache: dict[str, set[str]] = {}
+        self.kinship_record_ids: dict[str, set[str]] = defaultdict(set)
+        self._kinship_review_items: dict[str, dict[str, Any]] = {}
 
     def build(self) -> dict[str, Any]:
         self._warn_missing_source_tables()
@@ -113,6 +122,8 @@ class SQLiteKnowledgeGraphBuilder:
                 edge_type: edge_counts.get(edge_type, 0)
                 for edge_type in SUPPORTED_EDGE_TYPES
             },
+            "kinship_coverage": self._kinship_coverage(text_records),
+            "kinship_needs_review": self._kinship_needs_review(),
             "warnings": list(self.warnings),
         }
 
@@ -185,57 +196,63 @@ class SQLiteKnowledgeGraphBuilder:
             record_node_id = f"record:{record_id}"
             sender_label = self._value(row, "sender_name_clean", "sender")
             if sender_label:
-                sender_node_id = self._upsert_person_node(
+                sender_node_ids = self._upsert_person_nodes(
                     sender_label,
                     source_table="qiaopi_text_records",
                     source_id=f"{record_id}:sender",
+                    record_id=record_id,
+                    source_field="sender",
                     properties={
                         "original_labels": [self._value(row, "sender") or sender_label],
                         "clean_label": sender_label,
                         "source_columns": ["sender", "sender_name_clean"],
                     },
                 )
-                self._add_edge(
-                    source_node_id=record_node_id,
-                    target_node_id=sender_node_id,
-                    edge_type="SENT_BY",
-                    record_id=record_id,
-                    source_table="qiaopi_text_records",
-                    source_id=f"{record_id}:sender",
-                    confidence=DIRECT_FIELD_CONFIDENCE,
-                    properties={
-                        "source_column": "sender",
-                        "original_label": self._value(row, "sender") or sender_label,
-                        "clean_label": sender_label,
-                    },
-                )
+                for sender_node_id in sender_node_ids:
+                    self._add_edge(
+                        source_node_id=record_node_id,
+                        target_node_id=sender_node_id,
+                        edge_type="SENT_BY",
+                        record_id=record_id,
+                        source_table="qiaopi_text_records",
+                        source_id=f"{record_id}:sender",
+                        confidence=DIRECT_FIELD_CONFIDENCE,
+                        properties={
+                            "source_column": "sender",
+                            "original_label": self._value(row, "sender") or sender_label,
+                            "clean_label": sender_label,
+                        },
+                    )
 
             recipient_label = self._value(row, "recipient_name_clean", "recipient")
             if recipient_label:
-                recipient_node_id = self._upsert_person_node(
+                recipient_node_ids = self._upsert_person_nodes(
                     recipient_label,
                     source_table="qiaopi_text_records",
                     source_id=f"{record_id}:recipient",
+                    record_id=record_id,
+                    source_field="recipient",
                     properties={
                         "original_labels": [self._value(row, "recipient") or recipient_label],
                         "clean_label": recipient_label,
                         "source_columns": ["recipient", "recipient_name_clean"],
                     },
                 )
-                self._add_edge(
-                    source_node_id=record_node_id,
-                    target_node_id=recipient_node_id,
-                    edge_type="RECEIVED_BY",
-                    record_id=record_id,
-                    source_table="qiaopi_text_records",
-                    source_id=f"{record_id}:recipient",
-                    confidence=DIRECT_FIELD_CONFIDENCE,
-                    properties={
-                        "source_column": "recipient",
-                        "original_label": self._value(row, "recipient") or recipient_label,
-                        "clean_label": recipient_label,
-                    },
-                )
+                for recipient_node_id in recipient_node_ids:
+                    self._add_edge(
+                        source_node_id=record_node_id,
+                        target_node_id=recipient_node_id,
+                        edge_type="RECEIVED_BY",
+                        record_id=record_id,
+                        source_table="qiaopi_text_records",
+                        source_id=f"{record_id}:recipient",
+                        confidence=DIRECT_FIELD_CONFIDENCE,
+                        properties={
+                            "source_column": "recipient",
+                            "original_label": self._value(row, "recipient") or recipient_label,
+                            "clean_label": recipient_label,
+                        },
+                    )
 
     def _add_record_date_theme_place_edges(self, records: Iterable[Mapping[str, Any]]) -> None:
         missing_place_columns = [
@@ -453,32 +470,36 @@ class SQLiteKnowledgeGraphBuilder:
             mention_id = self._value(row, "mention_id") or self._stable_suffix(
                 record_id, entity_type, label
             )
-            person_node_id = self._upsert_person_node(
+            person_node_ids = self._upsert_person_nodes(
                 label,
                 source_table="qiaopi_entity_mentions",
                 source_id=mention_id,
+                record_id=record_id,
+                entity_type=entity_type,
+                source_field=self._value(row, "source_field"),
                 properties={
                     "original_labels": [original_label or label],
                     "entity_types": [entity_type],
                     "source_columns": [self._value(row, "source_field")],
                 },
             )
-            self._add_edge(
-                source_node_id=f"record:{record_id}",
-                target_node_id=person_node_id,
-                edge_type="MENTIONS_PERSON",
-                record_id=record_id,
-                evidence_text=original_label,
-                source_table="qiaopi_entity_mentions",
-                source_id=mention_id,
-                confidence=self._float_value(row, "confidence", STRUCTURED_MENTION_CONFIDENCE),
-                properties={
-                    "entity_type": entity_type,
-                    "source_field": self._value(row, "source_field"),
-                    "original_label": original_label,
-                    "normalized_text": self._value(row, "normalized_text"),
-                },
-            )
+            for person_node_id in person_node_ids:
+                self._add_edge(
+                    source_node_id=f"record:{record_id}",
+                    target_node_id=person_node_id,
+                    edge_type="MENTIONS_PERSON",
+                    record_id=record_id,
+                    evidence_text=original_label,
+                    source_table="qiaopi_entity_mentions",
+                    source_id=mention_id,
+                    confidence=self._float_value(row, "confidence", STRUCTURED_MENTION_CONFIDENCE),
+                    properties={
+                        "entity_type": entity_type,
+                        "source_field": self._value(row, "source_field"),
+                        "original_label": original_label,
+                        "normalized_text": self._value(row, "normalized_text"),
+                    },
+                )
 
     def _add_place_mentions(self) -> None:
         self._warn_missing_columns(
@@ -780,21 +801,161 @@ class SQLiteKnowledgeGraphBuilder:
         source_table: str,
         source_id: str,
         properties: Mapping[str, Any],
+        record_id: str = "",
+        entity_type: str = "",
+        source_field: str = "",
+        person_kind_hint: str = "",
     ) -> str:
-        normalized_label = normalize_person_label(label)
-        if not normalized_label:
-            return ""
-        node_id = f"person:{normalized_label}"
-        self._upsert_node(
-            node_id=node_id,
-            node_type="person",
-            label=label,
-            normalized_label=normalized_label,
+        node_ids = self._upsert_person_nodes(
+            label,
             source_table=source_table,
             source_id=source_id,
             properties=properties,
+            record_id=record_id,
+            entity_type=entity_type,
+            source_field=source_field,
+            person_kind_hint=person_kind_hint,
         )
-        return node_id
+        return node_ids[0] if node_ids else ""
+
+    def _upsert_person_nodes(
+        self,
+        label: str,
+        *,
+        source_table: str,
+        source_id: str,
+        properties: Mapping[str, Any],
+        record_id: str = "",
+        entity_type: str = "",
+        source_field: str = "",
+        person_kind_hint: str = "",
+    ) -> list[str]:
+        raw_labels = self._person_source_labels(label, properties)
+        kinships = normalize_kinship_people(
+            label,
+            raw_labels=raw_labels,
+            entity_type=entity_type,
+            source_field=source_field,
+            person_kind_hint=person_kind_hint,
+        )
+        node_ids: list[str] = []
+        for kinship in kinships:
+            normalized_label = normalize_person_label(kinship.standard_label)
+            if not normalized_label:
+                continue
+            self._track_kinship_normalization(
+                kinship,
+                record_id=record_id,
+                source_table=source_table,
+                source_id=source_id,
+            )
+            node_id = f"person:{normalized_label}"
+            self._upsert_node(
+                node_id=node_id,
+                node_type="person",
+                label=kinship.standard_label,
+                normalized_label=normalized_label,
+                source_table=source_table,
+                source_id=source_id,
+                properties={
+                    **dict(properties),
+                    "person_kind": kinship.person_kind,
+                    "kinship_type": kinship.kinship_type,
+                    "raw_labels": self._person_raw_labels(label, properties, kinship),
+                    "normalization_note": kinship.normalization_note,
+                    "confidence": kinship.confidence,
+                    "needs_review": kinship.needs_review,
+                    "detected_terms": list(kinship.detected_terms),
+                    "is_collective_kinship": kinship.is_collective_kinship,
+                    "member_labels": list(kinship.member_labels),
+                    "member_kinship_types": list(kinship.member_kinship_types),
+                },
+            )
+            node_ids.append(node_id)
+        return node_ids
+
+    def _person_source_labels(
+        self,
+        label: str,
+        properties: Mapping[str, Any],
+    ) -> list[str]:
+        values: list[Any] = [label]
+        values.extend(self._as_list(properties.get("raw_labels", [])))
+        values.extend(self._as_list(properties.get("original_labels", [])))
+        values.extend(self._as_list(properties.get("clean_label", [])))
+        return [
+            clean_value
+            for clean_value in self._dedupe_values(clean_text(value) for value in values)
+            if clean_value
+        ]
+
+    def _person_raw_labels(
+        self,
+        label: str,
+        properties: Mapping[str, Any],
+        kinship: KinshipNormalization,
+    ) -> list[str]:
+        values: list[Any] = [*kinship.raw_labels, kinship.raw_label, label]
+        values.extend(self._as_list(properties.get("raw_labels", [])))
+        values.extend(self._as_list(properties.get("original_labels", [])))
+        if kinship.person_kind == KINSHIP_TERM and kinship.detected_terms:
+            values = [
+                value
+                for value in values
+                if self._contains_detected_term(value, kinship.detected_terms)
+            ]
+        return [
+            clean_value
+            for clean_value in self._dedupe_values(clean_text(value) for value in values)
+            if clean_value
+        ]
+
+    def _contains_detected_term(self, value: Any, detected_terms: Iterable[str]) -> bool:
+        text = clean_text(value)
+        return any(term and term in text for term in detected_terms)
+
+    def _track_kinship_normalization(
+        self,
+        kinship: KinshipNormalization,
+        *,
+        record_id: str,
+        source_table: str,
+        source_id: str,
+    ) -> None:
+        if kinship.person_kind == KINSHIP_TERM and record_id:
+            self.kinship_record_ids[record_id].add(kinship.kinship_type)
+        if not kinship.needs_review:
+            return
+        item = self._kinship_review_items.setdefault(
+            kinship.raw_label,
+            {
+                "raw_label": kinship.raw_label,
+                "raw_labels": set(),
+                "person_kind": kinship.person_kind,
+                "kinship_type": kinship.kinship_type or UNKNOWN_KINSHIP_TYPE,
+                "detected_terms": set(),
+                "confidence": kinship.confidence,
+                "count": 0,
+                "record_ids": set(),
+                "source_tables": set(),
+                "source_ids": set(),
+                "normalization_note": kinship.normalization_note,
+            },
+        )
+        item["count"] += 1
+        item["raw_labels"].update(kinship.raw_labels)
+        item["detected_terms"].update(kinship.detected_terms)
+        item["confidence"] = max(item["confidence"], kinship.confidence)
+        if item["person_kind"] == UNKNOWN_PERSON_KIND and kinship.person_kind != UNKNOWN_PERSON_KIND:
+            item["person_kind"] = kinship.person_kind
+        if item["kinship_type"] in ("", UNKNOWN_KINSHIP_TYPE) and kinship.kinship_type:
+            item["kinship_type"] = kinship.kinship_type
+        if record_id:
+            item["record_ids"].add(record_id)
+        if source_table:
+            item["source_tables"].add(source_table)
+        if source_id:
+            item["source_ids"].add(source_id)
 
     def _add_place_edge(
         self,
@@ -956,6 +1117,50 @@ class SQLiteKnowledgeGraphBuilder:
             if record_id:
                 counts[record_id] += 1
         return dict(counts)
+
+    def _kinship_coverage(self, text_records: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+        record_ids = sorted(self._value(row, "record_id") for row in text_records if self._value(row, "record_id"))
+        record_has_kinship = {
+            record_id: record_id in self.kinship_record_ids
+            for record_id in record_ids
+        }
+        records_without_kinship = [
+            record_id
+            for record_id, has_kinship in record_has_kinship.items()
+            if not has_kinship
+        ]
+        records_with_kinship_count = sum(1 for has_kinship in record_has_kinship.values() if has_kinship)
+        record_count = len(record_ids)
+        return {
+            "record_count": record_count,
+            "records_with_kinship_count": records_with_kinship_count,
+            "records_without_kinship_count": len(records_without_kinship),
+            "coverage_ratio": round(records_with_kinship_count / record_count, 6)
+            if record_count
+            else 0.0,
+            "record_has_kinship": record_has_kinship,
+            "records_without_kinship": records_without_kinship,
+        }
+
+    def _kinship_needs_review(self) -> list[dict[str, Any]]:
+        review_rows: list[dict[str, Any]] = []
+        for item in self._kinship_review_items.values():
+            review_rows.append(
+                {
+                    "raw_label": item["raw_label"],
+                    "raw_labels": sorted(item["raw_labels"]),
+                    "person_kind": item["person_kind"],
+                    "kinship_type": item["kinship_type"],
+                    "detected_terms": sorted(item["detected_terms"]),
+                    "confidence": item["confidence"],
+                    "count": item["count"],
+                    "record_ids_sample": sorted(item["record_ids"])[:10],
+                    "source_tables": sorted(item["source_tables"]),
+                    "source_ids_sample": sorted(item["source_ids"])[:10],
+                    "normalization_note": item["normalization_note"],
+                }
+            )
+        return sorted(review_rows, key=lambda item: (-item["count"], item["raw_label"]))
 
     def _linked_metadata_by_id(self, metadata_ids: list[str]) -> dict[str, Mapping[str, Any]]:
         if not metadata_ids:
@@ -1164,6 +1369,50 @@ class SQLiteKnowledgeGraphBuilder:
             if key == "deduplicated_count":
                 merged[key] = self._int_value(merged.get(key)) + self._int_value(value)
                 continue
+            if key == "person_kind":
+                values = {clean_text(merged.get(key)), clean_text(value)}
+                if KINSHIP_TERM in values:
+                    merged[key] = KINSHIP_TERM
+                elif NAMED_PERSON in values:
+                    merged[key] = NAMED_PERSON
+                else:
+                    merged[key] = UNKNOWN_PERSON_KIND
+                continue
+            if key == "kinship_type":
+                existing_value = clean_text(merged.get(key))
+                new_value = clean_text(value)
+                if existing_value not in ("", UNKNOWN_KINSHIP_TYPE, NO_KINSHIP_TYPE):
+                    merged[key] = existing_value
+                elif new_value not in ("", UNKNOWN_KINSHIP_TYPE, NO_KINSHIP_TYPE):
+                    merged[key] = new_value
+                elif NO_KINSHIP_TYPE in {existing_value, new_value}:
+                    merged[key] = NO_KINSHIP_TYPE
+                else:
+                    merged[key] = UNKNOWN_KINSHIP_TYPE
+                continue
+            if key == "normalization_note":
+                existing_value = clean_text(merged.get(key))
+                new_value = clean_text(value)
+                if not existing_value:
+                    merged[key] = new_value
+                elif existing_value.startswith("Named person") and not new_value.startswith("Named person"):
+                    merged[key] = new_value
+                elif "review recommended" in new_value and "review recommended" not in existing_value:
+                    merged[key] = new_value
+                continue
+            if key == "confidence":
+                merged[key] = max(self._float_property(merged.get(key)), self._float_property(value))
+                continue
+            if key == "needs_review":
+                merged[key] = bool(merged.get(key)) or bool(value)
+                continue
+            if key == "is_collective_kinship":
+                merged[key] = bool(merged.get(key)) or bool(value)
+                continue
+            if key in {"member_labels", "member_kinship_types"}:
+                merged_values = self._as_list(merged.get(key, [])) + self._as_list(value)
+                merged[key] = self._dedupe_values_preserve_order(merged_values)
+                continue
             if key not in merged or merged[key] in (None, "", [], {}):
                 merged[key] = value
                 continue
@@ -1185,11 +1434,30 @@ class SQLiteKnowledgeGraphBuilder:
             deduped.append(value)
         return sorted(deduped, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
 
+    def _dedupe_values_preserve_order(self, values: Iterable[Any]) -> list[Any]:
+        seen: set[str] = set()
+        deduped: list[Any] = []
+        for value in values:
+            if value in (None, "", [], {}):
+                continue
+            key = json.dumps(value, ensure_ascii=False, sort_keys=True)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(value)
+        return deduped
+
     def _int_value(self, value: Any) -> int:
         try:
             return int(value)
         except (TypeError, ValueError):
             return 0
+
+    def _float_property(self, value: Any) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
 
     def _as_list(self, value: Any) -> list[Any]:
         if isinstance(value, list):
