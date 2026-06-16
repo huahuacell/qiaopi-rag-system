@@ -70,6 +70,9 @@ Implemented:
 - Overview graph display
 - Place flow table
 - Node neighbor display
+- Chinese display labels for theme, node type, and edge type values
+- Short graph labels for record and evidence nodes, with full details kept in tooltips
+- Evidence-node visibility toggle for overview and record graphs
 
 Not implemented:
 

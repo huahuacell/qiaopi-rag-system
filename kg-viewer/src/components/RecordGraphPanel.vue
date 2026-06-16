@@ -6,6 +6,11 @@
         <p class="panel-meta">{{ graphSummary }}</p>
       </div>
       <div class="panel-controls">
+        <el-switch
+          v-model="showEvidenceNodes"
+          size="small"
+          active-text="显示证据节点"
+        />
         <el-input
           v-model="recordId"
           class="record-input"
@@ -42,6 +47,7 @@ import { Search } from '@element-plus/icons-vue'
 
 import { getRecordGraph } from '../api/graphApi'
 import { buildGraphOption } from './graphOptions'
+import { buildRecordDisplayGraph } from '../utils/graphFilters.js'
 
 const props = defineProps({
   baseUrl: {
@@ -56,15 +62,21 @@ const props = defineProps({
 
 const recordId = ref('CSQP-SFHC-TEXT-017')
 const graph = ref({ nodes: [], edges: [] })
+const showEvidenceNodes = ref(false)
 const loading = ref(false)
 const error = ref('')
 const chartRef = ref(null)
 let chart
 
-const hasGraph = computed(() => graph.value.nodes.length > 0)
+const displayGraph = computed(() =>
+  buildRecordDisplayGraph(graph.value, {
+    includeEvidence: showEvidenceNodes.value
+  })
+)
+const hasGraph = computed(() => displayGraph.value.nodes.length > 0)
 const graphSummary = computed(() => {
   if (!hasGraph.value) return '以单封批信为中心的局部关系'
-  return `${graph.value.nodes.length} 个节点 / ${graph.value.edges.length} 条关系`
+  return `${displayGraph.value.nodes.length} 个节点 / ${displayGraph.value.edges.length} 条关系`
 })
 
 function resizeChart() {
@@ -90,7 +102,7 @@ async function loadGraph() {
 function renderGraph() {
   if (!chartRef.value || !hasGraph.value) return
   chart = chart || echarts.init(chartRef.value)
-  chart.setOption(toGraphOption(graph.value, '批信关系图'), true)
+  chart.setOption(toGraphOption(displayGraph.value, '批信关系图'), true)
   resizeChart()
 }
 
@@ -98,6 +110,8 @@ watch(
   () => [props.baseUrl, props.refreshKey],
   () => loadGraph()
 )
+
+watch(showEvidenceNodes, () => renderGraph())
 
 onMounted(() => {
   loadGraph()

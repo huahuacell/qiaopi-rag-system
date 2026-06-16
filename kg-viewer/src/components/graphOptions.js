@@ -1,3 +1,11 @@
+import {
+  getEdgeDisplayLabel,
+  getNodeCategoryLabel,
+  getNodeDisplayLabel,
+  getNodeTooltip,
+  shortenText
+} from '../utils/displayLabels.js'
+
 const TYPE_COLORS = {
   record: '#fa7864',
   metadata_record: '#dc8264',
@@ -11,17 +19,6 @@ const TYPE_COLORS = {
 
 const TYPE_ORDER = ['record', 'metadata_record', 'person', 'place', 'amount', 'date', 'theme', 'evidence']
 
-const TYPE_LABELS = {
-  record: '批信',
-  metadata_record: '目录记录',
-  person: '人物',
-  place: '地点',
-  amount: '款项',
-  date: '日期',
-  theme: '主题',
-  evidence: '证据'
-}
-
 const TYPE_SYMBOLS = {
   record: 'roundRect',
   metadata_record: 'roundRect',
@@ -33,24 +30,11 @@ const TYPE_SYMBOLS = {
   evidence: 'roundRect'
 }
 
-const EDGE_LABELS = {
-  SENT_BY: '寄信人',
-  RECEIVED_BY: '收信人',
-  MENTIONS_PERSON: '提及人物',
-  MENTIONS_PLACE: '提及地点',
-  SENT_FROM: '寄出地',
-  SENT_TO: '寄达地',
-  HAS_AMOUNT: '款项',
-  HAS_DATE: '日期',
-  HAS_THEME: '主题',
-  SUPPORTED_BY: '证据支持',
-  LINKED_TO_METADATA: '目录链接'
-}
-
-export function buildGraphOption(payload, title) {
+export function buildGraphOption(payload, title, options = {}) {
   const nodes = payload.nodes || []
   const edges = payload.edges || []
-  const categoryTypes = Array.from(new Set([...TYPE_ORDER, ...nodes.map((node) => node.type)]))
+  const categoryTypes = Array.from(new Set([...TYPE_ORDER, ...nodes.map((node) => nodeType(node))]))
+  const showEvidenceLabels = options.showEvidenceLabels === true
 
   return {
     backgroundColor: 'rgba(255, 255, 255, 0)',
@@ -73,22 +57,15 @@ export function buildGraphOption(payload, title) {
       formatter(params) {
         if (params.dataType === 'edge') {
           const edge = params.data.raw || {}
-          const edgeLabel = EDGE_LABELS[edge.type] || edge.type || ''
-          const parts = [
-            `<strong>${escapeHtml(edgeLabel)}</strong>`,
-            `来源：${escapeHtml(edge.source || '')}`,
-            `目标：${escapeHtml(edge.target || '')}`
-          ]
-          if (edge.evidence_text) parts.push(`证据：${escapeHtml(edge.evidence_text)}`)
-          if (edge.confidence !== undefined) parts.push(`可信度：${Number(edge.confidence).toFixed(2)}`)
-          return parts.join('<br/>')
+          return formatTooltip([
+            `关系类型：${getEdgeDisplayLabel(edge)}`,
+            `原始关系：${edge.edge_type || edge.type || ''}`,
+            `置信度：${edge.confidence !== undefined ? Number(edge.confidence).toFixed(2) : ''}`,
+            `证据：${edge.evidence_text || firstListItem(edge.properties?.evidence_texts) || ''}`
+          ])
         }
         const node = params.data.raw || {}
-        return [
-          `<strong>${escapeHtml(node.label || node.id || '')}</strong>`,
-          `ID：${escapeHtml(node.id || '')}`,
-          `类型：${escapeHtml(TYPE_LABELS[node.type] || node.type || '')}`
-        ].join('<br/>')
+        return formatTooltip(getNodeTooltip(node).split('\n'))
       }
     },
     legend: {
@@ -102,7 +79,7 @@ export function buildGraphOption(payload, title) {
         color: '#282828',
         fontSize: 12
       },
-      data: categoryTypes.map((type) => TYPE_LABELS[type] || type)
+      data: categoryTypes.map((type) => getNodeCategoryLabel({ type }))
     },
     series: [
       {
@@ -111,18 +88,18 @@ export function buildGraphOption(payload, title) {
         layout: 'force',
         roam: true,
         draggable: true,
-        categories: categoryTypes.map((type) => ({ name: TYPE_LABELS[type] || type })),
+        categories: categoryTypes.map((type) => ({ name: getNodeCategoryLabel({ type }) })),
         force: {
-          repulsion: 165,
-          edgeLength: [82, 170],
-          friction: 0.32,
-          gravity: 0.08
+          repulsion: options.repulsion || 280,
+          edgeLength: options.edgeLength || [116, 230],
+          friction: 0.24,
+          gravity: 0.055
         },
         label: {
           show: true,
           position: 'right',
           formatter(params) {
-            return compactLabel(params.data.name)
+            return compactLabel(params.data.name, nodeType(params.data.raw))
           },
           color: '#000000',
           fontSize: 11
@@ -149,14 +126,17 @@ export function buildGraphOption(payload, title) {
         },
         data: nodes.map((node) => ({
           id: node.id,
-          name: node.label || node.id,
-          category: TYPE_LABELS[node.type] || node.type,
-          symbol: TYPE_SYMBOLS[node.type] || 'circle',
-          symbolSize: symbolSize(node.type),
+          name: getNodeDisplayLabel(node),
+          category: getNodeCategoryLabel(node),
+          symbol: TYPE_SYMBOLS[nodeType(node)] || 'circle',
+          symbolSize: symbolSize(nodeType(node)),
           value: node.id,
           raw: node,
+          label: {
+            show: nodeType(node) !== 'evidence' || showEvidenceLabels
+          },
           itemStyle: {
-            color: TYPE_COLORS[node.type] || '#707070',
+            color: TYPE_COLORS[nodeType(node)] || '#707070',
             borderColor: '#000000',
             borderWidth: 1.15,
             shadowBlur: 0,
@@ -166,10 +146,11 @@ export function buildGraphOption(payload, title) {
         links: edges.map((edge) => ({
           source: edge.source,
           target: edge.target,
-          name: edge.type,
+          name: getEdgeDisplayLabel(edge),
           raw: edge,
           label: {
-            formatter: edge.type
+            show: false,
+            formatter: getEdgeDisplayLabel(edge)
           },
           lineStyle: {
             width: Math.max(1.1, Math.min(3.2, Number(edge.confidence || 0.6) * 2.2)),
@@ -186,14 +167,35 @@ export function buildGraphOption(payload, title) {
 function symbolSize(type) {
   if (type === 'record') return 38
   if (type === 'metadata_record') return 32
-  if (type === 'evidence') return 19
+  if (type === 'evidence') return 13
   if (type === 'amount') return 24
   return 28
 }
 
-function compactLabel(value) {
+function compactLabel(value, type) {
   const text = String(value || '')
-  return text.length > 18 ? `${text.slice(0, 18)}...` : text
+  if (type === 'evidence') return shortenText(text, 8)
+  if (type === 'record' || type === 'metadata_record') return shortenText(text, 12)
+  return shortenText(text, 16)
+}
+
+function nodeType(node) {
+  return node?.node_type || node?.type || node?.category || ''
+}
+
+function firstListItem(value) {
+  if (Array.isArray(value)) return value[0] || ''
+  return value || ''
+}
+
+function formatTooltip(lines) {
+  return lines
+    .filter((line) => !String(line).endsWith('：'))
+    .map((line, index) => {
+      const escaped = escapeHtml(line)
+      return index === 0 ? `<strong>${escaped}</strong>` : escaped
+    })
+    .join('<br/>')
 }
 
 function escapeHtml(value) {

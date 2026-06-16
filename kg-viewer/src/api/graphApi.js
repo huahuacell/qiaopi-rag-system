@@ -26,8 +26,13 @@ export function getRecordGraph(baseUrl, recordId) {
   return requestGraph(baseUrl, `/api/graph/record/${encodeURIComponent(recordId)}`)
 }
 
-export function getOverviewGraph(baseUrl) {
-  return requestGraph(baseUrl, '/api/graph/overview')
+export function getOverviewGraph(baseUrl, options = {}) {
+  return requestGraph(baseUrl, '/api/graph/overview', {
+    params: {
+      limit_nodes: options.limitNodes || 60,
+      limit_edges: options.limitEdges || 100
+    }
+  })
 }
 
 export function getPlaceFlows(baseUrl, limit = 50) {

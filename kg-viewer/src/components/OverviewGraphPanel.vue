@@ -5,10 +5,17 @@
         <h2>图谱总览</h2>
         <p class="panel-meta">{{ graphSummary }}</p>
       </div>
-      <el-button size="small" :loading="loading" @click="loadGraph">
-        <el-icon><Refresh /></el-icon>
-        <span>刷新</span>
-      </el-button>
+      <div class="panel-controls">
+        <el-switch
+          v-model="showEvidenceNodes"
+          size="small"
+          active-text="显示证据节点"
+        />
+        <el-button size="small" :loading="loading" @click="loadGraph">
+          <el-icon><Refresh /></el-icon>
+          <span>刷新</span>
+        </el-button>
+      </div>
     </div>
 
     <el-alert
@@ -33,6 +40,7 @@ import { Refresh } from '@element-plus/icons-vue'
 
 import { getOverviewGraph } from '../api/graphApi'
 import { buildGraphOption } from './graphOptions'
+import { buildOverviewDisplayGraph } from '../utils/graphFilters.js'
 
 const props = defineProps({
   baseUrl: {
@@ -46,16 +54,24 @@ const props = defineProps({
 })
 
 const graph = ref({ nodes: [], edges: [], summary: {} })
+const showEvidenceNodes = ref(false)
 const loading = ref(false)
 const error = ref('')
 const chartRef = ref(null)
 let chart
 
-const hasGraph = computed(() => graph.value.nodes.length > 0)
+const displayGraph = computed(() =>
+  buildOverviewDisplayGraph(graph.value, {
+    includeEvidence: showEvidenceNodes.value,
+    maxNodes: 60,
+    maxEdges: 100
+  })
+)
+const hasGraph = computed(() => displayGraph.value.nodes.length > 0)
 const graphSummary = computed(() => {
   const summary = graph.value.summary || {}
   if (!hasGraph.value) return '有限规模的图谱预览'
-  return `${summary.returned_nodes || graph.value.nodes.length} 个节点 / ${summary.returned_edges || graph.value.edges.length} 条关系`
+  return `${displayGraph.value.nodes.length} 个节点 / ${displayGraph.value.edges.length} 条关系，源数据 ${summary.returned_nodes || graph.value.nodes.length} / ${summary.returned_edges || graph.value.edges.length}`
 })
 
 function resizeChart() {
@@ -66,7 +82,10 @@ async function loadGraph() {
   loading.value = true
   error.value = ''
   try {
-    graph.value = await getOverviewGraph(props.baseUrl)
+    graph.value = await getOverviewGraph(props.baseUrl, {
+      limitNodes: 60,
+      limitEdges: 100
+    })
     await nextTick()
     renderGraph()
   } catch (requestError) {
@@ -80,7 +99,7 @@ async function loadGraph() {
 function renderGraph() {
   if (!chartRef.value || !hasGraph.value) return
   chart = chart || echarts.init(chartRef.value)
-  chart.setOption(buildGraphOption(graph.value, '图谱总览'), true)
+  chart.setOption(buildGraphOption(displayGraph.value, '图谱总览'), true)
   resizeChart()
 }
 
@@ -88,6 +107,8 @@ watch(
   () => [props.baseUrl, props.refreshKey],
   () => loadGraph()
 )
+
+watch(showEvidenceNodes, () => renderGraph())
 
 onMounted(() => {
   loadGraph()
