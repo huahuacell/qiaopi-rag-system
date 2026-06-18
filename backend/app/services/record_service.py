@@ -1,136 +1,103 @@
+from __future__ import annotations
+
+import json
+from typing import Any
+
 from app.database.repository import (
-    get_primary_amount,
-    get_record_by_id,
-    get_record_entities as fetch_record_entities,
-    get_record_evidence as fetch_record_evidence,
-    search_text_records,
+    fetch_amount_mentions,
+    fetch_entity_mentions,
+    fetch_evidence_spans,
+    fetch_place_mentions,
+    fetch_retrieval_units,
+    fetch_text_record,
 )
 
 
-def _entities(record_id: str) -> list[dict]:
+def _raw_fields(record: dict[str, Any]) -> dict[str, Any]:
+    raw_json = record.get("raw_json") or "{}"
+    try:
+        value = json.loads(raw_json)
+    except json.JSONDecodeError:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _int_flag(value: Any) -> int:
+    if value is None or value == "":
+        return 0
+    return int(value)
+
+
+def get_record_detail(record_id: str) -> dict[str, Any] | None:
+    record = fetch_text_record(record_id)
+    if not record:
+        return None
+    return {
+        "record_id": record.get("record_id", ""),
+        "title_reference": record.get("title_reference", ""),
+        "sender": record.get("sender", ""),
+        "recipient": record.get("recipient", ""),
+        "sender_name_clean": record.get("sender_name_clean", ""),
+        "recipient_name_clean": record.get("recipient_name_clean", ""),
+        "date_text": record.get("date_text", ""),
+        "year_normalized": record.get("year_normalized", ""),
+        "body_clean": record.get("body_clean", ""),
+        "body_core": record.get("body_core", ""),
+        "main_intent": record.get("main_intent", ""),
+        "theme_tags": record.get("theme_tags", ""),
+        "text_quality_level": record.get("text_quality_level", ""),
+        "has_full_text": _int_flag(record.get("has_full_text")),
+        "has_remittance": _int_flag(record.get("has_remittance")),
+        "relationship_type": record.get("relationship_type", ""),
+        "place_mentions_normalized": record.get("place_mentions_normalized", ""),
+        "retrieval_keywords": record.get("retrieval_keywords", ""),
+        "rag_summary_text": record.get("rag_summary_text", ""),
+        "style_reference_text": record.get("style_reference_text", ""),
+        "raw_fields": _raw_fields(record),
+    }
+
+
+def get_record_amounts(record_id: str) -> list[dict[str, Any]] | None:
+    if not fetch_text_record(record_id):
+        return None
+    return fetch_amount_mentions(record_id)
+
+
+def get_record_entities(record_id: str) -> list[dict[str, Any]] | None:
+    if not fetch_text_record(record_id):
+        return None
     entities = []
-    seen: set[tuple[str, str]] = set()
-    for row in fetch_record_entities(record_id):
-        entity_type = str(row.get("entity_type") or "other")
-        value = str(row.get("normalized_text") or row.get("entity_text") or "")
-        key = (entity_type, value)
-        if not value or key in seen:
-            continue
-        seen.add(key)
+    for entity in fetch_entity_mentions(record_id):
+        entity_text = entity.get("entity_text", "")
+        normalized_text = entity.get("normalized_text", "")
         entities.append(
             {
-                "entity_type": entity_type,
-                "value": value,
-                "source_text": str(row.get("entity_text") or value),
-                "confidence": float(row.get("confidence") or 0.0),
+                "mention_id": entity.get("mention_id"),
+                "record_id": entity.get("record_id"),
+                "entity_type": entity.get("entity_type", ""),
+                "value": normalized_text or entity_text,
+                "source_text": entity_text,
+                "normalized_text": normalized_text,
+                "source_field": entity.get("source_field", ""),
+                "confidence": entity.get("confidence"),
             }
         )
     return entities
 
 
-def _evidence(record_id: str) -> list[dict]:
-    return [
-        {
-            "source_field": str(row.get("source_column") or "body_clean"),
-            "source_text": str(row.get("evidence_text") or ""),
-            "reason": str(row.get("evidence_type") or "database_evidence"),
-            "similarity_score": 1.0,
-        }
-        for row in fetch_record_evidence(record_id)
-        if row.get("evidence_text")
-    ]
-
-
-def get_record_detail(record_id: str) -> dict | None:
-    row = get_record_by_id(record_id)
-    if row is None:
+def get_record_places(record_id: str) -> list[dict[str, Any]] | None:
+    if not fetch_text_record(record_id):
         return None
-
-    amount = get_primary_amount(record_id) or {}
-    metadata_keys = [
-        "origin_place",
-        "destination_place",
-        "date_text",
-        "date_standard",
-        "year_normalized",
-        "sender",
-        "recipient",
-        "sender_name_clean",
-        "recipient_name_clean",
-        "relationship_type",
-        "main_intent",
-        "theme_tags",
-        "text_quality_level",
-        "place_mentions_normalized",
-        "retrieval_keywords",
-    ]
-    metadata = {
-        key: str(row.get(key) or "")
-        for key in metadata_keys
-        if row.get(key) not in (None, "")
-    }
-    if amount:
-        metadata["money"] = str(amount.get("raw_text") or amount.get("amount_text") or "")
-
-    return {
-        "record_id": record_id,
-        "title": str(row.get("title_reference") or record_id),
-        "metadata": metadata,
-        "original_text": str(row.get("body_clean") or row.get("body_core") or ""),
-        "normalized_text": str(row.get("rag_summary_text") or row.get("body_core") or ""),
-        "entities": _entities(record_id),
-        "evidence": _evidence(record_id),
-    }
+    return fetch_place_mentions(record_id)
 
 
-def get_record_entities(record_id: str) -> dict | None:
-    if get_record_by_id(record_id) is None:
+def get_record_evidence(record_id: str) -> list[dict[str, Any]] | None:
+    if not fetch_text_record(record_id):
         return None
-    return {"record_id": record_id, "entities": _entities(record_id)}
+    return fetch_evidence_spans(record_id)
 
 
-def get_record_evidence(record_id: str) -> dict | None:
-    if get_record_by_id(record_id) is None:
+def get_record_retrieval_units(record_id: str) -> list[dict[str, Any]] | None:
+    if not fetch_text_record(record_id):
         return None
-    return {"record_id": record_id, "evidence": _evidence(record_id)}
-
-
-def get_similar_records(record_id: str) -> dict:
-    detail = get_record_by_id(record_id)
-    query = ""
-    if detail:
-        query = " ".join(
-            str(detail.get(key) or "")
-            for key in ("origin_place", "relationship_type", "main_intent")
-        )
-    rows = search_text_records(query, filters={})
-    rows = [row for row in rows if row["record_id"] != record_id][:10]
-    return {
-        "mode": "similar",
-        "query": record_id,
-        "total": len(rows),
-        "results": [
-            {
-                "record_id": str(row["record_id"]),
-                "title": str(row.get("title_reference") or row["record_id"]),
-                "origin_place": str(row.get("origin_place") or ""),
-                "destination_place": str(row.get("destination_place") or ""),
-                "date": str(row.get("date_standard") or row.get("year_normalized") or ""),
-                "sender": str(row.get("sender_name_clean") or row.get("sender") or ""),
-                "recipient": str(row.get("recipient_name_clean") or row.get("recipient") or ""),
-                "kinship": str(row.get("kinship") or row.get("relationship_type") or ""),
-                "money": str(row.get("money") or ""),
-                "snippet": str(row.get("unit_text") or "")[:220],
-                "score": round(max(0.1, 0.9 - index * 0.04), 2),
-                "evidence": [
-                    {
-                        "source_field": str(row.get("unit_type") or "record_full"),
-                        "source_text": str(row.get("unit_text") or ""),
-                        "reason": "相同来源地或主题的 SQLite 检索结果",
-                        "similarity_score": round(max(0.1, 0.9 - index * 0.04), 2),
-                    }
-                ],
-            }
-            for index, row in enumerate(rows)
-        ],
-    }
+    return fetch_retrieval_units(record_id)

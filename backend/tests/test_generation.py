@@ -6,30 +6,55 @@ from main import app
 client = TestClient(app)
 
 
-def test_plain_interpretation_returns_grounded_mock_response():
+def test_interpret_dry_run_returns_prompt_and_evidence_references():
     response = client.post(
-        "/api/generation/plain-interpretation",
-        json={"record_id": "CSQP-SFHC-TEXT-001", "original_text": ""},
-    )
-
-    payload = response.json()
-    assert response.status_code == 200
-    assert payload["generated_text"]
-    assert payload["consistency_check"]["status"] == "passed"
-    assert payload["evidence_mapping"]
-
-
-def test_style_transfer_returns_qiaopi_style_response():
-    response = client.post(
-        "/api/generation/style-transfer",
+        "/api/generation/interpret",
         json={
-            "plain_text": "Mother, I am safe in Singapore and send eight yuan home.",
-            "slots": {"recipient": "mother", "money": "eight yuan"},
+            "query": "这封侨批主要说了什么？",
+            "record_id": "CSQP-SFHC-TEXT-017",
+            "top_k": 8,
+            "filters": {},
+            "expansion_mode": "balanced",
+            "dry_run": True,
         },
     )
 
     payload = response.json()
     assert response.status_code == 200
-    assert payload["generated_text"]
-    assert payload["slots"]["money"] == "eight yuan"
+    assert payload["task_type"] == "interpret"
+    assert payload["record_id"] == "CSQP-SFHC-TEXT-017"
+    assert payload["semantic_enabled"] is False
+    assert payload["dry_run"] is True
+    assert payload["prompt_context"]
+    assert payload["messages"]
+    assert payload["evidence_references"]
+    reference = payload["evidence_references"][0]
+    assert reference["record_id"] == "CSQP-SFHC-TEXT-017"
+    assert reference["unit_id"]
+    assert reference["source_column"]
+    assert reference["evidence_type"]
 
+
+def test_style_transfer_dry_run_returns_style_slots_and_references():
+    response = client.post(
+        "/api/generation/style-transfer",
+        json={
+            "plain_text": "母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。",
+            "top_k": 3,
+            "filters": {},
+            "expansion_mode": "balanced",
+            "dry_run": True,
+        },
+    )
+
+    payload = response.json()
+    assert response.status_code == 200
+    assert payload["task_type"] == "style-transfer"
+    assert payload["semantic_enabled"] is False
+    assert payload["dry_run"] is True
+    assert payload["style_slots"]
+    assert "opening" in payload["style_slots"]
+    assert "style_reference" in payload["style_slots"]
+    assert payload["prompt_context"]
+    assert payload["messages"]
+    assert payload["evidence_references"]

@@ -1,161 +1,270 @@
-import re
+from __future__ import annotations
 
-from app.database.repository import search_text_records
-from app.schemas import PlainInterpretationRequest, StyleTransferRequest
-from app.services.record_service import get_record_detail
+from typing import Any, Mapping
+
+from app.database.repository import insert_query_log
+from app.llm.prompts import build_interpretation_prompt, build_style_transfer_prompt
+from app.llm.qwen_client import QwenClient, QwenClientError
+from app.schemas import (
+    GenerationInterpretRequest,
+    GenerationStyleTransferRequest,
+    PromptPreviewRequest,
+)
+from app.search.context_builder import (
+    build_rag_context,
+    build_record_rag_context,
+    build_style_context,
+)
+from app import settings
+from app.validation.consistency_checker import validate_generation_consistency
 
 
-def _mapping_from_evidence(evidence: list[dict], target_prefix: str) -> list[dict]:
-    return [
-        {
-            "target_span": f"{target_prefix}{index + 1}",
-            "source_field": item["source_field"],
-            "source_text": item["source_text"],
-            "reason": item["reason"],
-            "similarity_score": item["similarity_score"],
-        }
-        for index, item in enumerate(evidence[:6])
-    ]
+def _text(value: Any) -> str:
+    return "" if value is None else str(value).strip()
 
 
-def generate_plain_interpretation(request: PlainInterpretationRequest) -> dict:
-    detail = get_record_detail(request.record_id) if request.record_id else None
-    if detail:
-        metadata = detail["metadata"]
-        evidence = detail["evidence"]
-        generated_text = detail["normalized_text"] or detail["original_text"]
-        summary = [
-            item.strip()
-            for item in re.split(r"[；;]", generated_text)
-            if item.strip()
-        ][:6]
-        return {
-            "record_id": detail["record_id"],
-            "generated_text": generated_text,
-            "summary": summary,
-            "slots": {
-                "sender": metadata.get("sender_name_clean", metadata.get("sender", "")),
-                "recipient": metadata.get(
-                    "recipient_name_clean", metadata.get("recipient", "")
-                ),
-                "origin_place": metadata.get("origin_place", ""),
-                "destination_place": metadata.get("destination_place", ""),
-                "money": metadata.get("money", ""),
-                "purpose": metadata.get("main_intent", ""),
-            },
-            "evidence": evidence,
-            "evidence_mapping": _mapping_from_evidence(evidence, "释读依据 "),
-            "consistency_check": {
-                "status": "passed" if evidence else "pending",
-                "warnings": [] if evidence else ["当前记录没有结构化证据片段。"],
-                "passed_rules": (
-                    ["record_loaded_from_sqlite", "evidence_loaded_from_sqlite"]
-                    if evidence
-                    else ["record_loaded_from_sqlite"]
-                ),
-                "failed_rules": [],
-            },
-        }
-
-    original_text = (request.original_text or "").strip()
-    evidence = (
-        [
-            {
-                "source_field": "original_text",
-                "source_text": original_text,
-                "reason": "用户输入原文",
-                "similarity_score": 1.0,
-            }
-        ]
-        if original_text
-        else []
-    )
+def _evidence_reference(item: Mapping[str, Any]) -> dict[str, str]:
     return {
-        "record_id": request.record_id,
-        "generated_text": original_text,
-        "summary": [original_text] if original_text else [],
-        "slots": {},
-        "evidence": evidence,
-        "evidence_mapping": _mapping_from_evidence(evidence, "输入依据 "),
-        "consistency_check": {
-            "status": "pending",
-            "warnings": ["未找到对应数据库记录，且真实 Qwen 生成尚未启用。"],
-            "passed_rules": [],
-            "failed_rules": [],
-        },
+        "record_id": _text(item.get("record_id")),
+        "unit_id": _text(item.get("unit_id")),
+        "unit_type": _text(item.get("unit_type")),
+        "title_reference": _text(item.get("title_reference")),
+        "source_column": _text(item.get("source_column")),
+        "evidence_type": _text(item.get("evidence_type")),
+        "unit_text": _text(item.get("unit_text")),
     }
 
 
-def _extract_first(pattern: str, text: str, default: str) -> str:
-    match = re.search(pattern, text)
-    return match.group(1) if match else default
+def _references_from_contexts(contexts: list[Mapping[str, Any]]) -> list[dict[str, str]]:
+    references: list[dict[str, str]] = []
+    seen_unit_ids: set[str] = set()
+    for context in contexts:
+        unit_id = _text(context.get("unit_id"))
+        if not unit_id or unit_id in seen_unit_ids:
+            continue
+        seen_unit_ids.add(unit_id)
+        references.append(_evidence_reference(context))
+    return references
 
 
-def generate_style_transfer(request: StyleTransferRequest) -> dict:
-    plain_text = request.plain_text.strip()
-    recipient = request.slots.get("recipient") or _extract_first(
-        r"(母亲|父亲|父母|祖母|祖父|妻子|兄长|弟弟)",
-        plain_text,
-        "家中大人",
-    )
-    origin_place = request.slots.get("origin_place") or _extract_first(
-        r"(新加坡|泰国|越南|马来西亚|香港|海外)",
-        plain_text,
-        "外洋",
-    )
-    money = request.slots.get("money") or _extract_first(
-        r"([零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟\d]+元)",
-        plain_text,
-        "",
-    )
-    purpose = request.slots.get("purpose", "家用")
+def _references_from_style_slots(
+    style_slots: Mapping[str, list[Mapping[str, Any]]],
+) -> list[dict[str, str]]:
+    references: list[dict[str, str]] = []
+    seen_unit_ids: set[str] = set()
+    for examples in style_slots.values():
+        for example in examples:
+            unit_id = _text(example.get("unit_id"))
+            if not unit_id or unit_id in seen_unit_ids:
+                continue
+            seen_unit_ids.add(unit_id)
+            references.append(_evidence_reference(example))
+    return references
 
-    remittance_sentence = (
-        f"今托便奉上银{money}，伏乞查收，以备{purpose}之用。"
-        if money
-        else "家中诸务，伏乞珍重。"
-    )
-    generated_text = (
-        f"{recipient}膝下敬禀者：男在{origin_place}平安，勿以为念。"
-        f"{remittance_sentence}谨此禀安。"
+
+def _log_generation_request(
+    *,
+    endpoint: str,
+    query: str,
+    filters: Mapping[str, Any],
+    top_k: int,
+    returned_count: int,
+) -> None:
+    try:
+        insert_query_log(
+            endpoint=endpoint,
+            query=query,
+            filters=filters,
+            top_k=top_k,
+            returned_count=returned_count,
+        )
+    except Exception:
+        return
+
+
+def _generate_or_preview(
+    *,
+    messages: list[dict[str, str]],
+    dry_run: bool,
+) -> tuple[str, bool, str | None]:
+    if dry_run:
+        return "", True, None
+
+    try:
+        return (
+            QwenClient().generate_chat_completion(messages),
+            False,
+            None,
+        )
+    except QwenClientError as exc:
+        return "", True, str(exc)
+
+
+def _validation_report_or_none(
+    *,
+    task_type: str,
+    input_text: str,
+    generated_text: str,
+    evidence_references: list[Mapping[str, Any]],
+    record_id: str | None = None,
+) -> dict[str, Any] | None:
+    if not generated_text.strip():
+        return None
+    return validate_generation_consistency(
+        task_type=task_type,
+        input_text=input_text,
+        generated_text=generated_text,
+        evidence_references=evidence_references,
+        record_id=record_id,
     )
 
-    query = " ".join(value for value in (recipient, origin_place, money) if value)
-    rows = search_text_records(query, filters={})[:3]
-    evidence = [
-        {
-            "source_field": str(row.get("unit_type") or "style_reference"),
-            "source_text": str(row.get("unit_text") or ""),
-            "reason": "SQLite 侨批风格样例检索",
-            "similarity_score": round(max(0.7, 0.95 - index * 0.08), 2),
-        }
-        for index, row in enumerate(rows)
-        if row.get("unit_text")
-    ]
 
+def _rag_context_for_interpretation(request: GenerationInterpretRequest) -> dict[str, Any]:
+    if request.record_id:
+        return build_record_rag_context(
+            query=request.query,
+            record_id=request.record_id,
+            top_k=request.top_k,
+            filters=request.filters,
+            expansion_mode=request.expansion_mode,
+        )
+    return build_rag_context(
+        query=request.query,
+        top_k=request.top_k,
+        unit_types=[],
+        filters=request.filters,
+        expansion_mode=request.expansion_mode,
+    )
+
+
+def generate_interpretation(request: GenerationInterpretRequest) -> dict[str, Any]:
+    context = _rag_context_for_interpretation(request)
+    evidence_references = _references_from_contexts(context["contexts"])
+    messages = build_interpretation_prompt(
+        query=request.query,
+        prompt_context=context["prompt_context"],
+        evidence_references=evidence_references,
+    )
+    generated_text, effective_dry_run, error_message = _generate_or_preview(
+        messages=messages,
+        dry_run=request.dry_run,
+    )
+    _log_generation_request(
+        endpoint="/api/generation/interpret",
+        query=request.query,
+        filters={**request.filters, **({"record_id": request.record_id} if request.record_id else {})},
+        top_k=request.top_k,
+        returned_count=len(evidence_references),
+    )
     return {
+        "task_type": "interpret",
+        "query": request.query,
+        "record_id": request.record_id,
+        "semantic_enabled": context["semantic_enabled"],
+        "prompt_context": context["prompt_context"],
         "generated_text": generated_text,
-        "summary": [
-            "使用确定性模板完成侨批体转换。",
-            "人物、地点和金额来自用户输入；风格证据来自 SQLite 检索。",
-        ],
-        "slots": {
-            "recipient": recipient,
-            "origin_place": origin_place,
-            "money": money,
-            "purpose": purpose,
-            "input_preview": plain_text[:80],
-        },
-        "evidence": evidence,
-        "evidence_mapping": _mapping_from_evidence(evidence, "风格依据 "),
-        "consistency_check": {
-            "status": "passed",
-            "warnings": ["当前为确定性模板生成，尚未调用真实 Qwen。"],
-            "passed_rules": [
-                "input_recipient_preserved",
-                "input_origin_preserved",
-                "input_money_preserved",
-            ],
-            "failed_rules": [],
-        },
+        "evidence_references": evidence_references,
+        "model": settings.QWEN_MODEL,
+        "dry_run": effective_dry_run,
+        "messages": messages,
+        "error_message": error_message,
+        "validation_report": _validation_report_or_none(
+            task_type="interpret",
+            input_text=request.query,
+            generated_text=generated_text,
+            evidence_references=evidence_references,
+            record_id=request.record_id,
+        ),
+    }
+
+
+def generate_style_transfer(request: GenerationStyleTransferRequest) -> dict[str, Any]:
+    context = build_style_context(
+        query=request.plain_text,
+        top_k=request.top_k,
+        filters=request.filters,
+        expansion_mode=request.expansion_mode,
+    )
+    evidence_references = _references_from_style_slots(context["style_slots"])
+    messages = build_style_transfer_prompt(
+        plain_text=request.plain_text,
+        prompt_context=context["prompt_context"],
+        evidence_references=evidence_references,
+    )
+    generated_text, effective_dry_run, error_message = _generate_or_preview(
+        messages=messages,
+        dry_run=request.dry_run,
+    )
+    _log_generation_request(
+        endpoint="/api/generation/style-transfer",
+        query=request.plain_text,
+        filters=request.filters,
+        top_k=request.top_k,
+        returned_count=len(evidence_references),
+    )
+    return {
+        "task_type": "style-transfer",
+        "plain_text": request.plain_text,
+        "semantic_enabled": context["semantic_enabled"],
+        "style_slots": context["style_slots"],
+        "prompt_context": context["prompt_context"],
+        "generated_text": generated_text,
+        "evidence_references": evidence_references,
+        "model": settings.QWEN_MODEL,
+        "dry_run": effective_dry_run,
+        "messages": messages,
+        "error_message": error_message,
+        "validation_report": _validation_report_or_none(
+            task_type="style-transfer",
+            input_text=request.plain_text,
+            generated_text=generated_text,
+            evidence_references=evidence_references,
+        ),
+    }
+
+
+def preview_prompt(request: PromptPreviewRequest) -> dict[str, Any]:
+    if request.task_type == "style-transfer":
+        context = build_style_context(
+            query=request.input_text,
+            top_k=request.top_k,
+            filters=request.filters,
+            expansion_mode=request.expansion_mode,
+        )
+        evidence_references = _references_from_style_slots(context["style_slots"])
+        messages = build_style_transfer_prompt(
+            plain_text=request.input_text,
+            prompt_context=context["prompt_context"],
+            evidence_references=evidence_references,
+        )
+    else:
+        interpret_request = GenerationInterpretRequest(
+            query=request.input_text,
+            record_id=request.record_id,
+            top_k=request.top_k,
+            filters=request.filters,
+            expansion_mode=request.expansion_mode,
+            dry_run=True,
+        )
+        context = _rag_context_for_interpretation(interpret_request)
+        evidence_references = _references_from_contexts(context["contexts"])
+        messages = build_interpretation_prompt(
+            query=request.input_text,
+            prompt_context=context["prompt_context"],
+            evidence_references=evidence_references,
+        )
+
+    _log_generation_request(
+        endpoint="/api/generation/preview-prompt",
+        query=request.input_text,
+        filters={**request.filters, **({"record_id": request.record_id} if request.record_id else {})},
+        top_k=request.top_k,
+        returned_count=len(evidence_references),
+    )
+    return {
+        "task_type": request.task_type,
+        "input_text": request.input_text,
+        "prompt_context": context["prompt_context"],
+        "messages": messages,
+        "evidence_references": evidence_references,
     }
