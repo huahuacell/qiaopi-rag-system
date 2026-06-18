@@ -5,3 +5,7 @@ export async function fetchDashboardStats() {
   return response.data
 }
 
+export async function fetchDashboardDistributions() {
+  const response = await request.get('/api/dashboard/distributions')
+  return response.data
+}

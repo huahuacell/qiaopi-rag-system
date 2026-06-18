@@ -6,9 +6,11 @@ import PlainInterpretationView from '../views/PlainInterpretationView.vue'
 import RecordDetailView from '../views/RecordDetailView.vue'
 import SearchView from '../views/SearchView.vue'
 import StyleTransferView from '../views/StyleTransferView.vue'
+import WelcomeView from '../views/WelcomeView.vue'
 
 const routes = [
-  { path: '/', name: 'dashboard', component: DashboardView },
+  { path: '/', name: 'welcome', component: WelcomeView },
+  { path: '/dashboard', name: 'dashboard', component: DashboardView },
   { path: '/search', name: 'search', component: SearchView },
   { path: '/records/:recordId', name: 'record-detail', component: RecordDetailView },
   { path: '/plain-interpretation', name: 'plain-interpretation', component: PlainInterpretationView },
@@ -22,4 +24,3 @@ const router = createRouter({
 })
 
 export default router
-
