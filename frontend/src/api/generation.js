@@ -1,7 +1,7 @@
 import request from './request'
 
 export async function generatePlainInterpretation(payload) {
-  const response = await request.post('/api/generation/interpret', payload)
+  const response = await request.post('/api/generation/plain-interpretation', payload)
   return response.data
 }
 

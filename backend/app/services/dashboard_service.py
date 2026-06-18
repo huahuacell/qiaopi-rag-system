@@ -1,35 +1,70 @@
+from app.database.repository import count_rows, fetch_chart_items
+
+
+def _origin_places() -> list[dict]:
+    return fetch_chart_items(
+        table_name="qiaopi_metadata_records",
+        label_expression="origin_place",
+        where_clause="WHERE origin_place IS NOT NULL AND origin_place <> ''",
+        limit=8,
+    )
+
+
+def _destination_places() -> list[dict]:
+    return fetch_chart_items(
+        table_name="qiaopi_metadata_records",
+        label_expression="destination_place",
+        where_clause="WHERE destination_place IS NOT NULL AND destination_place <> ''",
+        limit=8,
+    )
+
+
+def _kinship_distribution() -> list[dict]:
+    return fetch_chart_items(
+        table_name="qiaopi_entity_mentions",
+        label_expression="COALESCE(NULLIF(normalized_text, ''), entity_text)",
+        where_clause="WHERE entity_type = 'kinship'",
+        limit=8,
+    )
+
+
+def _money_distribution() -> list[dict]:
+    return fetch_chart_items(
+        table_name="qiaopi_amount_mentions",
+        label_expression="COALESCE(NULLIF(amount_text, ''), raw_text)",
+        where_clause=(
+            "WHERE COALESCE(NULLIF(amount_text, ''), raw_text) "
+            "IS NOT NULL"
+        ),
+        limit=8,
+    )
+
+
+def _year_distribution() -> list[dict]:
+    return fetch_chart_items(
+        table_name="qiaopi_metadata_records",
+        label_expression="CAST((date_year / 10) * 10 AS TEXT) || 's'",
+        where_clause="WHERE date_year IS NOT NULL",
+        group_expression="(date_year / 10)",
+        order_expression="(date_year / 10)",
+    )
+
+
 def get_dashboard_stats() -> dict:
     return {
-        "total_records": 50064,
-        "text_records": 213,
-        "origin_places": [
-            {"label": "新加坡", "value": 12680},
-            {"label": "泰国", "value": 8420},
-            {"label": "越南", "value": 5160},
-            {"label": "马来西亚", "value": 4980},
-        ],
-        "destination_places": [
-            {"label": "广东潮州", "value": 18420},
-            {"label": "广东汕头", "value": 11150},
-            {"label": "福建厦门", "value": 4620},
-            {"label": "广东揭阳", "value": 3960},
-        ],
-        "kinship_distribution": [
-            {"label": "母亲", "value": 46},
-            {"label": "祖母", "value": 19},
-            {"label": "父母", "value": 38},
-            {"label": "妻子", "value": 27},
-        ],
-        "money_distribution": [
-            {"label": "八元", "value": 22},
-            {"label": "十元", "value": 31},
-            {"label": "十五元", "value": 15},
-            {"label": "二十元", "value": 12},
-        ],
-        "timeline": [
-            {"label": "1920s", "value": 44},
-            {"label": "1930s", "value": 78},
-            {"label": "1940s", "value": 61},
-            {"label": "1950s", "value": 30},
-        ],
+        "total_records": count_rows("qiaopi_metadata_records"),
+        "text_records": count_rows("qiaopi_text_records"),
+        "origin_places": _origin_places(),
+        "destination_places": _destination_places(),
+        "kinship_distribution": _kinship_distribution(),
+        "money_distribution": _money_distribution(),
+        "timeline": _year_distribution(),
+    }
+
+
+def get_dashboard_distributions() -> dict:
+    return {
+        "top_places": _origin_places(),
+        "relationship_distribution": _kinship_distribution(),
+        "year_distribution": _year_distribution(),
     }

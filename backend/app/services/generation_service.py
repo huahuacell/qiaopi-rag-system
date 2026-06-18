@@ -1,112 +1,160 @@
-from app.generation.qwen_client import QwenClient
+import re
+
+from app.database.repository import search_text_records
 from app.schemas import PlainInterpretationRequest, StyleTransferRequest
+from app.services.record_service import get_record_detail
 
 
-def _common_evidence() -> list:
+def _mapping_from_evidence(evidence: list[dict], target_prefix: str) -> list[dict]:
     return [
         {
-            "source_field": "original_text",
-            "source_text": "今托水客附上银八元",
-            "reason": "支持汇款金额",
-            "similarity_score": 0.95,
-        },
-        {
-            "source_field": "original_text",
-            "source_text": "望收讫后置办米粮并药费",
-            "reason": "支持家用用途解读",
-            "similarity_score": 0.9,
-        },
+            "target_span": f"{target_prefix}{index + 1}",
+            "source_field": item["source_field"],
+            "source_text": item["source_text"],
+            "reason": item["reason"],
+            "similarity_score": item["similarity_score"],
+        }
+        for index, item in enumerate(evidence[:6])
     ]
 
 
 def generate_plain_interpretation(request: PlainInterpretationRequest) -> dict:
-    QwenClient().generate("plain-interpretation-placeholder")
+    detail = get_record_detail(request.record_id) if request.record_id else None
+    if detail:
+        metadata = detail["metadata"]
+        evidence = detail["evidence"]
+        generated_text = detail["normalized_text"] or detail["original_text"]
+        summary = [
+            item.strip()
+            for item in re.split(r"[；;]", generated_text)
+            if item.strip()
+        ][:6]
+        return {
+            "record_id": detail["record_id"],
+            "generated_text": generated_text,
+            "summary": summary,
+            "slots": {
+                "sender": metadata.get("sender_name_clean", metadata.get("sender", "")),
+                "recipient": metadata.get(
+                    "recipient_name_clean", metadata.get("recipient", "")
+                ),
+                "origin_place": metadata.get("origin_place", ""),
+                "destination_place": metadata.get("destination_place", ""),
+                "money": metadata.get("money", ""),
+                "purpose": metadata.get("main_intent", ""),
+            },
+            "evidence": evidence,
+            "evidence_mapping": _mapping_from_evidence(evidence, "释读依据 "),
+            "consistency_check": {
+                "status": "passed" if evidence else "pending",
+                "warnings": [] if evidence else ["当前记录没有结构化证据片段。"],
+                "passed_rules": (
+                    ["record_loaded_from_sqlite", "evidence_loaded_from_sqlite"]
+                    if evidence
+                    else ["record_loaded_from_sqlite"]
+                ),
+                "failed_rules": [],
+            },
+        }
+
+    original_text = (request.original_text or "").strip()
+    evidence = (
+        [
+            {
+                "source_field": "original_text",
+                "source_text": original_text,
+                "reason": "用户输入原文",
+                "similarity_score": 1.0,
+            }
+        ]
+        if original_text
+        else []
+    )
     return {
-        "record_id": request.record_id or "CSQP-SFHC-TEXT-001",
-        "generated_text": "这封侨批的意思是：寄信人在新加坡平安，托人带回八元钱，请母亲收到后用于购买米粮和药品。",
-        "summary": [
-            "寄信人在新加坡报平安。",
-            "寄信人汇给母亲八元。",
-            "汇款用于米粮和药费。",
-        ],
-        "slots": {
-            "sender": "陈生",
-            "recipient": "母亲",
-            "origin_place": "新加坡",
-            "destination_place": "广东潮州",
-            "money": "八元",
-            "purpose": "米粮和药费",
-        },
-        "evidence": _common_evidence(),
-        "evidence_mapping": [
-            {
-                "target_span": "托人带回八元钱",
-                "source_field": "original_text",
-                "source_text": "今托水客附上银八元",
-                "reason": "生成片段由汇款证据支撑",
-                "similarity_score": 0.95,
-            },
-            {
-                "target_span": "用于购买米粮和药品",
-                "source_field": "original_text",
-                "source_text": "置办米粮并药费",
-                "reason": "生成用途与原文一致",
-                "similarity_score": 0.9,
-            },
-        ],
+        "record_id": request.record_id,
+        "generated_text": original_text,
+        "summary": [original_text] if original_text else [],
+        "slots": {},
+        "evidence": evidence,
+        "evidence_mapping": _mapping_from_evidence(evidence, "输入依据 "),
         "consistency_check": {
-            "status": "passed",
-            "warnings": [],
-            "passed_rules": [
-                "money_supported_by_evidence",
-                "recipient_supported_by_evidence",
-                "purpose_supported_by_evidence",
-            ],
+            "status": "pending",
+            "warnings": ["未找到对应数据库记录，且真实 Qwen 生成尚未启用。"],
+            "passed_rules": [],
             "failed_rules": [],
         },
     }
 
 
+def _extract_first(pattern: str, text: str, default: str) -> str:
+    match = re.search(pattern, text)
+    return match.group(1) if match else default
+
+
 def generate_style_transfer(request: StyleTransferRequest) -> dict:
-    QwenClient().generate("style-transfer-placeholder")
     plain_text = request.plain_text.strip()
+    recipient = request.slots.get("recipient") or _extract_first(
+        r"(母亲|父亲|父母|祖母|祖父|妻子|兄长|弟弟)",
+        plain_text,
+        "家中大人",
+    )
+    origin_place = request.slots.get("origin_place") or _extract_first(
+        r"(新加坡|泰国|越南|马来西亚|香港|海外)",
+        plain_text,
+        "外洋",
+    )
+    money = request.slots.get("money") or _extract_first(
+        r"([零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟\d]+元)",
+        plain_text,
+        "",
+    )
+    purpose = request.slots.get("purpose", "家用")
+
+    remittance_sentence = (
+        f"今托便奉上银{money}，伏乞查收，以备{purpose}之用。"
+        if money
+        else "家中诸务，伏乞珍重。"
+    )
+    generated_text = (
+        f"{recipient}膝下敬禀者：男在{origin_place}平安，勿以为念。"
+        f"{remittance_sentence}谨此禀安。"
+    )
+
+    query = " ".join(value for value in (recipient, origin_place, money) if value)
+    rows = search_text_records(query, filters={})[:3]
+    evidence = [
+        {
+            "source_field": str(row.get("unit_type") or "style_reference"),
+            "source_text": str(row.get("unit_text") or ""),
+            "reason": "SQLite 侨批风格样例检索",
+            "similarity_score": round(max(0.7, 0.95 - index * 0.08), 2),
+        }
+        for index, row in enumerate(rows)
+        if row.get("unit_text")
+    ]
+
     return {
-        "generated_text": "慈母大人膝下敬禀者：男在星洲平安，勿以为念。今托水客奉上银八元，伏乞查收，以备家中米粮药费之用。谨此禀安。",
+        "generated_text": generated_text,
         "summary": [
-            "将白话家书转换为更接近侨批的敬禀语气。",
-            "保留报平安、亲属称谓、汇款金额和家用目的。",
+            "使用确定性模板完成侨批体转换。",
+            "人物、地点和金额来自用户输入；风格证据来自 SQLite 检索。",
         ],
         "slots": {
-            "recipient": request.slots.get("recipient", "母亲"),
-            "origin_place": request.slots.get("origin_place", "新加坡"),
-            "money": request.slots.get("money", "八元"),
-            "purpose": request.slots.get("purpose", "家用"),
+            "recipient": recipient,
+            "origin_place": origin_place,
+            "money": money,
+            "purpose": purpose,
             "input_preview": plain_text[:80],
         },
-        "evidence": _common_evidence(),
-        "evidence_mapping": [
-            {
-                "target_span": "慈母大人膝下敬禀者",
-                "source_field": "style_pattern",
-                "source_text": "慈母大人膝下",
-                "reason": "使用侨批常见的尊敬亲属开头",
-                "similarity_score": 0.88,
-            },
-            {
-                "target_span": "奉上银八元",
-                "source_field": "original_text",
-                "source_text": "附上银八元",
-                "reason": "保留汇款金额",
-                "similarity_score": 0.94,
-            },
-        ],
+        "evidence": evidence,
+        "evidence_mapping": _mapping_from_evidence(evidence, "风格依据 "),
         "consistency_check": {
             "status": "passed",
-            "warnings": [],
+            "warnings": ["当前为确定性模板生成，尚未调用真实 Qwen。"],
             "passed_rules": [
-                "money_preserved",
-                "recipient_preserved",
-                "no_real_api_call",
+                "input_recipient_preserved",
+                "input_origin_preserved",
+                "input_money_preserved",
             ],
             "failed_rules": [],
         },

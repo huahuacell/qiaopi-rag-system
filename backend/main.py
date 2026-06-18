@@ -11,13 +11,13 @@ from app.schemas import HealthResponse
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Qiaopi RAG System API",
-        description="Local-only mock API for the Qiaopi NLP/RAG scaffold.",
+        description="Local Qiaopi NLP/RAG API backed by SQLite where available.",
         version="0.1.0",
     )
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173"],
+        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -28,7 +28,7 @@ def create_app() -> FastAPI:
         return HealthResponse(
             status="healthy",
             version="0.1.0",
-            message="Qiaopi RAG mock backend is running",
+            message="Qiaopi RAG backend is running",
         )
 
     app.include_router(dashboard_router)

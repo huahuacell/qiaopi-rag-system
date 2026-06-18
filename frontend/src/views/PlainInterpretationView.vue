@@ -399,11 +399,8 @@ async function runGeneration() {
   error.value = ''
   try {
     result.value = await generatePlainInterpretation({
-      query: originalText.value || `请用现代汉语解读记录 ${recordId.value}`,
       record_id: recordId.value,
-      top_k: 8,
-      expansion_mode: 'balanced',
-      dry_run: false
+      original_text: originalText.value
     })
   } catch {
     result.value = fallbackResult

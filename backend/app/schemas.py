@@ -24,6 +24,12 @@ class DashboardStatsResponse(BaseModel):
     timeline: List[ChartItem]
 
 
+class DashboardDistributionsResponse(BaseModel):
+    top_places: List[ChartItem]
+    relationship_distribution: List[ChartItem]
+    year_distribution: List[ChartItem]
+
+
 class EvidenceItem(BaseModel):
     source_field: str
     source_text: str
@@ -36,6 +42,8 @@ class SearchRequest(BaseModel):
     filters: Dict[str, Optional[str]] = Field(default_factory=dict)
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=10, ge=1, le=100)
+    top_k: Optional[int] = Field(default=None, ge=1, le=100)
+    expansion_mode: Optional[str] = None
 
 
 class SearchResult(BaseModel):
@@ -80,6 +88,11 @@ class RecordDetailResponse(BaseModel):
 class EntityResponse(BaseModel):
     record_id: str
     entities: List[EntityItem]
+
+
+class EvidenceResponse(BaseModel):
+    record_id: str
+    evidence: List[EvidenceItem]
 
 
 class EvidenceMappingItem(BaseModel):
