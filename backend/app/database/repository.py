@@ -7,6 +7,8 @@ from typing import Any, Iterable, Mapping, Optional
 
 from app.database.connection import get_connection
 from app.search.fts_index import search_fts
+from app.utils.date_normalizer import normalize_qiaopi_date
+from app.utils.place_normalizer import normalize_qiaopi_place_fields
 
 
 TEXT_RECORD_COLUMNS: tuple[str, ...] = (
@@ -18,6 +20,14 @@ TEXT_RECORD_COLUMNS: tuple[str, ...] = (
     "recipient_name_clean",
     "date_text",
     "year_normalized",
+    "date_standard",
+    "date_year",
+    "date_month",
+    "date_day",
+    "date_precision",
+    "date_calendar",
+    "date_parse_confidence",
+    "date_parse_note",
     "body_clean",
     "body_core",
     "main_intent",
@@ -26,7 +36,10 @@ TEXT_RECORD_COLUMNS: tuple[str, ...] = (
     "has_full_text",
     "has_remittance",
     "relationship_type",
+    "origin_place",
+    "destination_place",
     "place_mentions_normalized",
+    "country_or_region",
     "retrieval_keywords",
     "rag_summary_text",
     "style_reference_text",
@@ -107,6 +120,14 @@ METADATA_RECORD_COLUMNS: tuple[str, ...] = (
     "recipient_name_clean",
     "date_text",
     "year_normalized",
+    "date_standard",
+    "date_year",
+    "date_month",
+    "date_day",
+    "date_precision",
+    "date_calendar",
+    "date_parse_confidence",
+    "date_parse_note",
     "era_text",
     "origin_place",
     "destination_place",
@@ -218,6 +239,23 @@ def _json_dump(row: Mapping[str, Any]) -> str:
     return json.dumps(clean_row, ensure_ascii=False, sort_keys=True)
 
 
+def _date_context(row: Mapping[str, Any], *columns: str) -> str:
+    return "；".join(_text(row.get(column)) for column in columns if _text(row.get(column)))
+
+
+def _normalized_date_fields(
+    row: Mapping[str, Any],
+    *,
+    context_columns: tuple[str, ...],
+) -> dict[str, Any]:
+    normalized = normalize_qiaopi_date(
+        row.get("date_text"),
+        context_text=_date_context(row, *context_columns),
+        year_hint=row.get("year_normalized"),
+    )
+    return normalized.as_db_fields()
+
+
 def _insert_rows(
     connection: sqlite3.Connection,
     table_name: str,
@@ -240,6 +278,13 @@ def insert_text_records(
     prepared_rows = []
     for row in rows:
         record = {column: _text(row.get(column)) for column in TEXT_RECORD_COLUMNS}
+        record.update(
+            _normalized_date_fields(
+                row,
+                context_columns=("title_reference",),
+            )
+        )
+        record.update(normalize_qiaopi_place_fields(row).as_db_fields())
         record["has_full_text"] = _flag_or_none(row.get("has_full_text"))
         record["has_remittance"] = _flag_or_none(row.get("has_remittance"))
         record["raw_json"] = _json_dump(row)
@@ -397,6 +442,12 @@ def insert_metadata_records(
     prepared_rows = []
     for row in rows:
         record = {column: _text(row.get(column)) for column in METADATA_RECORD_COLUMNS}
+        record.update(
+            _normalized_date_fields(
+                row,
+                context_columns=("title_raw", "era_text"),
+            )
+        )
         record["source_index"] = _int_or_none(row.get("source_index")) or 0
         record["amount_number"] = _number_or_none(row.get("amount_number"))
         record["has_remittance"] = _flag_or_none(row.get("has_remittance")) or 0

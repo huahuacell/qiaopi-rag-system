@@ -16,6 +16,8 @@ TABLES: tuple[str, ...] = (
     "qiaopi_place_mentions",
     "qiaopi_evidence_spans",
     "qiaopi_retrieval_units",
+    "qiaopi_kg_nodes",
+    "qiaopi_kg_edges",
     "qiaopi_generation_cache",
     "qiaopi_query_logs",
 )
@@ -37,6 +39,14 @@ CREATE_TABLE_STATEMENTS: tuple[str, ...] = (
         recipient_name_clean TEXT,
         date_text TEXT,
         year_normalized TEXT,
+        date_standard TEXT,
+        date_year INTEGER,
+        date_month INTEGER,
+        date_day INTEGER,
+        date_precision TEXT,
+        date_calendar TEXT,
+        date_parse_confidence REAL,
+        date_parse_note TEXT,
         body_clean TEXT,
         body_core TEXT,
         main_intent TEXT,
@@ -45,7 +55,10 @@ CREATE_TABLE_STATEMENTS: tuple[str, ...] = (
         has_full_text INTEGER,
         has_remittance INTEGER,
         relationship_type TEXT,
+        origin_place TEXT,
+        destination_place TEXT,
         place_mentions_normalized TEXT,
+        country_or_region TEXT,
         retrieval_keywords TEXT,
         rag_summary_text TEXT,
         style_reference_text TEXT,
@@ -64,6 +77,14 @@ CREATE_TABLE_STATEMENTS: tuple[str, ...] = (
         recipient_name_clean TEXT,
         date_text TEXT,
         year_normalized TEXT,
+        date_standard TEXT,
+        date_year INTEGER,
+        date_month INTEGER,
+        date_day INTEGER,
+        date_precision TEXT,
+        date_calendar TEXT,
+        date_parse_confidence REAL,
+        date_parse_note TEXT,
         era_text TEXT,
         origin_place TEXT,
         destination_place TEXT,
@@ -201,6 +222,39 @@ CREATE_TABLE_STATEMENTS: tuple[str, ...] = (
     );
     """,
     """
+    CREATE TABLE IF NOT EXISTS qiaopi_kg_nodes (
+        node_id TEXT PRIMARY KEY,
+        node_type TEXT NOT NULL,
+        label TEXT NOT NULL,
+        normalized_label TEXT NOT NULL,
+        record_id TEXT,
+        source_table TEXT,
+        source_id TEXT,
+        properties_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS qiaopi_kg_edges (
+        edge_id TEXT PRIMARY KEY,
+        source_node_id TEXT NOT NULL,
+        target_node_id TEXT NOT NULL,
+        edge_type TEXT NOT NULL,
+        record_id TEXT,
+        evidence_text TEXT,
+        source_table TEXT,
+        source_id TEXT,
+        weight REAL NOT NULL DEFAULT 1.0,
+        confidence REAL NOT NULL DEFAULT 0.0,
+        properties_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(source_node_id) REFERENCES qiaopi_kg_nodes(node_id)
+            ON DELETE CASCADE,
+        FOREIGN KEY(target_node_id) REFERENCES qiaopi_kg_nodes(node_id)
+            ON DELETE CASCADE
+    );
+    """,
+    """
     CREATE TABLE IF NOT EXISTS qiaopi_generation_cache (
         cache_id TEXT PRIMARY KEY,
         task_type TEXT NOT NULL,
@@ -228,7 +282,11 @@ CREATE_INDEX_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_intent ON qiaopi_text_records(main_intent);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_quality ON qiaopi_text_records(text_quality_level);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_year ON qiaopi_text_records(year_normalized);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_date_standard ON qiaopi_text_records(date_standard);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_text_records_date_year ON qiaopi_text_records(date_year);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_year ON qiaopi_metadata_records(year_normalized);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_date_standard ON qiaopi_metadata_records(date_standard);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_date_year ON qiaopi_metadata_records(date_year);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_country ON qiaopi_metadata_records(country_or_region);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_origin ON qiaopi_metadata_records(origin_place);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_metadata_records_destination ON qiaopi_metadata_records(destination_place);",
@@ -246,6 +304,43 @@ CREATE_INDEX_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_evidence_spans_type ON qiaopi_evidence_spans(evidence_type);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_retrieval_units_record ON qiaopi_retrieval_units(record_id);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_retrieval_units_type ON qiaopi_retrieval_units(unit_type);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_nodes_node_id ON qiaopi_kg_nodes(node_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_nodes_type ON qiaopi_kg_nodes(node_type);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_nodes_record ON qiaopi_kg_nodes(record_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_edge_id ON qiaopi_kg_edges(edge_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_type ON qiaopi_kg_edges(edge_type);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_record ON qiaopi_kg_edges(record_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_source ON qiaopi_kg_edges(source_node_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_target ON qiaopi_kg_edges(target_node_id);",
+)
+
+DATE_NORMALIZATION_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
+    "qiaopi_text_records": (
+        ("date_standard", "date_standard TEXT"),
+        ("date_year", "date_year INTEGER"),
+        ("date_month", "date_month INTEGER"),
+        ("date_day", "date_day INTEGER"),
+        ("date_precision", "date_precision TEXT"),
+        ("date_calendar", "date_calendar TEXT"),
+        ("date_parse_confidence", "date_parse_confidence REAL"),
+        ("date_parse_note", "date_parse_note TEXT"),
+    ),
+    "qiaopi_metadata_records": (
+        ("date_standard", "date_standard TEXT"),
+        ("date_year", "date_year INTEGER"),
+        ("date_month", "date_month INTEGER"),
+        ("date_day", "date_day INTEGER"),
+        ("date_precision", "date_precision TEXT"),
+        ("date_calendar", "date_calendar TEXT"),
+        ("date_parse_confidence", "date_parse_confidence REAL"),
+        ("date_parse_note", "date_parse_note TEXT"),
+    ),
+}
+
+TEXT_PLACE_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("origin_place", "origin_place TEXT"),
+    ("destination_place", "destination_place TEXT"),
+    ("country_or_region", "country_or_region TEXT"),
 )
 
 
@@ -257,8 +352,33 @@ def execute_statements(
         connection.execute(statement)
 
 
+def ensure_date_normalization_columns(connection: sqlite3.Connection) -> None:
+    for table_name, columns in DATE_NORMALIZATION_COLUMNS.items():
+        existing_columns = {
+            str(row["name"])
+            for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        }
+        for column_name, column_definition in columns:
+            if column_name not in existing_columns:
+                connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_definition}")
+
+
+def ensure_text_place_columns(connection: sqlite3.Connection) -> None:
+    existing_columns = {
+        str(row["name"])
+        for row in connection.execute("PRAGMA table_info(qiaopi_text_records)").fetchall()
+    }
+    for column_name, column_definition in TEXT_PLACE_COLUMNS:
+        if column_name not in existing_columns:
+            connection.execute(
+                f"ALTER TABLE qiaopi_text_records ADD COLUMN {column_definition}"
+            )
+
+
 def create_tables(connection: sqlite3.Connection) -> None:
     execute_statements(connection, CREATE_TABLE_STATEMENTS)
+    ensure_date_normalization_columns(connection)
+    ensure_text_place_columns(connection)
     execute_statements(connection, CREATE_INDEX_STATEMENTS)
 
 

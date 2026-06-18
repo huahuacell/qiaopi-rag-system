@@ -616,3 +616,71 @@ class StyleTransferResponse(BaseModel):
     evidence: List[EvidenceItem]
     evidence_mapping: List[EvidenceMappingItem]
     consistency_check: ConsistencyCheck
+
+
+class GraphNode(BaseModel):
+    id: str
+    label: str
+    type: str
+    category: str
+    normalized_label: str
+    record_id: str = ""
+    properties: Dict[str, Any] = Field(default_factory=dict)
+
+
+class GraphEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    type: str
+    label: str
+    record_id: str = ""
+    evidence_text: str = ""
+    confidence: float = 0.0
+    properties: Dict[str, Any] = Field(default_factory=dict)
+
+
+class GraphStatsResponse(BaseModel):
+    node_count: int
+    edge_count: int
+    node_type_distribution: Dict[str, int] = Field(default_factory=dict)
+    edge_type_distribution: Dict[str, int] = Field(default_factory=dict)
+
+
+class GraphRecordResponse(BaseModel):
+    record_id: str
+    nodes: List[GraphNode]
+    edges: List[GraphEdge]
+
+
+class GraphNeighborsResponse(BaseModel):
+    node_id: str
+    center_node: GraphNode
+    nodes: List[GraphNode]
+    edges: List[GraphEdge]
+    depth: int
+    limit: int
+
+
+class GraphOverviewSummary(BaseModel):
+    limit_nodes: int
+    limit_edges: int
+    returned_nodes: int
+    returned_edges: int
+
+
+class GraphOverviewResponse(BaseModel):
+    nodes: List[GraphNode]
+    edges: List[GraphEdge]
+    summary: GraphOverviewSummary
+
+
+class GraphPlaceFlow(BaseModel):
+    origin_place: str
+    destination_place: str
+    count: int
+    record_ids_sample: List[str] = Field(default_factory=list)
+
+
+class GraphPlaceFlowsResponse(BaseModel):
+    flows: List[GraphPlaceFlow]
