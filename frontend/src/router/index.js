@@ -2,17 +2,23 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import AnalysisView from '../views/AnalysisView.vue'
 import DashboardView from '../views/DashboardView.vue'
+import KnowledgeGraphView from '../views/KnowledgeGraphView.vue'
+import OnlineNlpView from '../views/OnlineNlpView.vue'
 import PlainInterpretationView from '../views/PlainInterpretationView.vue'
 import RecordDetailView from '../views/RecordDetailView.vue'
 import SearchView from '../views/SearchView.vue'
 import StyleTransferView from '../views/StyleTransferView.vue'
+import WelcomeView from '../views/WelcomeView.vue'
 
 const routes = [
-  { path: '/', name: 'dashboard', component: DashboardView },
+  { path: '/', name: 'welcome', component: WelcomeView },
+  { path: '/dashboard', name: 'dashboard', component: DashboardView },
   { path: '/search', name: 'search', component: SearchView },
   { path: '/records/:recordId', name: 'record-detail', component: RecordDetailView },
   { path: '/plain-interpretation', name: 'plain-interpretation', component: PlainInterpretationView },
   { path: '/style-transfer', name: 'style-transfer', component: StyleTransferView },
+  { path: '/nlp', name: 'online-nlp', component: OnlineNlpView },
+  { path: '/knowledge-graph', name: 'knowledge-graph', component: KnowledgeGraphView },
   { path: '/analysis', name: 'analysis', component: AnalysisView }
 ]
 
@@ -22,4 +28,3 @@ const router = createRouter({
 })
 
 export default router
-

@@ -9,12 +9,22 @@ import numpy as np
 
 from app import settings
 from app.embedding.embedding_provider import EmbeddingProviderError, get_embedding_provider
+from app.search.corpus_domains import (
+    FULL_TEXT_EVIDENCE_DOMAIN,
+    SEMANTIC_MANIFEST_VERSION,
+    embedding_model_name,
+    production_semantic_eligible,
+    semantic_corpus_fingerprint,
+    semantic_quality,
+)
 
 
 MISSING_INDEX_MESSAGE = (
-    "Semantic index not found. Run python -m app.ingestion.build_semantic_index"
+    "Semantic index, metadata, or manifest not found. "
+    "Run python -m app.ingestion.build_semantic_index"
 )
 DISABLED_MESSAGE = "Semantic search is disabled. Set SEMANTIC_SEARCH_ENABLED=true."
+MANIFEST_MISMATCH_PREFIX = "Semantic index manifest mismatch"
 
 
 @dataclass(frozen=True)
@@ -23,6 +33,8 @@ class SemanticIndexBundle:
     vectors: np.ndarray | None = None
     faiss_index: Any | None = None
     backend: str = "numpy"
+    dimension: int = 0
+    manifest: dict[str, Any] | None = None
 
 
 def _text(value: Any) -> str:
@@ -63,47 +75,174 @@ def _read_index(index_path: Path) -> tuple[Any | None, np.ndarray | None, str]:
             return None, np.asarray(data["vectors"], dtype=np.float32), "numpy"
 
 
+def _manifest_path(
+    *,
+    index_path: Path | None,
+    metadata_path: Path | None,
+    manifest_path: Path | None,
+) -> Path:
+    if manifest_path is not None:
+        return manifest_path
+    if index_path is not None or metadata_path is not None:
+        resolved_metadata = metadata_path or settings.SEMANTIC_FAISS_METADATA_PATH
+        return resolved_metadata.parent / "qiaopi_retrieval_units_manifest.json"
+    return settings.SEMANTIC_FAISS_MANIFEST_PATH
+
+
+def _read_manifest(manifest_path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"{MANIFEST_MISMATCH_PREFIX}: manifest is not valid JSON."
+        ) from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(
+            f"{MANIFEST_MISMATCH_PREFIX}: manifest root must be an object."
+        )
+    return payload
+
+
+def _validate_manifest(
+    *,
+    manifest: Mapping[str, Any],
+    metadata: list[dict[str, Any]],
+    vector_count: int,
+    dimension: int,
+    validate_runtime: bool,
+) -> None:
+    mismatches: list[str] = []
+    if str(manifest.get("manifest_version")) != SEMANTIC_MANIFEST_VERSION:
+        mismatches.append("manifest_version")
+    if manifest.get("corpus_domain") != FULL_TEXT_EVIDENCE_DOMAIN:
+        mismatches.append("corpus_domain")
+    if int(manifest.get("retrieval_unit_count") or 0) != vector_count:
+        mismatches.append("retrieval_unit_count")
+    if int(manifest.get("embedding_dimension") or 0) != dimension:
+        mismatches.append("embedding_dimension")
+    actual_unit_ids = [_text(row.get("unit_id")) for row in metadata]
+    if manifest.get("corpus_unit_ids") != actual_unit_ids:
+        mismatches.append("corpus_unit_ids")
+    actual_fingerprint = semantic_corpus_fingerprint(metadata)
+    if manifest.get("corpus_fingerprint") != actual_fingerprint:
+        mismatches.append("corpus_fingerprint")
+
+    if validate_runtime:
+        configured_provider = settings.EMBEDDING_PROVIDER.strip().lower()
+        configured_model = embedding_model_name(configured_provider, settings)
+        if manifest.get("embedding_provider") != configured_provider:
+            mismatches.append("embedding_provider")
+        if manifest.get("embedding_model") != configured_model:
+            mismatches.append("embedding_model")
+        configured_dimension = int(settings.EMBEDDING_DIM or 0)
+        if configured_dimension and configured_dimension != dimension:
+            mismatches.append("configured_embedding_dimension")
+
+    if mismatches:
+        raise RuntimeError(
+            f"{MANIFEST_MISMATCH_PREFIX}: {', '.join(sorted(set(mismatches)))}."
+        )
+
+
 def _index_files_exist() -> bool:
-    return settings.SEMANTIC_FAISS_INDEX_PATH.exists() and settings.SEMANTIC_FAISS_METADATA_PATH.exists()
+    return (
+        settings.SEMANTIC_FAISS_INDEX_PATH.exists()
+        and settings.SEMANTIC_FAISS_METADATA_PATH.exists()
+        and settings.SEMANTIC_FAISS_MANIFEST_PATH.exists()
+    )
 
 
-def load_semantic_index() -> SemanticIndexBundle:
-    if not _index_files_exist():
+def load_semantic_index(
+    index_path: Path | None = None,
+    metadata_path: Path | None = None,
+    manifest_path: Path | None = None,
+    *,
+    validate_manifest: bool = True,
+    validate_runtime: bool = False,
+) -> SemanticIndexBundle:
+    resolved_index_path = index_path or settings.SEMANTIC_FAISS_INDEX_PATH
+    resolved_metadata_path = metadata_path or settings.SEMANTIC_FAISS_METADATA_PATH
+    resolved_manifest_path = _manifest_path(
+        index_path=index_path,
+        metadata_path=metadata_path,
+        manifest_path=manifest_path,
+    )
+    required_paths = [resolved_index_path, resolved_metadata_path]
+    if validate_manifest:
+        required_paths.append(resolved_manifest_path)
+    if not all(path.exists() for path in required_paths):
         raise FileNotFoundError(MISSING_INDEX_MESSAGE)
-    metadata = _read_metadata(settings.SEMANTIC_FAISS_METADATA_PATH)
-    faiss_index, vectors, backend = _read_index(settings.SEMANTIC_FAISS_INDEX_PATH)
+    metadata = _read_metadata(resolved_metadata_path)
+    faiss_index, vectors, backend = _read_index(resolved_index_path)
     vector_count = int(faiss_index.ntotal) if faiss_index is not None else int(vectors.shape[0])
+    dimension = int(faiss_index.d) if faiss_index is not None else int(vectors.shape[1])
     if vector_count != len(metadata):
         raise RuntimeError(
             f"Semantic index metadata mismatch: index has {vector_count} vectors, metadata has {len(metadata)} rows."
         )
-    return SemanticIndexBundle(metadata=metadata, vectors=vectors, faiss_index=faiss_index, backend=backend)
+    manifest = _read_manifest(resolved_manifest_path) if validate_manifest else None
+    if manifest is not None:
+        _validate_manifest(
+            manifest=manifest,
+            metadata=metadata,
+            vector_count=vector_count,
+            dimension=dimension,
+            validate_runtime=validate_runtime,
+        )
+    return SemanticIndexBundle(
+        metadata=metadata,
+        vectors=vectors,
+        faiss_index=faiss_index,
+        backend=backend,
+        dimension=dimension,
+        manifest=manifest,
+    )
 
 
 def semantic_status() -> dict[str, Any]:
     index_exists = settings.SEMANTIC_FAISS_INDEX_PATH.exists()
     metadata_exists = settings.SEMANTIC_FAISS_METADATA_PATH.exists()
+    manifest_exists = settings.SEMANTIC_FAISS_MANIFEST_PATH.exists()
     status = {
-        "semantic_enabled": bool(settings.SEMANTIC_SEARCH_ENABLED and index_exists and metadata_exists),
+        "semantic_enabled": False,
         "configured_enabled": settings.SEMANTIC_SEARCH_ENABLED,
         "index_exists": index_exists,
         "metadata_exists": metadata_exists,
+        "manifest_exists": manifest_exists,
+        "manifest_valid": False,
         "embedding_provider": settings.EMBEDDING_PROVIDER,
         "embedding_model": settings.EMBEDDING_MODEL,
         "index_path": str(settings.SEMANTIC_FAISS_INDEX_PATH),
         "metadata_path": str(settings.SEMANTIC_FAISS_METADATA_PATH),
+        "manifest_path": str(settings.SEMANTIC_FAISS_MANIFEST_PATH),
         "vector_count": 0,
+        "corpus_domain": None,
+        "corpus_fingerprint": None,
+        "semantic_quality": "disabled",
+        "production_semantic_eligible": False,
         "error_message": None,
     }
     if not settings.SEMANTIC_SEARCH_ENABLED:
         status["error_message"] = DISABLED_MESSAGE
         return status
-    if not index_exists or not metadata_exists:
+    if not index_exists or not metadata_exists or not manifest_exists:
         status["error_message"] = MISSING_INDEX_MESSAGE
         return status
     try:
-        bundle = load_semantic_index()
+        bundle = load_semantic_index(validate_runtime=True)
+        manifest = bundle.manifest or {}
+        index_provider = str(manifest.get("embedding_provider") or "")
         status["vector_count"] = len(bundle.metadata)
+        status["manifest_valid"] = True
+        status["semantic_enabled"] = True
+        status["embedding_provider"] = index_provider
+        status["embedding_model"] = str(manifest.get("embedding_model") or "")
+        status["corpus_domain"] = manifest.get("corpus_domain")
+        status["corpus_fingerprint"] = manifest.get("corpus_fingerprint")
+        status["semantic_quality"] = semantic_quality(index_provider)
+        status["production_semantic_eligible"] = production_semantic_eligible(
+            index_provider
+        )
     except Exception as exc:
         status["semantic_enabled"] = False
         status["error_message"] = str(exc)
@@ -196,6 +335,7 @@ def semantic_search(
             "results": [],
             "error_message": DISABLED_MESSAGE,
             "index_backend": None,
+            "semantic_quality": "disabled",
         }
     if not _index_files_exist():
         return {
@@ -203,23 +343,24 @@ def semantic_search(
             "results": [],
             "error_message": MISSING_INDEX_MESSAGE,
             "index_backend": None,
+            "semantic_quality": "disabled",
         }
 
     try:
-        bundle = load_semantic_index()
-        try:
-            provider = get_embedding_provider()
-        except EmbeddingProviderError:
-            if settings.EMBEDDING_PROVIDER.strip().lower() != "local":
-                raise
-            provider = get_embedding_provider("hash")
+        bundle = load_semantic_index(validate_runtime=True)
+        provider = get_embedding_provider()
         query_vector = provider.embed_texts([query])
+        if query_vector.ndim != 2 or int(query_vector.shape[1]) != bundle.dimension:
+            raise RuntimeError(
+                f"{MANIFEST_MISMATCH_PREFIX}: query_embedding_dimension."
+            )
     except (EmbeddingProviderError, FileNotFoundError, RuntimeError, ValueError, OSError) as exc:
         return {
             "semantic_enabled": False,
             "results": [],
             "error_message": str(exc),
             "index_backend": None,
+            "semantic_quality": "disabled",
         }
 
     requested_unit_types = {unit_type for unit_type in (unit_types or []) if unit_type}
@@ -241,4 +382,7 @@ def semantic_search(
         "results": results,
         "error_message": None,
         "index_backend": bundle.backend,
+        "semantic_quality": semantic_quality(
+            str((bundle.manifest or {}).get("embedding_provider") or "")
+        ),
     }

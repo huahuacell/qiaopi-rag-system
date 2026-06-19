@@ -90,8 +90,11 @@ def _int_from_env(value: str | None, default: int) -> int:
 QWEN_API_KEY = _env("QWEN_API_KEY") or _env("DASHSCOPE_API_KEY")
 QWEN_BASE_URL = _env("QWEN_BASE_URL")
 QWEN_MODEL = _env("QWEN_MODEL", "qwen-plus")
-QWEN_TIMEOUT_SECONDS = _int_from_env(_env("QWEN_TIMEOUT_SECONDS"), 60)
+QWEN_TIMEOUT_SECONDS = _int_from_env(_env("QWEN_TIMEOUT_SECONDS"), 120)
+QWEN_MAX_RETRIES = _int_from_env(_env("QWEN_MAX_RETRIES"), 2)
+QWEN_RETRY_BACKOFF_MS = _int_from_env(_env("QWEN_RETRY_BACKOFF_MS"), 250)
 QWEN_ENABLED = _bool_from_env(_env("QWEN_ENABLED"), False)
+SCAFFOLD_PHASE_COMPLETE = _bool_from_env(_env("SCAFFOLD_PHASE_COMPLETE"), False)
 
 SEMANTIC_SEARCH_ENABLED = _bool_from_env(_env("SEMANTIC_SEARCH_ENABLED"), False)
 EMBEDDING_PROVIDER = _env("EMBEDDING_PROVIDER", "local")
@@ -110,6 +113,10 @@ SEMANTIC_FAISS_METADATA_PATH = _path_from_env(
     _env("FAISS_METADATA_PATH"),
     INDEX_DIR / "qiaopi_retrieval_units_meta.jsonl",
 )
+SEMANTIC_FAISS_MANIFEST_PATH = _path_from_env(
+    _env("FAISS_MANIFEST_PATH"),
+    INDEX_DIR / "qiaopi_retrieval_units_manifest.json",
+)
 QWEN_EMBEDDING_API_KEY = _env("QWEN_EMBEDDING_API_KEY") or QWEN_API_KEY
 QWEN_EMBEDDING_BASE_URL = _env("QWEN_EMBEDDING_BASE_URL")
 QWEN_EMBEDDING_MODEL = _env("QWEN_EMBEDDING_MODEL")
@@ -124,7 +131,26 @@ def qwen_config_status() -> dict[str, object]:
         "base_url_configured": base_url_configured,
         "model": QWEN_MODEL,
         "timeout_seconds": QWEN_TIMEOUT_SECONDS,
+        "max_retries": QWEN_MAX_RETRIES,
+        "scaffold_phase_complete": SCAFFOLD_PHASE_COMPLETE,
         "project_env_exists": PROJECT_ENV_PATH.exists(),
         "backend_env_exists": BACKEND_ENV_PATH.exists(),
-        "live_generation_ready": QWEN_ENABLED and api_key_configured and base_url_configured,
+        "live_generation_ready": (
+            SCAFFOLD_PHASE_COMPLETE
+            and QWEN_ENABLED
+            and api_key_configured
+            and base_url_configured
+        ),
     }
+
+
+def qwen_degraded_reason() -> str | None:
+    if not SCAFFOLD_PHASE_COMPLETE:
+        return "scaffold_phase_active"
+    if not QWEN_ENABLED:
+        return "qwen_disabled"
+    if not QWEN_API_KEY:
+        return "qwen_api_key_missing"
+    if not QWEN_BASE_URL:
+        return "qwen_base_url_missing"
+    return None

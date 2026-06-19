@@ -11,6 +11,16 @@ from app.ingestion.build_metadata_database import build_metadata_database
 from app.ingestion.link_metadata_text_records import link_metadata_text_records
 
 
+def pytest_configure(config):
+    """Ensure a user-supplied nested --basetemp has an existing parent."""
+    base_temp = config.getoption("basetemp")
+    if base_temp:
+        Path(base_temp).expanduser().resolve().parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+
 @pytest.fixture(scope="session", autouse=True)
 def rebuild_sqlite_database():
     build_database()

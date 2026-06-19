@@ -8,6 +8,7 @@ Can modify:
 
 - `backend/`
 - `docs/api_contract.md`
+- `docs/technology_acceptance_matrix.md`
 
 Responsibilities:
 
@@ -16,12 +17,15 @@ Responsibilities:
 - Add NLP, RAG, and Qwen integration only after mock behavior is verified.
 - Never hard-code API keys.
 - Do not call the real Qwen API during the scaffold phase.
+- Own the cross-layer technology acceptance matrix and update it only from
+  verified backend, API, frontend, and test evidence.
 
 ## Frontend Developer
 
 Can modify:
 
 - `frontend/`
+- `kg-viewer/`
 - `docs/test_cases.md`
 - `docs/demo_script.md`
 
@@ -31,6 +35,9 @@ Responsibilities:
 - Use mock JSON first and switch to backend API responses when available.
 - Preserve loading, empty, and error states.
 - Do not hard-code backend response logic inside views.
+- Treat `frontend/` as the only formal product frontend.
+- Maintain `kg-viewer/` as a diagnostic graph sandbox. Product-only graph
+  workflows must be implemented in `frontend/`, not only in `kg-viewer/`.
 
 ## Shared Rules
 
@@ -40,4 +47,3 @@ Responsibilities:
 - Use relative project paths only.
 - Never commit real API keys.
 - Keep mock responses deterministic.
-

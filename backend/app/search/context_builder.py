@@ -351,6 +351,7 @@ def build_rag_context(
     mode = retrieval_mode if retrieval_mode in {"keyword", "semantic", "hybrid"} else "hybrid"
     retrieval_limit = max(20, top_k * 4)
     semantic_enabled = False
+    semantic_quality = "disabled"
     if mode == "semantic":
         semantic_result = semantic_search(
             query=retrieval_query,
@@ -364,6 +365,10 @@ def build_rag_context(
                 "expansion_mode": expansion_mode if expansion_mode in {"strict", "balanced", "broad"} else "balanced",
             }
             semantic_enabled = True
+            semantic_quality = semantic_result.get(
+                "semantic_quality",
+                "disabled",
+            )
         else:
             retrieval_result = retrieve_keyword(
                 query=retrieval_query,
@@ -381,6 +386,10 @@ def build_rag_context(
             expansion_mode=expansion_mode,
         )
         semantic_enabled = bool(retrieval_result.get("semantic_enabled", False))
+        semantic_quality = retrieval_result.get(
+            "semantic_quality",
+            "disabled",
+        )
     else:
         retrieval_result = retrieve_keyword(
             query=retrieval_query,
@@ -404,6 +413,7 @@ def build_rag_context(
         "expanded_query": expanded_query,
         "expansion_mode": retrieval_result["expansion_mode"],
         "semantic_enabled": semantic_enabled,
+        "semantic_quality": semantic_quality,
         "contexts": contexts,
         "grouped_contexts": group_results_by_record(selected_rows),
         "prompt_context": _build_rag_prompt_context(query, contexts),
@@ -437,6 +447,7 @@ def build_record_rag_context(
         "expanded_query": expanded_query,
         "expansion_mode": expansion_mode if expansion_mode in {"strict", "balanced", "broad"} else "balanced",
         "semantic_enabled": False,
+        "semantic_quality": "disabled",
         "contexts": contexts,
         "grouped_contexts": group_results_by_record(selected_rows),
         "prompt_context": _build_rag_prompt_context(query, contexts),
@@ -487,6 +498,7 @@ def build_style_context(
         "expanded_query": expanded_query,
         "expansion_mode": expansion_mode if expansion_mode in {"strict", "balanced", "broad"} else "balanced",
         "semantic_enabled": False,
+        "semantic_quality": "disabled",
         "style_slots": style_slots,
         "grouped_contexts": group_results_by_record(all_selected_rows),
         "prompt_context": _build_style_prompt_context(query, style_slots),

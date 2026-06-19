@@ -6,7 +6,11 @@ from pathlib import Path
 
 from app.database.connection import get_connection
 from app.database.repository import count_rows, list_tables
-from app.graph.graph_repository import edge_type_distribution, node_type_distribution
+from app.graph.graph_repository import (
+    edge_type_distribution,
+    fetch_kg_quality,
+    node_type_distribution,
+)
 from app.ingestion.build_knowledge_graph import build_knowledge_graph
 
 
@@ -96,6 +100,32 @@ def test_knowledge_graph_has_no_duplicate_logical_edges(metadata_layer_ready):
         ).fetchone()["count"]
 
     assert duplicate_count == 0
+
+
+def test_knowledge_graph_quality_has_no_orphans_or_missing_provenance(
+    metadata_layer_ready,
+):
+    build_knowledge_graph()
+
+    with get_connection() as connection:
+        quality = fetch_kg_quality(connection)
+        evidence_node_count = connection.execute(
+            "SELECT COUNT(*) AS count FROM qiaopi_kg_nodes WHERE node_type = 'evidence'"
+        ).fetchone()["count"]
+        metadata_node_count = connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM qiaopi_kg_nodes
+            WHERE node_type = 'metadata_record'
+            """
+        ).fetchone()["count"]
+
+    assert quality["duplicate_logical_edge_count"] == 0
+    assert quality["orphan_edge_count"] == 0
+    assert quality["missing_node_provenance_count"] == 0
+    assert quality["missing_edge_provenance_count"] == 0
+    assert quality["traceable_evidence_node_count"] == evidence_node_count
+    assert quality["traceable_metadata_node_count"] == metadata_node_count
 
 
 def test_knowledge_graph_aggregates_duplicate_place_edge_evidence(metadata_layer_ready):

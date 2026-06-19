@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
 from app.database.connection import get_connection
@@ -789,8 +790,10 @@ def fetch_retrieval_units(record_id: str) -> list[dict[str, Any]]:
     return _rows_to_dicts(rows)
 
 
-def fetch_all_retrieval_units() -> list[dict[str, Any]]:
-    with get_connection() as connection:
+def fetch_all_retrieval_units(
+    db_path: Path | str | None = None,
+) -> list[dict[str, Any]]:
+    with get_connection(db_path) as connection:
         rows = connection.execute(
             """
             SELECT
@@ -988,6 +991,207 @@ def insert_query_log(
         )
 
 
+def fetch_generation_cache(cache_key: str) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        _ensure_generation_storage(connection)
+        row = connection.execute(
+            """
+            SELECT
+                cache_id,
+                task_type,
+                input_hash,
+                record_id,
+                generation_backend,
+                model,
+                prompt_version,
+                index_version,
+                result_json,
+                created_at
+            FROM qiaopi_generation_cache
+            WHERE cache_id = ?
+            """,
+            (cache_key,),
+        ).fetchone()
+    if row is None:
+        return None
+    result = dict(row)
+    try:
+        result["result"] = json.loads(str(result.pop("result_json")))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return None
+    return result
+
+
+def store_generation_cache(
+    *,
+    cache_key: str,
+    task_type: str,
+    input_hash: str,
+    record_id: str | None,
+    generation_backend: str,
+    model: str,
+    prompt_version: str,
+    index_version: str,
+    result: Mapping[str, Any],
+) -> None:
+    with get_connection() as connection:
+        _ensure_generation_storage(connection)
+        connection.execute(
+            """
+            INSERT INTO qiaopi_generation_cache (
+                cache_id,
+                task_type,
+                input_hash,
+                record_id,
+                generation_backend,
+                model,
+                prompt_version,
+                index_version,
+                result_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(cache_id) DO UPDATE SET
+                result_json = excluded.result_json,
+                generation_backend = excluded.generation_backend,
+                model = excluded.model,
+                prompt_version = excluded.prompt_version,
+                index_version = excluded.index_version,
+                created_at = CURRENT_TIMESTAMP
+            """,
+            (
+                cache_key,
+                task_type,
+                input_hash,
+                record_id,
+                generation_backend,
+                model,
+                prompt_version,
+                index_version,
+                json.dumps(result, ensure_ascii=False, sort_keys=True),
+            ),
+        )
+
+
+def insert_generation_log(
+    *,
+    request_id: str,
+    endpoint: str,
+    task_type: str,
+    generation_backend: str,
+    model: str,
+    prompt_version: str,
+    index_version: str,
+    cache_key: str,
+    cache_hit: bool,
+    attempt_count: int,
+    status: str,
+    degraded_reason: str | None,
+    duration_ms: int,
+    evidence_count: int,
+    error_type: str | None,
+) -> None:
+    with get_connection() as connection:
+        _ensure_generation_storage(connection)
+        connection.execute(
+            """
+            INSERT INTO qiaopi_generation_logs (
+                request_id,
+                endpoint,
+                task_type,
+                generation_backend,
+                model,
+                prompt_version,
+                index_version,
+                cache_key,
+                cache_hit,
+                attempt_count,
+                status,
+                degraded_reason,
+                duration_ms,
+                evidence_count,
+                error_type
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                request_id,
+                endpoint,
+                task_type,
+                generation_backend,
+                model,
+                prompt_version,
+                index_version,
+                cache_key,
+                int(cache_hit),
+                attempt_count,
+                status,
+                degraded_reason,
+                duration_ms,
+                evidence_count,
+                error_type,
+            ),
+        )
+
+
+def _ensure_generation_storage(connection: Any) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS qiaopi_generation_cache (
+            cache_id TEXT PRIMARY KEY,
+            task_type TEXT NOT NULL,
+            input_hash TEXT NOT NULL,
+            record_id TEXT,
+            generation_backend TEXT NOT NULL DEFAULT '',
+            model TEXT NOT NULL DEFAULT '',
+            prompt_version TEXT NOT NULL DEFAULT '',
+            index_version TEXT NOT NULL DEFAULT '',
+            result_json TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    existing_cache_columns = {
+        str(row["name"])
+        for row in connection.execute(
+            "PRAGMA table_info(qiaopi_generation_cache)"
+        ).fetchall()
+    }
+    for name in (
+        "generation_backend",
+        "model",
+        "prompt_version",
+        "index_version",
+    ):
+        if name not in existing_cache_columns:
+            connection.execute(
+                f"ALTER TABLE qiaopi_generation_cache "
+                f"ADD COLUMN {name} TEXT NOT NULL DEFAULT ''"
+            )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS qiaopi_generation_logs (
+            log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            request_id TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            task_type TEXT NOT NULL,
+            generation_backend TEXT NOT NULL,
+            model TEXT NOT NULL,
+            prompt_version TEXT NOT NULL,
+            index_version TEXT NOT NULL,
+            cache_key TEXT,
+            cache_hit INTEGER NOT NULL DEFAULT 0,
+            attempt_count INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL,
+            degraded_reason TEXT,
+            duration_ms INTEGER NOT NULL DEFAULT 0,
+            evidence_count INTEGER NOT NULL DEFAULT 0,
+            error_type TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
 def _metadata_match_query(query: str) -> str:
     tokens = [
         token.strip()
@@ -1028,8 +1232,10 @@ def _metadata_filter_sql(filters: Mapping[str, Any] | None) -> tuple[str, list[A
     return where_sql, params
 
 
-def fetch_metadata_stats() -> dict[str, Any]:
-    with get_connection() as connection:
+def fetch_metadata_stats(
+    db_path: Path | str | None = None,
+) -> dict[str, Any]:
+    with get_connection(db_path) as connection:
         year_row = connection.execute(
             """
             SELECT
@@ -1105,8 +1311,11 @@ def _split_distribution_for_metadata_column(
     ]
 
 
-def fetch_metadata_distributions(limit: int = 20) -> dict[str, list[dict[str, Any]]]:
-    with get_connection() as connection:
+def fetch_metadata_distributions(
+    limit: int = 20,
+    db_path: Path | str | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    with get_connection(db_path) as connection:
         return {
             "year_distribution": _distribution_for_metadata_column(connection, "year_normalized", limit),
             "country_or_region_distribution": _distribution_for_metadata_column(
@@ -1232,8 +1441,10 @@ def fetch_linked_text_for_metadata(metadata_id: str) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def fetch_metadata_link_stats() -> dict[str, Any]:
-    with get_connection() as connection:
+def fetch_metadata_link_stats(
+    db_path: Path | str | None = None,
+) -> dict[str, Any]:
+    with get_connection(db_path) as connection:
         text_count = count_rows(connection, "qiaopi_text_records")
         auto_link_count = count_rows(connection, "qiaopi_text_metadata_links")
         method_rows = connection.execute(
@@ -1256,8 +1467,10 @@ def fetch_metadata_link_stats() -> dict[str, Any]:
         }
 
 
-def fetch_text_records_for_metadata_linking() -> list[dict[str, Any]]:
-    with get_connection() as connection:
+def fetch_text_records_for_metadata_linking(
+    db_path: Path | str | None = None,
+) -> list[dict[str, Any]]:
+    with get_connection(db_path) as connection:
         rows = connection.execute(
             """
             SELECT
@@ -1279,8 +1492,10 @@ def fetch_text_records_for_metadata_linking() -> list[dict[str, Any]]:
     return _rows_to_dicts(rows)
 
 
-def fetch_metadata_records_for_linking() -> list[dict[str, Any]]:
-    with get_connection() as connection:
+def fetch_metadata_records_for_linking(
+    db_path: Path | str | None = None,
+) -> list[dict[str, Any]]:
+    with get_connection(db_path) as connection:
         rows = connection.execute(
             """
             SELECT

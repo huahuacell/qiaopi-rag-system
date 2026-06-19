@@ -20,6 +20,7 @@ __pycache__/
 *$py.class
 
 .pytest_cache/
+backend/data/test-temp/
 .mypy_cache/
 .ruff_cache/
 .coverage
@@ -67,6 +68,10 @@ Thumbs.db
 backend/data/processed/*.db
 backend/data/processed/*.sqlite
 backend/data/processed/*.sqlite3
+backend/data/processed/qiaopi_build_manifest.json
+
+# Ignore isolated build-all staging directories
+backend/data/builds/
 
 # Ignore vector index files generated locally
 backend/data/index/*
@@ -74,6 +79,7 @@ backend/data/index/*
 # Ignore generated outputs and caches
 backend/outputs/generated_results.json
 backend/outputs/*.csv
+backend/outputs/*.json
 backend/outputs/*.jsonl
 
 # Keep scaffold output placeholders

@@ -35,24 +35,37 @@ def _read_csv(path: Path) -> pd.DataFrame:
     return pd.read_csv(path, dtype=str, keep_default_na=False).fillna("")
 
 
-def read_wide_table() -> pd.DataFrame:
-    if QIAOPI_WIDE_TABLE_CSV.exists():
-        return _read_csv(QIAOPI_WIDE_TABLE_CSV)
-    if QIAOPI_WIDE_TABLE_XLSX.exists():
-        return pd.read_excel(QIAOPI_WIDE_TABLE_XLSX, dtype=str).fillna("")
+def read_wide_table(processed_dir: Path | None = None) -> pd.DataFrame:
+    wide_table_csv = (
+        processed_dir / QIAOPI_WIDE_TABLE_CSV.name
+        if processed_dir is not None
+        else QIAOPI_WIDE_TABLE_CSV
+    )
+    wide_table_xlsx = (
+        processed_dir / QIAOPI_WIDE_TABLE_XLSX.name
+        if processed_dir is not None
+        else QIAOPI_WIDE_TABLE_XLSX
+    )
+    if wide_table_csv.exists():
+        return _read_csv(wide_table_csv)
+    if wide_table_xlsx.exists():
+        return pd.read_excel(wide_table_xlsx, dtype=str).fillna("")
     raise FileNotFoundError(
         "Wide table source is missing. Expected either "
-        f"{QIAOPI_WIDE_TABLE_CSV} or {QIAOPI_WIDE_TABLE_XLSX}."
+        f"{wide_table_csv} or {wide_table_xlsx}."
     )
 
 
-def read_processed_inputs() -> dict[str, pd.DataFrame]:
+def read_processed_inputs(processed_dir: Path | None = None) -> dict[str, pd.DataFrame]:
+    def source_path(default_path: Path) -> Path:
+        return processed_dir / default_path.name if processed_dir is not None else default_path
+
     return {
-        "wide_table": read_wide_table(),
-        "amount_mentions": _read_csv(QIAOPI_AMOUNT_MENTIONS_CSV),
-        "entity_mentions": _read_csv(QIAOPI_ENTITY_MENTIONS_CSV),
-        "place_mentions": _read_csv(QIAOPI_PLACE_MENTIONS_CSV),
-        "evidence_spans": _read_csv(QIAOPI_EVIDENCE_SPANS_CSV),
+        "wide_table": read_wide_table(processed_dir),
+        "amount_mentions": _read_csv(source_path(QIAOPI_AMOUNT_MENTIONS_CSV)),
+        "entity_mentions": _read_csv(source_path(QIAOPI_ENTITY_MENTIONS_CSV)),
+        "place_mentions": _read_csv(source_path(QIAOPI_PLACE_MENTIONS_CSV)),
+        "evidence_spans": _read_csv(source_path(QIAOPI_EVIDENCE_SPANS_CSV)),
     }
 
 
@@ -85,8 +98,12 @@ def _sample_units(connection) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def build_database(db_path: Path = QIAOPI_DB_PATH) -> dict[str, Any]:
-    inputs = read_processed_inputs()
+def build_database(
+    db_path: Path = QIAOPI_DB_PATH,
+    *,
+    processed_dir: Path | None = None,
+) -> dict[str, Any]:
+    inputs = read_processed_inputs(processed_dir)
     wide_table = inputs["wide_table"]
     amount_mentions = inputs["amount_mentions"]
     entity_mentions = inputs["entity_mentions"]

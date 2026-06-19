@@ -11,6 +11,76 @@ class HealthResponse(BaseModel):
     message: str
 
 
+class NlpAnalyzeRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=20000)
+    task: Literal["general", "interpretation", "style_transfer"] = "general"
+
+
+class NlpSpanItem(BaseModel):
+    source_text: str
+    normalized_source_text: str
+    original_start: int = Field(ge=0)
+    original_end: int = Field(ge=0)
+    normalized_start: int = Field(ge=0)
+    normalized_end: int = Field(ge=0)
+    extractor: Literal["rule", "model"]
+    extractor_version: str
+    rule_id: str = ""
+    confidence: float = Field(ge=0.0, le=1.0)
+    needs_review: bool
+
+
+class NlpEntity(NlpSpanItem):
+    entity_id: str
+    entity_type: str
+    value: str
+    attributes: Dict[str, Any] = Field(default_factory=dict)
+
+
+class NlpRelation(NlpSpanItem):
+    relation_id: str
+    relation_type: str
+    source_entity_id: str
+    source_value: str
+    target_entity_id: str
+    target_value: str
+    evidence_text: str
+    normalized_evidence_text: str
+    attributes: Dict[str, Any] = Field(default_factory=dict)
+
+
+class NlpSlot(NlpSpanItem):
+    slot_id: str
+    slot_name: str
+    value: str
+
+
+class NlpSummary(BaseModel):
+    entity_count: int
+    relation_count: int
+    slot_count: int
+    review_item_count: int
+
+
+class NlpAnalyzeResponse(BaseModel):
+    task: Literal["general", "interpretation", "style_transfer"]
+    original_text: str
+    normalized_text: str
+    normalization_changed: bool
+    normalization_version: str
+    pipeline_version: str
+    engine: Literal["deterministic_rule", "model"]
+    entity_extractor_version: str
+    relation_extractor_version: str
+    slot_extractor_version: str
+    entities: List[NlpEntity]
+    relations: List[NlpRelation]
+    slots: List[NlpSlot]
+    review_required: bool
+    review_reasons: List[str]
+    summary: NlpSummary
+
+
 class ChartItem(BaseModel):
     label: str
     value: int
@@ -215,6 +285,7 @@ class SearchResponse(BaseModel):
     expansion_terms: List[str]
     top_k: int
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     results: List[SearchResult]
     grouped_by_record: List[GroupedSearchRecord]
     fusion_method: Optional[str] = None
@@ -237,6 +308,7 @@ class SemanticSearchResponse(BaseModel):
     query: str
     top_k: int
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     results: List[SearchResult]
     error_message: Optional[str] = None
     index_backend: Optional[str] = None
@@ -247,11 +319,18 @@ class SemanticStatusResponse(BaseModel):
     configured_enabled: bool
     index_exists: bool
     metadata_exists: bool
+    manifest_exists: bool
+    manifest_valid: bool
     embedding_provider: str
     embedding_model: str
     index_path: str
     metadata_path: str
+    manifest_path: str
     vector_count: int
+    corpus_domain: Optional[str] = None
+    corpus_fingerprint: Optional[str] = None
+    semantic_quality: Literal["disabled", "test_hash", "production"]
+    production_semantic_eligible: bool
     error_message: Optional[str] = None
 
 
@@ -294,6 +373,7 @@ class RagContextResponse(BaseModel):
     expanded_query: str
     expansion_mode: Literal["strict", "balanced", "broad"]
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     contexts: List[RagContextItem]
     grouped_contexts: List[GroupedSearchRecord]
     prompt_context: str
@@ -326,6 +406,7 @@ class StyleContextResponse(BaseModel):
     expanded_query: str
     expansion_mode: Literal["strict", "balanced", "broad"]
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     style_slots: Dict[str, List[StyleSlotExample]]
     grouped_contexts: List[GroupedSearchRecord]
     prompt_context: str
@@ -345,6 +426,28 @@ class EvidenceReference(BaseModel):
     source_column: str
     evidence_type: str
     unit_text: str
+
+
+class GenerationEvidenceMapping(BaseModel):
+    mapping_id: str
+    target_span: str
+    generated_start: int
+    generated_end: int
+    record_id: str = ""
+    unit_id: str = ""
+    source_field: str = ""
+    source_text: str = ""
+    reason: str
+    similarity_score: float = Field(ge=0.0, le=1.0)
+    mapping_method: str
+    needs_review: bool
+
+
+class StructuredGenerationOutput(BaseModel):
+    generated_text: str
+    summary: List[str] = Field(default_factory=list)
+    style_notes: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
 
 
 class ValidationEvidenceCoverage(BaseModel):
@@ -397,10 +500,21 @@ class GenerationInterpretResponse(BaseModel):
     query: str
     record_id: Optional[str] = None
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     prompt_context: str
     generated_text: str
     evidence_references: List[EvidenceReference]
+    evidence_mapping: List[GenerationEvidenceMapping] = Field(default_factory=list)
+    structured_output: StructuredGenerationOutput
+    request_id: str
+    generation_backend: Literal["qwen", "deterministic_local", "prompt_preview"]
     model: str
+    prompt_version: str
+    index_version: str
+    cache_hit: bool
+    cache_key: str
+    attempt_count: int
+    degraded_reason: Optional[str] = None
     dry_run: bool
     messages: List[ChatMessage] = Field(default_factory=list)
     error_message: Optional[str] = None
@@ -419,11 +533,22 @@ class GenerationStyleTransferResponse(BaseModel):
     task_type: Literal["style-transfer"]
     plain_text: str
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     style_slots: Dict[str, List[StyleSlotExample]]
     prompt_context: str
     generated_text: str
     evidence_references: List[EvidenceReference]
+    evidence_mapping: List[GenerationEvidenceMapping] = Field(default_factory=list)
+    structured_output: StructuredGenerationOutput
+    request_id: str
+    generation_backend: Literal["qwen", "deterministic_local", "prompt_preview"]
     model: str
+    prompt_version: str
+    index_version: str
+    cache_hit: bool
+    cache_key: str
+    attempt_count: int
+    degraded_reason: Optional[str] = None
     dry_run: bool
     messages: List[ChatMessage] = Field(default_factory=list)
     error_message: Optional[str] = None
@@ -445,6 +570,8 @@ class PromptPreviewResponse(BaseModel):
     prompt_context: str
     messages: List[ChatMessage]
     evidence_references: List[EvidenceReference]
+    prompt_version: str
+    index_version: str
 
 
 class QwenConfigStatusResponse(BaseModel):
@@ -453,6 +580,8 @@ class QwenConfigStatusResponse(BaseModel):
     base_url_configured: bool
     model: str
     timeout_seconds: int
+    max_retries: int
+    scaffold_phase_complete: bool
     project_env_exists: bool
     backend_env_exists: bool
     live_generation_ready: bool
@@ -574,50 +703,6 @@ class RetrievalUnitsResponse(BaseModel):
     retrieval_units: List[RetrievalUnit]
 
 
-class EvidenceMappingItem(BaseModel):
-    target_span: str
-    source_field: str
-    source_text: str
-    reason: str
-    similarity_score: float = Field(ge=0.0, le=1.0)
-
-
-class ConsistencyCheck(BaseModel):
-    status: str
-    warnings: List[str] = Field(default_factory=list)
-    passed_rules: List[str] = Field(default_factory=list)
-    failed_rules: List[str] = Field(default_factory=list)
-
-
-class PlainInterpretationRequest(BaseModel):
-    record_id: Optional[str] = None
-    original_text: Optional[str] = None
-
-
-class PlainInterpretationResponse(BaseModel):
-    record_id: Optional[str]
-    generated_text: str
-    summary: List[str]
-    slots: Dict[str, str]
-    evidence: List[EvidenceItem]
-    evidence_mapping: List[EvidenceMappingItem]
-    consistency_check: ConsistencyCheck
-
-
-class StyleTransferRequest(BaseModel):
-    plain_text: str
-    slots: Dict[str, str] = Field(default_factory=dict)
-
-
-class StyleTransferResponse(BaseModel):
-    generated_text: str
-    summary: List[str]
-    slots: Dict[str, str]
-    evidence: List[EvidenceItem]
-    evidence_mapping: List[EvidenceMappingItem]
-    consistency_check: ConsistencyCheck
-
-
 class GraphNode(BaseModel):
     id: str
     label: str
@@ -625,6 +710,8 @@ class GraphNode(BaseModel):
     category: str
     normalized_label: str
     record_id: str = ""
+    source_table: str = ""
+    source_id: str = ""
     properties: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -636,8 +723,21 @@ class GraphEdge(BaseModel):
     label: str
     record_id: str = ""
     evidence_text: str = ""
+    source_table: str = ""
+    source_id: str = ""
+    weight: float = 0.0
     confidence: float = 0.0
     properties: Dict[str, Any] = Field(default_factory=dict)
+
+
+class GraphQualitySummary(BaseModel):
+    duplicate_logical_edge_count: int = 0
+    orphan_edge_count: int = 0
+    missing_node_provenance_count: int = 0
+    missing_edge_provenance_count: int = 0
+    traceable_evidence_node_count: int = 0
+    traceable_metadata_node_count: int = 0
+    record_node_count: int = 0
 
 
 class GraphStatsResponse(BaseModel):
@@ -645,6 +745,7 @@ class GraphStatsResponse(BaseModel):
     edge_count: int
     node_type_distribution: Dict[str, int] = Field(default_factory=dict)
     edge_type_distribution: Dict[str, int] = Field(default_factory=dict)
+    quality: GraphQualitySummary = Field(default_factory=GraphQualitySummary)
 
 
 class GraphRecordResponse(BaseModel):

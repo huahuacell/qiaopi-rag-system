@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Protocol
 
 import numpy as np
@@ -14,6 +15,17 @@ class EmbeddingProviderError(RuntimeError):
 class EmbeddingProvider(Protocol):
     def embed_texts(self, texts: list[str]) -> np.ndarray:
         ...
+
+
+@lru_cache(maxsize=4)
+def _get_local_embedding_provider(model_name: str) -> EmbeddingProvider:
+    from app.embedding.local_embedding_provider import LocalEmbeddingProvider
+
+    return LocalEmbeddingProvider(model_name=model_name)
+
+
+def clear_embedding_provider_cache() -> None:
+    _get_local_embedding_provider.cache_clear()
 
 
 def l2_normalize(embeddings: np.ndarray) -> np.ndarray:
@@ -36,7 +48,5 @@ def get_embedding_provider(provider_name: str | None = None) -> EmbeddingProvide
 
         return QwenEmbeddingProvider()
     if provider == "local":
-        from app.embedding.local_embedding_provider import LocalEmbeddingProvider
-
-        return LocalEmbeddingProvider()
+        return _get_local_embedding_provider(settings.EMBEDDING_MODEL)
     raise EmbeddingProviderError(f"Unsupported embedding provider: {provider}")

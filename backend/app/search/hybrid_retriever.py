@@ -33,6 +33,7 @@ def _keyword_fallback(keyword_result: dict[str, Any], error_message: str | None 
         "results": rows,
         "grouped_by_record": group_results_by_record(rows),
         "semantic_enabled": False,
+        "semantic_quality": "disabled",
         "fusion_method": "keyword_fallback",
         "error_message": error_message,
     }
@@ -131,6 +132,10 @@ def retrieve_hybrid(
         "results": fused_rows,
         "grouped_by_record": group_results_by_record(fused_rows),
         "semantic_enabled": True,
+        "semantic_quality": semantic_result.get(
+            "semantic_quality",
+            "disabled",
+        ),
         "fusion_method": "rrf",
         "error_message": None,
     }

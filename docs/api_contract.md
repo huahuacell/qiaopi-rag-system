@@ -2,7 +2,41 @@
 
 Base URL: `http://localhost:8000`
 
-Field names are stable and should not be renamed without explicit contract updates.
+Contract baseline: `2026-06-19-converged`
+
+Backend application version: `0.1.0`
+
+The running FastAPI OpenAPI document is the executable source of truth. This
+file explains the same contract for developers and must be updated in the same
+change as any intentional API modification.
+
+## Contract Change Policy
+
+- Additive optional response fields and new endpoints are backward-compatible
+  minor changes. They still require documentation, contract-test, frontend
+  client, mock, and integration-test review.
+- Removing or renaming an endpoint or field, changing its type or meaning, or
+  making an optional field required is a breaking change.
+- Breaking changes must use a coordinated migration. Prefer a new `/api/v2`
+  route family when old and new clients must coexist.
+- A deprecated endpoint or field must be documented with its replacement and
+  removal target. It remains covered by tests during the deprecation window.
+- Undocumented aliases are not added merely to hide client drift. Clients must
+  migrate to the converged contract.
+- `backend/tests/test_api_contract.py` freezes the public operations and a
+  canonical OpenAPI digest. Updating that digest without the related contract,
+  client, mock, and test updates is not an accepted API change.
+
+Retired scaffold-only operations:
+
+- `POST /api/generation/plain-interpretation` was replaced by
+  `POST /api/generation/interpret`.
+- `GET /api/records/{record_id}/similar` is not part of this baseline. A future
+  similarity endpoint requires a new documented contract and real vector-based
+  implementation.
+
+The frontend page route `/plain-interpretation` remains valid; page routes are
+not backend API routes.
 
 ## Step A Data Foundation
 
@@ -33,7 +67,38 @@ Core tables:
 - `qiaopi_retrieval_units`
 - `qiaopi_retrieval_units_fts`
 - `qiaopi_generation_cache`
+- `qiaopi_generation_logs`
 - `qiaopi_query_logs`
+
+## Reproducible Build-All Pipeline
+
+Run from `backend/`:
+
+```bash
+python -m app.ingestion.build_all --embedding-provider hash
+```
+
+The default command rebuilds all derived assets from the raw Excel workbooks in
+an isolated directory under `backend/data/builds/`. It does not modify the live
+database or index. The ordered stages are full-text preprocessing, text
+database and FTS5, metadata database and FTS5, text-metadata linking, SQLite
+knowledge graph, semantic index, and acceptance validation.
+
+Use `--promote` only after acceptance. Promotion prepares temporary sibling
+files and restores the previous live assets if any replacement fails.
+
+Each accepted build writes `qiaopi_build_manifest.json` containing canonical
+per-table counts and SHA-256 checksums, a schema checksum, the embedding
+provider/model/dimension, vector count, ordered retrieval-unit corpus manifest,
+corpus fingerprint, and fixed-query retrieval regression results. `created_at`
+fields are excluded from relational checksums. Vector bytes and small
+floating-point score differences are not cross-hardware equality requirements;
+baseline comparison uses vector identity, corpus fingerprint, dimensions,
+counts, and ranked unit IDs.
+
+Use `--baseline-manifest <path>` to require a new isolated build to match a
+previous accepted manifest. See `backend/BUILDING.md` for the full operational
+workflow.
 
 `qiaopi_retrieval_units` stores record-level, body, evidence, style, and RAG summary retrieval units with stable `unit_id`, traceable source columns, evidence type, weight, and normalized `fts_text`.
 
@@ -45,11 +110,48 @@ Step C adds RAG evidence context and qiaopi style context construction. These AP
 
 Step D1 adds a Qwen generation foundation for prompt preview, evidence-grounded modern interpretation, and qiaopi-style drafting. Qwen calls are disabled unless environment variables explicitly enable them.
 
-Step F adds optional semantic retrieval over `qiaopi_retrieval_units`. Build the local semantic index with `python -m app.ingestion.build_semantic_index` after rebuilding the SQLite database. Runtime semantic retrieval remains disabled until `SEMANTIC_SEARCH_ENABLED=true` and index files exist. Generated content is not historical source material and must be displayed with evidence references.
+Step F adds optional semantic retrieval over `qiaopi_retrieval_units`. Build the
+local semantic index with `python -m app.ingestion.build_semantic_index` after
+rebuilding the SQLite database. Runtime semantic retrieval remains disabled
+until `SEMANTIC_SEARCH_ENABLED=true` and the index, metadata, and manifest files
+all exist. Runtime loading rejects provider, model, dimension, ordered corpus,
+or corpus-fingerprint mismatches. Hash embeddings are deterministic test
+plumbing only (`semantic_quality: test_hash`) and cannot satisfy production
+semantic acceptance. Generated content is not historical source material and
+must be displayed with evidence references.
 
 Step G adds a large-scale 50064-record metadata catalog layer for archive browsing, metadata search, statistics, timeline views, place distribution, and links to the 213 full-text records. Metadata-only records are catalog records, not full-text evidence. They must not be inserted into `qiaopi_retrieval_units`, `qiaopi_retrieval_units_fts`, the semantic index, RAG context, or Qwen generation prompts. Only linked 213 full-text records may be used for RAG or generation tasks.
 
+## Retrieval Corpus Domains and Evaluation
+
+Retrieval has two independent corpus domains:
+
+- `metadata_catalog`: 50,064 catalog records, searched through
+  `POST /api/metadata/search`. This domain is for archive discovery and
+  browsing. Its rows are never direct RAG evidence.
+- `full_text_evidence`: 213 full-text records represented by 1,959 traceable
+  retrieval units. Keyword, semantic, hybrid, and RAG retrieval operate only in
+  this domain.
+
+The version-controlled benchmark is
+`backend/data/evaluation/retrieval_benchmark.jsonl`. Run from `backend/`:
+
+```bash
+python -m app.evaluation.retrieval_evaluation
+```
+
+It reports Recall@K, MRR, and NDCG separately for metadata records, full-text
+records, and retrieval units. `--build-hash-test-index` creates a temporary
+deterministic diagnostic index, but that report is ineligible for production
+semantic acceptance. A production hybrid candidate must cover every full-text
+benchmark query and must not regress from keyword retrieval on NDCG@10 or
+MRR@10 at either unit or record level.
+
 Step Date-1 adds deterministic date normalization for `qiaopi_text_records` and `qiaopi_metadata_records`. Raw fields such as `date_text` and existing `year_normalized` values are preserved. The normalized display field is `date_standard` using `YYYY.M.D`, `YYYY.M`, or `YYYY` only when those parts are known. Missing month or day values are never defaulted to `1`.
+
+These normalized date columns are currently database fields used by ingestion,
+graph construction, and date-specific tests. They are not yet exposed by the
+`MetadataDetailResponse` or `RecordDetailResponse` models in this contract.
 
 Normalized date fields:
 
@@ -211,7 +313,9 @@ Response:
         }
       ]
     }
-  ]
+  ],
+  "prompt_version": "style-transfer-json-v2",
+  "index_version": "rel:30675156c50cd5c8|vec:6a7537c49ba8fc2b|manifest:1"
 }
 ```
 
@@ -259,16 +363,26 @@ Response:
   "configured_enabled": true,
   "index_exists": true,
   "metadata_exists": true,
+  "manifest_exists": true,
+  "manifest_valid": true,
   "embedding_provider": "local",
   "embedding_model": "BAAI/bge-small-zh-v1.5",
   "index_path": "backend/data/index/qiaopi_retrieval_units.faiss",
   "metadata_path": "backend/data/index/qiaopi_retrieval_units_meta.jsonl",
+  "manifest_path": "backend/data/index/qiaopi_retrieval_units_manifest.json",
   "vector_count": 1959,
+  "corpus_domain": "full_text_evidence",
+  "corpus_fingerprint": "sha256...",
+  "semantic_quality": "production",
+  "production_semantic_eligible": true,
   "error_message": null
 }
 ```
 
-If semantic search is disabled or the index is missing, the endpoint returns HTTP 200 with `semantic_enabled=false` and an `error_message`. It never returns embedding or generation API keys.
+If semantic search is disabled, an artifact is missing, or the runtime
+provider/model/dimension/corpus does not match the manifest, the endpoint
+returns HTTP 200 with `semantic_enabled=false` and a controlled
+`error_message`. It never returns embedding or generation API keys.
 
 ## POST /api/search/semantic
 
@@ -292,6 +406,7 @@ Response:
   "query": "母亲寄款查收",
   "top_k": 10,
   "semantic_enabled": true,
+  "semantic_quality": "production",
   "results": [
     {
       "record_id": "CSQP-SFHC-TEXT-017",
@@ -323,7 +438,10 @@ Response:
 }
 ```
 
-If `SEMANTIC_SEARCH_ENABLED=false` or index files are missing, the endpoint returns HTTP 200 with `semantic_enabled=false`, empty `results`, and a controlled `error_message`.
+If `SEMANTIC_SEARCH_ENABLED=false`, index artifacts are missing, or manifest
+validation fails, the endpoint returns HTTP 200 with
+`semantic_enabled=false`, `semantic_quality="disabled"`, empty `results`, and a
+controlled `error_message`.
 
 ## POST /api/search/hybrid
 
@@ -346,6 +464,7 @@ Response shape is the same as `/api/search/keyword`, with:
 ```json
 {
   "semantic_enabled": true,
+  "semantic_quality": "production",
   "fusion_method": "rrf",
   "error_message": null
 }
@@ -357,6 +476,11 @@ Each result includes:
 - `semantic_score`: embedding similarity when present.
 - `final_score`: fused RRF score for hybrid responses.
 - `retrieval_sources`: `["keyword"]`, `["semantic"]`, or `["keyword", "semantic"]`.
+
+`semantic_quality` is `production` only for a validated non-Hash index,
+`test_hash` for an explicitly configured deterministic Hash index, and
+`disabled` when semantic retrieval did not participate. Hash-backed hybrid
+results are useful for tests but are not accepted as real semantic retrieval.
 
 ## POST /api/rag/context
 
@@ -384,6 +508,7 @@ Response:
   "expanded_query": "母亲寄款查收的侨批内容 母亲 寄款 查收 慈亲 萱堂 家母 批款 寄上 汇上 收讫 照收 如数查收 大人 膝下 阿母 阿妈 付去 兹托 带去 奉上 收用 检收 祈收 严慈 批局 查明",
   "expansion_mode": "balanced",
   "semantic_enabled": false,
+  "semantic_quality": "disabled",
   "contexts": [
     {
       "record_id": "CSQP-SFHC-TEXT-017",
@@ -458,6 +583,9 @@ Current limitations:
 - This RAG context endpoint does not call Qwen; it only prepares evidence for generation endpoints.
 - Semantic retrieval is optional and falls back to keyword retrieval when disabled or missing an index.
 - `semantic_enabled` reports whether semantic retrieval participated in this response.
+- `semantic_quality` distinguishes validated production embeddings from
+  `test_hash`; Hash-backed context must not be treated as production semantic
+  or production RAG acceptance.
 
 ## POST /api/rag/style-context
 
@@ -483,6 +611,7 @@ Response:
   "expanded_query": "母亲您好 我在新加坡平安 寄八元回家 请弟弟好好读书 母亲 平安 寄款 读书 新加坡 慈亲 大人 膝下 安好 无恙 勿念 汇款 批款 查收 勤学 学业 务望 萱堂 家母 批款 寄上 汇上 勤读 学业 星洲 叻坡 石叻 阿母 阿妈 付去 兹托 带去 奉上 书馆 课程 成绩 温习 南洋 严慈 安康 批局 教训",
   "expansion_mode": "balanced",
   "semantic_enabled": false,
+  "semantic_quality": "disabled",
   "style_slots": {
     "opening": [
       {
@@ -662,8 +791,15 @@ Behavior:
 
 - If `record_id` is provided, the endpoint uses that record's retrieval units as primary context.
 - If `record_id` is absent, the endpoint uses `/api/rag/context` retrieval logic.
-- If `dry_run` is `true`, Qwen is not called and `messages` are returned for review.
-- If Qwen is disabled or misconfigured, the endpoint returns a controlled `error_message` and prompt preview data instead of crashing.
+- If `dry_run` is `true`, Qwen is not called and
+  `generation_backend=prompt_preview`.
+- Live Qwen calls require `SCAFFOLD_PHASE_COMPLETE=true` in addition to a
+  complete Qwen configuration.
+- When the scaffold gate is closed or Qwen is unavailable, the endpoint uses a
+  deterministic local fallback and returns an explicit `degraded_reason`.
+- Successful Qwen and configured local-fallback results use a stable cache key
+  containing input, evidence fingerprints, model, prompt/index versions,
+  filters, and retrieval settings.
 
 Response:
 
@@ -673,8 +809,23 @@ Response:
   "query": "这封侨批主要说了什么？",
   "record_id": "CSQP-SFHC-TEXT-017",
   "semantic_enabled": false,
+  "semantic_quality": "disabled",
   "prompt_context": "【检索问题】\n这封侨批主要说了什么？\n\n【相关侨批证据 1】\n来源记录：CSQP-SFHC-TEXT-017\n...",
   "generated_text": "【生成解读】...",
+  "generation_backend": "qwen",
+  "model": "qwen-plus",
+  "prompt_version": "interpret-json-v2",
+  "index_version": "rel:30675156c50cd5c8|vec:6a7537c49ba8fc2b|manifest:1",
+  "cache_hit": false,
+  "cache_key": "sha256-cache-key",
+  "attempt_count": 1,
+  "degraded_reason": null,
+  "structured_output": {
+    "generated_text": "【生成解读】...",
+    "summary": ["寄批人向母亲报平安并寄款"],
+    "style_notes": [],
+    "warnings": []
+  },
   "evidence_references": [
     {
       "record_id": "CSQP-SFHC-TEXT-017",
@@ -686,7 +837,22 @@ Response:
       "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。"
     }
   ],
-  "model": "qwen-plus",
+  "evidence_mapping": [
+    {
+      "mapping_id": "MAP-001",
+      "target_span": "信中说明寄去洋银四元供家用。",
+      "generated_start": 6,
+      "generated_end": 21,
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "unit_id": "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+      "source_field": "body_core",
+      "source_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "reason": "lexical_overlap",
+      "similarity_score": 0.46,
+      "mapping_method": "lexical-evidence-map-v1",
+      "needs_review": false
+    }
+  ],
   "dry_run": false,
   "messages": [
     {
@@ -748,8 +914,8 @@ Request:
 Behavior:
 
 - Uses `/api/rag/style-context` logic to retrieve examples for `opening`, `safety`, `remittance`, `family_care`, `instruction`, `closing`, and `style_reference`.
-- If `dry_run` is `true`, Qwen is not called and prompt messages are returned.
-- If Qwen is disabled or misconfigured, the endpoint returns a controlled `error_message` and prompt preview data instead of crashing.
+- The same scaffold gate, retry, structured-output, cache, call-log, evidence
+  mapping, and deterministic fallback rules used by `/interpret` apply here.
 
 Response:
 
@@ -758,6 +924,7 @@ Response:
   "task_type": "style-transfer",
   "plain_text": "母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。",
   "semantic_enabled": false,
+  "semantic_quality": "disabled",
   "style_slots": {
     "opening": [
       {
@@ -781,6 +948,20 @@ Response:
   },
   "prompt_context": "【用户白话输入】\n母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。\n...",
   "generated_text": "【生成侨批体草稿】...",
+  "generation_backend": "qwen",
+  "model": "qwen-plus",
+  "prompt_version": "style-transfer-json-v2",
+  "index_version": "rel:30675156c50cd5c8|vec:6a7537c49ba8fc2b|manifest:1",
+  "cache_hit": false,
+  "cache_key": "sha256-cache-key",
+  "attempt_count": 1,
+  "degraded_reason": null,
+  "structured_output": {
+    "generated_text": "【生成侨批体草稿】...",
+    "summary": ["保留母亲、新加坡和八元等输入事实"],
+    "style_notes": ["采用侨批称谓和寄款措辞"],
+    "warnings": []
+  },
   "evidence_references": [
     {
       "record_id": "CSQP-SFHC-TEXT-017",
@@ -792,7 +973,6 @@ Response:
       "unit_text": "慈亲大人膝下："
     }
   ],
-  "model": "qwen-plus",
   "dry_run": false,
   "messages": [
     {
@@ -908,7 +1088,26 @@ Risk levels:
 - `medium`: missing evidence references or non-critical warnings require review.
 - `high`: unsupported new amounts, dates, names, or places were detected.
 
-The generation endpoints attach `validation_report` after successful live generation. For `dry_run=true`, disabled Qwen, timeout, or any empty `generated_text`, `validation_report` is `null`.
+The generation endpoints attach `validation_report` and sentence-level
+`evidence_mapping` whenever `generated_text` is non-empty, including
+deterministic local fallback. For `dry_run=true` or an empty generated result,
+both remain empty/null.
+
+Generation runtime fields:
+
+- `generation_backend`: `qwen`, `deterministic_local`, or `prompt_preview`.
+- `model`: actual Qwen model or `deterministic-local-v1`; local fallback never
+  claims a Qwen model.
+- `prompt_version`: versioned prompt and structured-output contract.
+- `index_version`: relational/vector build fingerprint used for evidence.
+- `cache_hit`: whether generated content came from SQLite cache.
+- `degraded_reason`: stable reason such as `scaffold_phase_active`,
+  `qwen_disabled`, `qwen_timeout`, or `qwen_invalid_structured_output`.
+- `attempt_count`: Qwen attempts made; zero for local generation and previews.
+
+`qiaopi_generation_logs` records request ID, endpoint, task, actual backend,
+model, prompt/index versions, cache state, attempt count, status, degradation
+reason, duration, and evidence count. It never stores API keys or raw prompts.
 
 Current validation limitations:
 
@@ -925,11 +1124,24 @@ Generation uses these environment variables:
 QWEN_API_KEY=
 QWEN_BASE_URL=
 QWEN_MODEL=qwen-plus
-QWEN_TIMEOUT_SECONDS=60
+QWEN_TIMEOUT_SECONDS=120
+QWEN_MAX_RETRIES=2
+QWEN_RETRY_BACKOFF_MS=250
 QWEN_ENABLED=false
+SCAFFOLD_PHASE_COMPLETE=false
 ```
 
-`QWEN_ENABLED=false` or a missing API key means live generation is disabled. Dry runs and prompt preview still work without a real key. API keys are never returned in responses or logs.
+Real network calls require all of the following:
+
+1. The project owner explicitly ends scaffold mode with
+   `SCAFFOLD_PHASE_COMPLETE=true`.
+2. `QWEN_ENABLED=true`.
+3. API key and base URL are configured.
+
+Until then, normal frontend requests use the deterministic local fallback with
+an explicit degradation marker. CI uses a simulated
+`QwenClient.generate_structured` implementation and must not depend on real
+network calls. API keys are never returned, cached, or logged.
 
 ## GET /api/generation/qwen-status
 
@@ -943,7 +1155,9 @@ Response:
   "api_key_configured": true,
   "base_url_configured": true,
   "model": "qwen-plus",
-  "timeout_seconds": 60,
+  "timeout_seconds": 120,
+  "max_retries": 2,
+  "scaffold_phase_complete": true,
   "project_env_exists": true,
   "backend_env_exists": false,
   "live_generation_ready": true
@@ -1027,7 +1241,7 @@ Linking rules:
 
 ## Knowledge Graph Layer
 
-Purpose: Step H1 implements the isolated SQLite knowledge graph foundation for relationship modeling, visualization, and explanation across qiaopi records. Step H1.1 optimizes duplicate fact handling by merging duplicate logical edges and duplicate amount nodes while preserving evidence in `properties_json`. Step H2 implements read-only Graph API endpoints backed by the SQLite KG tables. Step H3 adds a standalone `kg-viewer/` app for graph preview and demo recording. This layer remains derived from existing SQLite data. It does not implement Neo4j integration, advanced graph analytics, or official integration into `frontend/`.
+Purpose: Step H1 implements the SQLite knowledge graph foundation for relationship modeling, visualization, and explanation across qiaopi records. Step H1.1 optimizes duplicate fact handling by merging duplicate logical edges and duplicate amount nodes while preserving evidence in `properties_json`. Step H2 implements read-only Graph API endpoints backed by the SQLite KG tables. Step H3 adds a standalone `kg-viewer/` diagnostic app. The formal product integration now lives in `frontend/` at `/knowledge-graph`. This layer remains derived from existing SQLite data and does not implement Neo4j integration or advanced graph analytics.
 
 Implementation status:
 
@@ -1044,8 +1258,10 @@ Implemented:
 - Node neighbor query.
 - Limited graph overview query.
 - Place flow statistics.
-- Standalone `kg-viewer/`.
-- Vue 3, Vite, Element Plus, ECharts, and Axios viewer stack.
+- Formal `/knowledge-graph` page in `frontend/`.
+- Record, evidence, and metadata source tracing.
+- Standalone `kg-viewer/` diagnostic sandbox.
+- Vue 3, Vite, Element Plus, ECharts, and Axios graph stack.
 - Graph stats display.
 - Record graph display.
 - Overview graph display.
@@ -1196,7 +1412,10 @@ GET /api/graph/analytics/top-nodes
 GET /api/graph/analytics/centrality
 ```
 
-The Graph API reads from the SQLite KG tables. SQLite remains the source of truth. Neo4j is not required for H2. The existing `frontend/` folder is untouched. Metadata-only records are not full-text RAG evidence.
+The Graph API reads from the SQLite KG tables. SQLite remains the source of
+truth. Neo4j is not required. The formal product page at
+`/knowledge-graph` consumes these APIs directly. Metadata-only
+records are catalog links and are not full-text RAG evidence.
 
 Graph node shape:
 
@@ -1208,6 +1427,8 @@ Graph node shape:
   "category": "record",
   "normalized_label": "CSQP-SFHC-TEXT-017",
   "record_id": "CSQP-SFHC-TEXT-017",
+  "source_table": "qiaopi_text_records",
+  "source_id": "CSQP-SFHC-TEXT-017",
   "properties": {}
 }
 ```
@@ -1223,6 +1444,9 @@ Graph edge shape:
   "label": "SENT_BY",
   "record_id": "CSQP-SFHC-TEXT-017",
   "evidence_text": "",
+  "source_table": "qiaopi_text_records",
+  "source_id": "CSQP-SFHC-TEXT-017:sender",
+  "weight": 1.0,
   "confidence": 0.95,
   "properties": {}
 }
@@ -1230,25 +1454,40 @@ Graph edge shape:
 
 ## GET /api/graph/stats
 
-Returns graph table counts and type distributions. If the KG tables do not exist or are empty, returns zero counts instead of crashing.
+Returns graph table counts, type distributions, and structural quality
+indicators. If the KG tables do not exist or are empty, returns zero counts
+instead of crashing.
 
 Response:
 
 ```json
 {
-  "node_count": 2187,
-  "edge_count": 4897,
+  "node_count": 2195,
+  "edge_count": 4751,
   "node_type_distribution": {
     "record": 213,
-    "person": 324,
-    "place": 18
+    "person": 235,
+    "place": 19
   },
   "edge_type_distribution": {
     "HAS_THEME": 819,
     "SUPPORTED_BY": 1097
+  },
+  "quality": {
+    "duplicate_logical_edge_count": 0,
+    "orphan_edge_count": 0,
+    "missing_node_provenance_count": 0,
+    "missing_edge_provenance_count": 0,
+    "traceable_evidence_node_count": 1097,
+    "traceable_metadata_node_count": 1,
+    "record_node_count": 213
   }
 }
 ```
+
+Production acceptance requires all four structural failure counts to be zero.
+Traceable node counts verify that evidence and linked metadata nodes retain
+their source-table and source-ID provenance.
 
 ## GET /api/graph/record/{record_id}
 
@@ -1267,6 +1506,8 @@ Response:
       "category": "record",
       "normalized_label": "CSQP-SFHC-TEXT-017",
       "record_id": "CSQP-SFHC-TEXT-017",
+      "source_table": "qiaopi_text_records",
+      "source_id": "CSQP-SFHC-TEXT-017",
       "properties": {}
     }
   ],
@@ -1295,6 +1536,8 @@ Response:
     "category": "place",
     "normalized_label": "越南",
     "record_id": "",
+    "source_table": "qiaopi_text_records",
+    "source_id": "CSQP-SFHC-TEXT-017:origin_place",
     "properties": {}
   },
   "nodes": [],
@@ -1360,21 +1603,28 @@ Future Neo4j integration:
 - Neo4j must remain optional and must not be required for normal backend startup.
 - No real Neo4j implementation exists in Step H2.
 
+Formal `frontend/` integration:
+
+- `/knowledge-graph` is the formal graph product route.
+- It calls graph stats, record graph, overview, place flow, and node-neighbor
+  APIs.
+- Clicking a node uses `source_table`, `source_id`, `record_id`, and edge
+  evidence to trace back to record, evidence, and metadata APIs.
+- The analysis page no longer constructs static graph nodes.
+
 Standalone `kg-viewer/`:
 
-- H3 creates an independent `kg-viewer/` app.
-- It uses Vue 3, Vite, Element Plus, ECharts, and Axios.
-- It matches the existing frontend's data-workbench layout style with a left sidebar, top header, card-based main area, dashboard stat cards, graph cards, and table cards.
-- It calls `/api/graph/*` endpoints for graph preview and demo recording.
-- It displays graph stats, record graph, overview graph, place flow table, and node neighbors.
-- It must not import files from `frontend/`, modify `frontend/`, or depend on `frontend/` internals.
-- `frontend/` remains untouched.
+- It remains an independent diagnostic sandbox owned by the Frontend
+  Developer.
+- It may preview Graph API behavior, but features implemented only there do
+  not count as formal frontend acceptance.
 
 Important limitations:
 
 - The graph builder is SQLite-only and rebuilds derived `qiaopi_kg_nodes` and `qiaopi_kg_edges`.
 - No Neo4j exporter, importer, driver, or schema is implemented yet.
-- `kg-viewer/` is standalone and is not official integration into `frontend/`.
+- `kg-viewer/` remains standalone and is not a substitute for the formal
+  `/knowledge-graph` product route.
 - The graph is for relationship modeling, visualization, and explanation. It does not replace SQLite, FTS5/BM25 search, FAISS semantic search, RAG context, Qwen generation, validation, or metadata APIs.
 - Metadata-only records must not become full-text RAG evidence.
 
@@ -1466,7 +1716,10 @@ Supported filters: `year_from`, `year_to`, `country_or_region`, `origin_place`, 
 
 ## GET /api/metadata/{metadata_id}
 
-Returns the parsed metadata catalog record plus the original Excel row in `raw_json`. Metadata detail rows include the same normalized date fields as text records: `date_standard`, `date_year`, `date_month`, `date_day`, `date_precision`, `date_calendar`, `date_parse_confidence`, and `date_parse_note`.
+Returns the parsed metadata catalog record plus the original Excel row in
+`raw_json`. The current response exposes `date_text` and `year_normalized`.
+Normalized date columns remain internal database fields until they are added to
+the Pydantic response model through an explicit additive contract change.
 
 ## GET /api/metadata/{metadata_id}/linked-text
 
@@ -1512,14 +1765,6 @@ Response:
   "recipient_name_clean": "收批人名",
   "date_text": "癸九月十一日",
   "year_normalized": "1933",
-  "date_standard": "1933.9.11",
-  "date_year": 1933,
-  "date_month": 9,
-  "date_day": 11,
-  "date_precision": "day",
-  "date_calendar": "traditional_lunar_text",
-  "date_parse_confidence": 0.85,
-  "date_parse_note": "Traditional Chinese month/day normalized for display; not converted to exact Gregorian calendar date.",
   "body_clean": "清洗后正文",
   "body_core": "正文核心内容",
   "main_intent": "remittance",
@@ -1657,3 +1902,85 @@ Response:
   ]
 }
 ```
+
+## POST /api/nlp/analyze
+
+Purpose: run deterministic online NLP over user-provided qiaopi or modern
+family-letter text. This endpoint performs real normalization and rule-based
+entity, relation, and generation-slot extraction. It must not be described as
+a statistical or large-language model.
+
+The online endpoint and offline full-text preprocessing both call
+`app.nlp.text_normalizer.normalize_qiaopi_text`. The current normalization
+version is `qiaopi-text-normalizer-1.0.0`.
+
+Request:
+
+```json
+{
+  "text": "母亲大人尊前：我在星洲平安，今寄回中央法币陆元。",
+  "task": "general"
+}
+```
+
+`task` is one of `general`, `interpretation`, or `style_transfer`. Text length
+must be between 1 and 20,000 characters.
+
+Response excerpt:
+
+```json
+{
+  "task": "general",
+  "original_text": "母亲大人尊前：我在星洲平安，今寄回中央法币陆元。",
+  "normalized_text": "母亲大人尊前：我在星洲平安，今寄回中央法币陆元。",
+  "normalization_changed": false,
+  "normalization_version": "qiaopi-text-normalizer-1.0.0",
+  "pipeline_version": "qiaopi-online-nlp-1.0.0",
+  "engine": "deterministic_rule",
+  "entity_extractor_version": "qiaopi-entity-rules-1.0.0",
+  "relation_extractor_version": "qiaopi-relation-rules-1.0.0",
+  "slot_extractor_version": "qiaopi-slot-rules-1.0.0",
+  "entities": [
+    {
+      "entity_id": "ENT-004",
+      "entity_type": "place",
+      "value": "新加坡",
+      "source_text": "星洲",
+      "normalized_source_text": "星洲",
+      "original_start": 9,
+      "original_end": 11,
+      "normalized_start": 9,
+      "normalized_end": 11,
+      "extractor": "rule",
+      "extractor_version": "qiaopi-entity-rules-1.0.0",
+      "rule_id": "place_alias:星洲",
+      "confidence": 0.9,
+      "needs_review": false,
+      "attributes": {
+        "alias": "星洲",
+        "country_or_region": "新加坡"
+      }
+    }
+  ],
+  "review_required": false,
+  "review_reasons": [],
+  "summary": {
+    "entity_count": 5,
+    "relation_count": 2,
+    "slot_count": 5,
+    "review_item_count": 0
+  }
+}
+```
+
+Offset rules:
+
+- All offsets use zero-based half-open intervals `[start, end)`.
+- `original_start` and `original_end` index `original_text`.
+- `normalized_start` and `normalized_end` index `normalized_text`.
+- Slicing the corresponding text must reproduce `source_text` or
+  `normalized_source_text`.
+- Entities, relations, and slots all return extractor type/version,
+  confidence, and `needs_review`.
+- OCR uncertainty markers and low-confidence rules set `review_required` and
+  add human-readable `review_reasons`.

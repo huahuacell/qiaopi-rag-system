@@ -198,12 +198,124 @@ def fetch_kg_stats(connection: sqlite3.Connection) -> dict[str, Any]:
             "edge_count": 0,
             "node_type_distribution": {},
             "edge_type_distribution": {},
+            "quality": _empty_quality_summary(),
         }
     return {
         "node_count": count_kg_nodes(connection),
         "edge_count": count_kg_edges(connection),
         "node_type_distribution": node_type_distribution(connection),
         "edge_type_distribution": edge_type_distribution(connection),
+        "quality": fetch_kg_quality(connection),
+    }
+
+
+def fetch_kg_quality(connection: sqlite3.Connection) -> dict[str, int]:
+    if not kg_tables_exist(connection):
+        return _empty_quality_summary()
+
+    duplicate_logical_edge_count = int(
+        connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM (
+                SELECT
+                    record_id,
+                    source_node_id,
+                    target_node_id,
+                    edge_type,
+                    COUNT(*) AS logical_count
+                FROM qiaopi_kg_edges
+                GROUP BY record_id, source_node_id, target_node_id, edge_type
+                HAVING logical_count > 1
+            )
+            """
+        ).fetchone()["count"]
+    )
+    orphan_edge_count = int(
+        connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM qiaopi_kg_edges AS e
+            LEFT JOIN qiaopi_kg_nodes AS source_node
+              ON source_node.node_id = e.source_node_id
+            LEFT JOIN qiaopi_kg_nodes AS target_node
+              ON target_node.node_id = e.target_node_id
+            WHERE source_node.node_id IS NULL
+               OR target_node.node_id IS NULL
+            """
+        ).fetchone()["count"]
+    )
+    missing_node_provenance_count = int(
+        connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM qiaopi_kg_nodes
+            WHERE COALESCE(source_table, '') = ''
+               OR COALESCE(source_id, '') = ''
+            """
+        ).fetchone()["count"]
+    )
+    missing_edge_provenance_count = int(
+        connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM qiaopi_kg_edges
+            WHERE COALESCE(source_table, '') = ''
+               OR COALESCE(source_id, '') = ''
+            """
+        ).fetchone()["count"]
+    )
+    traceable_evidence_node_count = int(
+        connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM qiaopi_kg_nodes
+            WHERE node_type = 'evidence'
+              AND source_table = 'qiaopi_evidence_spans'
+              AND COALESCE(source_id, '') != ''
+            """
+        ).fetchone()["count"]
+    )
+    traceable_metadata_node_count = int(
+        connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM qiaopi_kg_nodes
+            WHERE node_type = 'metadata_record'
+              AND source_table = 'qiaopi_metadata_records'
+              AND COALESCE(source_id, '') != ''
+            """
+        ).fetchone()["count"]
+    )
+    record_node_count = int(
+        connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM qiaopi_kg_nodes
+            WHERE node_type = 'record'
+            """
+        ).fetchone()["count"]
+    )
+    return {
+        "duplicate_logical_edge_count": duplicate_logical_edge_count,
+        "orphan_edge_count": orphan_edge_count,
+        "missing_node_provenance_count": missing_node_provenance_count,
+        "missing_edge_provenance_count": missing_edge_provenance_count,
+        "traceable_evidence_node_count": traceable_evidence_node_count,
+        "traceable_metadata_node_count": traceable_metadata_node_count,
+        "record_node_count": record_node_count,
+    }
+
+
+def _empty_quality_summary() -> dict[str, int]:
+    return {
+        "duplicate_logical_edge_count": 0,
+        "orphan_edge_count": 0,
+        "missing_node_provenance_count": 0,
+        "missing_edge_provenance_count": 0,
+        "traceable_evidence_node_count": 0,
+        "traceable_metadata_node_count": 0,
+        "record_node_count": 0,
     }
 
 

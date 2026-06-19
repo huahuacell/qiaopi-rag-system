@@ -20,8 +20,8 @@ from app.settings import QIAOPI_DB_PATH
 
 
 def link_metadata_text_records(db_path: Path = QIAOPI_DB_PATH) -> dict[str, Any]:
-    text_records = fetch_text_records_for_metadata_linking()
-    metadata_records = fetch_metadata_records_for_linking()
+    text_records = fetch_text_records_for_metadata_linking(db_path)
+    metadata_records = fetch_metadata_records_for_linking(db_path)
     link_result = build_metadata_text_links(text_records, metadata_records)
 
     with get_connection(db_path) as connection:
@@ -30,7 +30,7 @@ def link_metadata_text_records(db_path: Path = QIAOPI_DB_PATH) -> dict[str, Any]
         auto_link_count = insert_metadata_links(connection, link_result["auto_links"])
         candidate_link_count = insert_metadata_link_candidates(connection, link_result["candidate_links"])
         connection.commit()
-        link_stats = fetch_metadata_link_stats()
+        link_stats = fetch_metadata_link_stats(db_path)
         full_text_record_count = count_rows(connection, "qiaopi_text_records")
 
     return {

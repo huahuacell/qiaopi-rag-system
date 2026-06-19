@@ -3,6 +3,10 @@ from __future__ import annotations
 from typing import Mapping
 
 
+INTERPRETATION_PROMPT_VERSION = "interpret-json-v2"
+STYLE_TRANSFER_PROMPT_VERSION = "style-transfer-json-v2"
+
+
 def _evidence_reference_lines(evidence_references: list[Mapping[str, str]]) -> str:
     if not evidence_references:
         return "暂无可引用证据。"
@@ -29,6 +33,7 @@ def build_interpretation_prompt(
     system_prompt = (
         "你是侨批历史文献解读助手。必须只依据提供的证据回答，"
         "不得编造证据中没有的人名、金额、日期、地点或情节。"
+        "只输出一个合法 JSON 对象，不要输出 Markdown 代码围栏。"
     )
     user_prompt = f"""请根据以下侨批证据，生成一段现代中文解释。
 
@@ -50,12 +55,13 @@ def build_interpretation_prompt(
 参考证据：
 {_evidence_reference_lines(evidence_references)}
 
-请输出：
-【生成解读】
-...
-
-【证据依据】
-...
+请严格输出以下 JSON 结构：
+{{
+  "generated_text": "完整的现代中文生成解读",
+  "summary": ["结构化摘要要点"],
+  "style_notes": [],
+  "warnings": ["证据不足或不确定之处"]
+}}
 """
     return [
         {"role": "system", "content": system_prompt},
@@ -72,6 +78,7 @@ def build_style_transfer_prompt(
     system_prompt = (
         "你是侨批文体改写助手。你可以参考真实侨批样例的措辞和结构，"
         "但不得把生成内容声称为历史原文，也不得新增用户未提供的事实。"
+        "只输出一个合法 JSON 对象，不要输出 Markdown 代码围栏。"
     )
     user_prompt = f"""请把用户白话内容改写为侨批体草稿。
 
@@ -95,15 +102,13 @@ def build_style_transfer_prompt(
 参考证据：
 {_evidence_reference_lines(evidence_references)}
 
-请输出：
-【生成侨批体草稿】
-...
-
-【风格依据说明】
-...
-
-【参考证据列表】
-...
+请严格输出以下 JSON 结构：
+{{
+  "generated_text": "完整的侨批体生成草稿",
+  "summary": ["保留的事实要点"],
+  "style_notes": ["采用的侨批文体特征"],
+  "warnings": ["无法确定或需要复核的内容"]
+}}
 """
     return [
         {"role": "system", "content": system_prompt},

@@ -36,6 +36,8 @@ def test_backend_env_file_values_override_root_env_and_ignore_example(tmp_path):
                 "QWEN_BASE_URL=https://qwen.example.test/compatible-mode/v1",
                 "QWEN_MODEL=qwen-plus",
                 "QWEN_TIMEOUT_SECONDS=30",
+                "QWEN_MAX_RETRIES=3",
+                "SCAFFOLD_PHASE_COMPLETE=true",
             ]
         ),
         encoding="utf-8",
@@ -61,4 +63,6 @@ def test_backend_env_file_values_override_root_env_and_ignore_example(tmp_path):
     assert values["QWEN_BASE_URL"] == "https://qwen.example.test/compatible-mode/v1"
     assert values["QWEN_MODEL"] == "qwen-plus"
     assert values["QWEN_TIMEOUT_SECONDS"] == "30"
+    assert values["QWEN_MAX_RETRIES"] == "3"
+    assert values["SCAFFOLD_PHASE_COMPLETE"] == "true"
     assert "example-key-must-not-load" not in values.values()

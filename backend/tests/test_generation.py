@@ -24,7 +24,13 @@ def test_interpret_dry_run_returns_prompt_and_evidence_references():
     assert payload["task_type"] == "interpret"
     assert payload["record_id"] == "CSQP-SFHC-TEXT-017"
     assert payload["semantic_enabled"] is False
+    assert payload["semantic_quality"] == "disabled"
     assert payload["dry_run"] is True
+    assert payload["generation_backend"] == "prompt_preview"
+    assert payload["degraded_reason"] == "dry_run_requested"
+    assert payload["cache_hit"] is False
+    assert payload["prompt_version"] == "interpret-json-v2"
+    assert payload["index_version"]
     assert payload["prompt_context"]
     assert payload["messages"]
     assert payload["evidence_references"]
@@ -51,7 +57,11 @@ def test_style_transfer_dry_run_returns_style_slots_and_references():
     assert response.status_code == 200
     assert payload["task_type"] == "style-transfer"
     assert payload["semantic_enabled"] is False
+    assert payload["semantic_quality"] == "disabled"
     assert payload["dry_run"] is True
+    assert payload["generation_backend"] == "prompt_preview"
+    assert payload["degraded_reason"] == "dry_run_requested"
+    assert payload["prompt_version"] == "style-transfer-json-v2"
     assert payload["style_slots"]
     assert "opening" in payload["style_slots"]
     assert "style_reference" in payload["style_slots"]

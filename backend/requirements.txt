@@ -11,5 +11,6 @@ pytest
 httpx
 faiss-cpu
 
-# Optional vector search dependency for the backend phase:
+# Production semantic retrieval dependency (install explicitly when building
+# a real local embedding index; Hash embeddings remain test-only):
 # sentence-transformers

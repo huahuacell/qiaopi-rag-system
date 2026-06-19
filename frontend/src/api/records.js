@@ -1,7 +1,7 @@
 import request from './request'
 
 export async function fetchRecordDetail(recordId) {
-  const response = await request.get(`/api/records/${recordId}`)
+  const response = await request.get(`/api/records/${encodeURIComponent(recordId)}`)
   return response.data
 }
 
@@ -10,8 +10,7 @@ export async function fetchRecordEntities(recordId) {
   return response.data
 }
 
-export async function fetchSimilarRecords(recordId) {
-  const response = await request.get(`/api/records/${recordId}/similar`)
+export async function fetchRecordEvidence(recordId) {
+  const response = await request.get(`/api/records/${recordId}/evidence`)
   return response.data
 }
-
