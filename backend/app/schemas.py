@@ -11,6 +11,76 @@ class HealthResponse(BaseModel):
     message: str
 
 
+class NlpAnalyzeRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=20000)
+    task: Literal["general", "interpretation", "style_transfer"] = "general"
+
+
+class NlpSpanItem(BaseModel):
+    source_text: str
+    normalized_source_text: str
+    original_start: int = Field(ge=0)
+    original_end: int = Field(ge=0)
+    normalized_start: int = Field(ge=0)
+    normalized_end: int = Field(ge=0)
+    extractor: Literal["rule", "model"]
+    extractor_version: str
+    rule_id: str = ""
+    confidence: float = Field(ge=0.0, le=1.0)
+    needs_review: bool
+
+
+class NlpEntity(NlpSpanItem):
+    entity_id: str
+    entity_type: str
+    value: str
+    attributes: Dict[str, Any] = Field(default_factory=dict)
+
+
+class NlpRelation(NlpSpanItem):
+    relation_id: str
+    relation_type: str
+    source_entity_id: str
+    source_value: str
+    target_entity_id: str
+    target_value: str
+    evidence_text: str
+    normalized_evidence_text: str
+    attributes: Dict[str, Any] = Field(default_factory=dict)
+
+
+class NlpSlot(NlpSpanItem):
+    slot_id: str
+    slot_name: str
+    value: str
+
+
+class NlpSummary(BaseModel):
+    entity_count: int
+    relation_count: int
+    slot_count: int
+    review_item_count: int
+
+
+class NlpAnalyzeResponse(BaseModel):
+    task: Literal["general", "interpretation", "style_transfer"]
+    original_text: str
+    normalized_text: str
+    normalization_changed: bool
+    normalization_version: str
+    pipeline_version: str
+    engine: Literal["deterministic_rule", "model"]
+    entity_extractor_version: str
+    relation_extractor_version: str
+    slot_extractor_version: str
+    entities: List[NlpEntity]
+    relations: List[NlpRelation]
+    slots: List[NlpSlot]
+    review_required: bool
+    review_reasons: List[str]
+    summary: NlpSummary
+
+
 class ChartItem(BaseModel):
     label: str
     value: int

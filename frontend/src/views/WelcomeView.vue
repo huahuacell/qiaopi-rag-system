@@ -17,6 +17,7 @@
           <router-link to="/search">档案检索</router-link>
           <a href="#collection">馆藏脉络</a>
           <router-link to="/plain-interpretation">白话释读</router-link>
+          <router-link to="/nlp">在线 NLP</router-link>
           <router-link to="/knowledge-graph">知识图谱</router-link>
           <router-link to="/style-transfer">侨批生成</router-link>
         </nav>
@@ -444,6 +445,7 @@ const footerLinks = [
       { text: '档案检索', to: '/search' },
       { text: '白话释读', to: '/plain-interpretation' },
       { text: '证据溯源', to: '/search' },
+      { text: '在线 NLP', to: '/nlp' },
       { text: '知识图谱', to: '/knowledge-graph' },
       { text: '侨批生成', to: '/style-transfer' }
     ]

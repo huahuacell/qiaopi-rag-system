@@ -8,6 +8,11 @@ from typing import Iterable
 
 import pandas as pd
 
+from app.nlp.text_normalizer import (
+    normalize_newlines as shared_normalize_newlines,
+    normalize_qiaopi_text,
+)
+
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT = BACKEND_DIR / "data" / "raw" / "qiaopi_213_text.xlsx"
@@ -474,23 +479,11 @@ def safe_text(value: object) -> str:
 
 
 def normalize_newlines(text: str) -> str:
-    return text.replace("\r\n", "\n").replace("\r", "\n")
+    return shared_normalize_newlines(text)
 
 
 def normalize_text(text: str) -> str:
-    text = normalize_newlines(text).replace("\u3000", " ")
-    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.split("\n")]
-    compact_lines: list[str] = []
-    blank_seen = False
-    for line in lines:
-        if not line:
-            if not blank_seen and compact_lines:
-                compact_lines.append("")
-            blank_seen = True
-            continue
-        compact_lines.append(line)
-        blank_seen = False
-    return "\n".join(compact_lines).strip()
+    return normalize_qiaopi_text(text)
 
 
 def first_match(pattern: str, text: str, flags: int = 0) -> str:

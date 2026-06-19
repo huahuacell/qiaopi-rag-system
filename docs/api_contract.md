@@ -1816,3 +1816,85 @@ Response:
   ]
 }
 ```
+
+## POST /api/nlp/analyze
+
+Purpose: run deterministic online NLP over user-provided qiaopi or modern
+family-letter text. This endpoint performs real normalization and rule-based
+entity, relation, and generation-slot extraction. It must not be described as
+a statistical or large-language model.
+
+The online endpoint and offline full-text preprocessing both call
+`app.nlp.text_normalizer.normalize_qiaopi_text`. The current normalization
+version is `qiaopi-text-normalizer-1.0.0`.
+
+Request:
+
+```json
+{
+  "text": "母亲大人尊前：我在星洲平安，今寄回中央法币陆元。",
+  "task": "general"
+}
+```
+
+`task` is one of `general`, `interpretation`, or `style_transfer`. Text length
+must be between 1 and 20,000 characters.
+
+Response excerpt:
+
+```json
+{
+  "task": "general",
+  "original_text": "母亲大人尊前：我在星洲平安，今寄回中央法币陆元。",
+  "normalized_text": "母亲大人尊前：我在星洲平安，今寄回中央法币陆元。",
+  "normalization_changed": false,
+  "normalization_version": "qiaopi-text-normalizer-1.0.0",
+  "pipeline_version": "qiaopi-online-nlp-1.0.0",
+  "engine": "deterministic_rule",
+  "entity_extractor_version": "qiaopi-entity-rules-1.0.0",
+  "relation_extractor_version": "qiaopi-relation-rules-1.0.0",
+  "slot_extractor_version": "qiaopi-slot-rules-1.0.0",
+  "entities": [
+    {
+      "entity_id": "ENT-004",
+      "entity_type": "place",
+      "value": "新加坡",
+      "source_text": "星洲",
+      "normalized_source_text": "星洲",
+      "original_start": 9,
+      "original_end": 11,
+      "normalized_start": 9,
+      "normalized_end": 11,
+      "extractor": "rule",
+      "extractor_version": "qiaopi-entity-rules-1.0.0",
+      "rule_id": "place_alias:星洲",
+      "confidence": 0.9,
+      "needs_review": false,
+      "attributes": {
+        "alias": "星洲",
+        "country_or_region": "新加坡"
+      }
+    }
+  ],
+  "review_required": false,
+  "review_reasons": [],
+  "summary": {
+    "entity_count": 5,
+    "relation_count": 2,
+    "slot_count": 5,
+    "review_item_count": 0
+  }
+}
+```
+
+Offset rules:
+
+- All offsets use zero-based half-open intervals `[start, end)`.
+- `original_start` and `original_end` index `original_text`.
+- `normalized_start` and `normalized_end` index `normalized_text`.
+- Slicing the corresponding text must reproduce `source_text` or
+  `normalized_source_text`.
+- Entities, relations, and slots all return extractor type/version,
+  confidence, and `needs_review`.
+- OCR uncertainty markers and low-confidence rules set `review_required` and
+  add human-readable `review_reasons`.

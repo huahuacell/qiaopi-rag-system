@@ -54,7 +54,23 @@
 - Verify style slots and evidence references render even when generated text is
   empty.
 
-## 7. Knowledge Graph
+## 7. Online NLP
+
+- Open `/nlp`.
+- Submit text containing a kinship term, place alias, money amount, date, and
+  qiaopi formula.
+- Verify the page calls `POST /api/nlp/analyze` and explicitly labels the
+  current engine as deterministic rules, not a statistical model.
+- Verify every entity, relation, and slot displays original and normalized
+  half-open offsets, extractor version, confidence, and review state.
+- Verify slicing the returned original and normalized texts by those offsets
+  reproduces `source_text` and `normalized_source_text`.
+- Enter text containing `□`, `�`, `疑为`, or `不清` and verify the review
+  warning is visible.
+- Stop the backend and verify the page reports an API error without loading
+  mock NLP output.
+
+## 8. Knowledge Graph
 
 - Open `/knowledge-graph`.
 - Verify graph counts and quality indicators come from `/api/graph/stats`.
@@ -69,14 +85,14 @@
 - Verify duplicate logical edges, orphan edges, and missing provenance counts
   are zero.
 
-## 8. Contract Failure Checks
+## 9. Contract Failure Checks
 
 - Requests to `/api/generation/plain-interpretation` return 404.
 - Requests to `/api/records/{record_id}/similar` return 404.
 - The backend contract test must fail if an endpoint or schema changes without
   an intentional baseline update.
 
-## 9. Production Mock Boundary
+## 10. Production Mock Boundary
 
 - Build or run with `VITE_DEMO_MODE=false`.
 - Stop the backend and visit all formal workflows, including the graph page.

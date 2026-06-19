@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AnalysisView from '../views/AnalysisView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import KnowledgeGraphView from '../views/KnowledgeGraphView.vue'
+import OnlineNlpView from '../views/OnlineNlpView.vue'
 import PlainInterpretationView from '../views/PlainInterpretationView.vue'
 import RecordDetailView from '../views/RecordDetailView.vue'
 import SearchView from '../views/SearchView.vue'
@@ -16,6 +17,7 @@ const routes = [
   { path: '/records/:recordId', name: 'record-detail', component: RecordDetailView },
   { path: '/plain-interpretation', name: 'plain-interpretation', component: PlainInterpretationView },
   { path: '/style-transfer', name: 'style-transfer', component: StyleTransferView },
+  { path: '/nlp', name: 'online-nlp', component: OnlineNlpView },
   { path: '/knowledge-graph', name: 'knowledge-graph', component: KnowledgeGraphView },
   { path: '/analysis', name: 'analysis', component: AnalysisView }
 ]

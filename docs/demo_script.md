@@ -43,7 +43,14 @@ evidence-grounded prompt preparation without making a live Qwen call.
 Open `/style-transfer`. Submit a short family letter and show retrieved style
 slots and evidence references. The current frontend also uses `dry_run=true`.
 
-## 8:30–9:30 Knowledge Graph
+## 8:30–9:10 Online NLP
+
+Open `/nlp`. Submit the sample letter and show normalized text, entity and
+relation extraction, task slots, original/normalized offsets, rule versions,
+confidence, and review markers. Explain that online and offline preprocessing
+share `qiaopi-text-normalizer-1.0.0`.
+
+## 9:10–9:45 Knowledge Graph
 
 Open `/knowledge-graph`. Load `CSQP-SFHC-TEXT-063`, click an evidence node and
 then the linked metadata node. Show source table/source ID, original evidence,
@@ -53,7 +60,7 @@ quality counters are zero.
 Clarify that `kg-viewer/` is now a Frontend Developer-owned diagnostic sandbox;
 the formal product workflow is the main `frontend/` route.
 
-## 9:30–10:00 Runtime Boundary
+## 9:45–10:00 Runtime Boundary
 
 Show the top-right runtime badge. `VITE_DEMO_MODE=false` is the production
 default and never silently loads Mock JSON. `VITE_DEMO_MODE=true` is reserved
