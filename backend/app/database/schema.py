@@ -19,6 +19,7 @@ TABLES: tuple[str, ...] = (
     "qiaopi_kg_nodes",
     "qiaopi_kg_edges",
     "qiaopi_generation_cache",
+    "qiaopi_generation_logs",
     "qiaopi_query_logs",
 )
 
@@ -260,9 +261,33 @@ CREATE_TABLE_STATEMENTS: tuple[str, ...] = (
         task_type TEXT NOT NULL,
         input_hash TEXT NOT NULL,
         record_id TEXT,
+        generation_backend TEXT NOT NULL DEFAULT '',
+        model TEXT NOT NULL DEFAULT '',
+        prompt_version TEXT NOT NULL DEFAULT '',
+        index_version TEXT NOT NULL DEFAULT '',
         result_json TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(task_type, input_hash, record_id)
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS qiaopi_generation_logs (
+        log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id TEXT NOT NULL,
+        endpoint TEXT NOT NULL,
+        task_type TEXT NOT NULL,
+        generation_backend TEXT NOT NULL,
+        model TEXT NOT NULL,
+        prompt_version TEXT NOT NULL,
+        index_version TEXT NOT NULL,
+        cache_key TEXT,
+        cache_hit INTEGER NOT NULL DEFAULT 0,
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL,
+        degraded_reason TEXT,
+        duration_ms INTEGER NOT NULL DEFAULT 0,
+        evidence_count INTEGER NOT NULL DEFAULT 0,
+        error_type TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
     """,
     """
@@ -312,6 +337,9 @@ CREATE_INDEX_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_record ON qiaopi_kg_edges(record_id);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_source ON qiaopi_kg_edges(source_node_id);",
     "CREATE INDEX IF NOT EXISTS idx_qiaopi_kg_edges_target ON qiaopi_kg_edges(target_node_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_generation_cache_task ON qiaopi_generation_cache(task_type);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_generation_logs_request ON qiaopi_generation_logs(request_id);",
+    "CREATE INDEX IF NOT EXISTS idx_qiaopi_generation_logs_task ON qiaopi_generation_logs(task_type);",
 )
 
 DATE_NORMALIZATION_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {

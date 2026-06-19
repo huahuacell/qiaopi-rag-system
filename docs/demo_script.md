@@ -35,13 +35,16 @@ evidence from SQLite.
 ## 5:30–7:00 Plain Interpretation
 
 Open `/plain-interpretation` with `CSQP-SFHC-TEXT-017`. Explain that the page now
-calls `/api/generation/interpret`. The current demo uses `dry_run=true`, showing
-evidence-grounded prompt preparation without making a live Qwen call.
+calls `/api/generation/interpret`. Show the actual generation backend, model,
+Prompt/index versions, cache state, degradation reason, evidence mapping, and
+consistency report. During scaffold mode the backend uses an explicitly
+labelled deterministic fallback and does not make a live Qwen call.
 
 ## 7:00–8:30 Style Transfer
 
 Open `/style-transfer`. Submit a short family letter and show retrieved style
-slots and evidence references. The current frontend also uses `dry_run=true`.
+slots, structured output, evidence mappings, and runtime state. Repeat the
+request to demonstrate a cache hit.
 
 ## 8:30–9:10 Online NLP
 

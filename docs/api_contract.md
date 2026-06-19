@@ -67,6 +67,7 @@ Core tables:
 - `qiaopi_retrieval_units`
 - `qiaopi_retrieval_units_fts`
 - `qiaopi_generation_cache`
+- `qiaopi_generation_logs`
 - `qiaopi_query_logs`
 
 ## Reproducible Build-All Pipeline
@@ -312,7 +313,9 @@ Response:
         }
       ]
     }
-  ]
+  ],
+  "prompt_version": "style-transfer-json-v2",
+  "index_version": "rel:30675156c50cd5c8|vec:6a7537c49ba8fc2b|manifest:1"
 }
 ```
 
@@ -788,8 +791,15 @@ Behavior:
 
 - If `record_id` is provided, the endpoint uses that record's retrieval units as primary context.
 - If `record_id` is absent, the endpoint uses `/api/rag/context` retrieval logic.
-- If `dry_run` is `true`, Qwen is not called and `messages` are returned for review.
-- If Qwen is disabled or misconfigured, the endpoint returns a controlled `error_message` and prompt preview data instead of crashing.
+- If `dry_run` is `true`, Qwen is not called and
+  `generation_backend=prompt_preview`.
+- Live Qwen calls require `SCAFFOLD_PHASE_COMPLETE=true` in addition to a
+  complete Qwen configuration.
+- When the scaffold gate is closed or Qwen is unavailable, the endpoint uses a
+  deterministic local fallback and returns an explicit `degraded_reason`.
+- Successful Qwen and configured local-fallback results use a stable cache key
+  containing input, evidence fingerprints, model, prompt/index versions,
+  filters, and retrieval settings.
 
 Response:
 
@@ -802,6 +812,20 @@ Response:
   "semantic_quality": "disabled",
   "prompt_context": "【检索问题】\n这封侨批主要说了什么？\n\n【相关侨批证据 1】\n来源记录：CSQP-SFHC-TEXT-017\n...",
   "generated_text": "【生成解读】...",
+  "generation_backend": "qwen",
+  "model": "qwen-plus",
+  "prompt_version": "interpret-json-v2",
+  "index_version": "rel:30675156c50cd5c8|vec:6a7537c49ba8fc2b|manifest:1",
+  "cache_hit": false,
+  "cache_key": "sha256-cache-key",
+  "attempt_count": 1,
+  "degraded_reason": null,
+  "structured_output": {
+    "generated_text": "【生成解读】...",
+    "summary": ["寄批人向母亲报平安并寄款"],
+    "style_notes": [],
+    "warnings": []
+  },
   "evidence_references": [
     {
       "record_id": "CSQP-SFHC-TEXT-017",
@@ -813,7 +837,22 @@ Response:
       "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。"
     }
   ],
-  "model": "qwen-plus",
+  "evidence_mapping": [
+    {
+      "mapping_id": "MAP-001",
+      "target_span": "信中说明寄去洋银四元供家用。",
+      "generated_start": 6,
+      "generated_end": 21,
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "unit_id": "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+      "source_field": "body_core",
+      "source_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
+      "reason": "lexical_overlap",
+      "similarity_score": 0.46,
+      "mapping_method": "lexical-evidence-map-v1",
+      "needs_review": false
+    }
+  ],
   "dry_run": false,
   "messages": [
     {
@@ -875,8 +914,8 @@ Request:
 Behavior:
 
 - Uses `/api/rag/style-context` logic to retrieve examples for `opening`, `safety`, `remittance`, `family_care`, `instruction`, `closing`, and `style_reference`.
-- If `dry_run` is `true`, Qwen is not called and prompt messages are returned.
-- If Qwen is disabled or misconfigured, the endpoint returns a controlled `error_message` and prompt preview data instead of crashing.
+- The same scaffold gate, retry, structured-output, cache, call-log, evidence
+  mapping, and deterministic fallback rules used by `/interpret` apply here.
 
 Response:
 
@@ -909,6 +948,20 @@ Response:
   },
   "prompt_context": "【用户白话输入】\n母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。\n...",
   "generated_text": "【生成侨批体草稿】...",
+  "generation_backend": "qwen",
+  "model": "qwen-plus",
+  "prompt_version": "style-transfer-json-v2",
+  "index_version": "rel:30675156c50cd5c8|vec:6a7537c49ba8fc2b|manifest:1",
+  "cache_hit": false,
+  "cache_key": "sha256-cache-key",
+  "attempt_count": 1,
+  "degraded_reason": null,
+  "structured_output": {
+    "generated_text": "【生成侨批体草稿】...",
+    "summary": ["保留母亲、新加坡和八元等输入事实"],
+    "style_notes": ["采用侨批称谓和寄款措辞"],
+    "warnings": []
+  },
   "evidence_references": [
     {
       "record_id": "CSQP-SFHC-TEXT-017",
@@ -920,7 +973,6 @@ Response:
       "unit_text": "慈亲大人膝下："
     }
   ],
-  "model": "qwen-plus",
   "dry_run": false,
   "messages": [
     {
@@ -1036,7 +1088,26 @@ Risk levels:
 - `medium`: missing evidence references or non-critical warnings require review.
 - `high`: unsupported new amounts, dates, names, or places were detected.
 
-The generation endpoints attach `validation_report` after successful live generation. For `dry_run=true`, disabled Qwen, timeout, or any empty `generated_text`, `validation_report` is `null`.
+The generation endpoints attach `validation_report` and sentence-level
+`evidence_mapping` whenever `generated_text` is non-empty, including
+deterministic local fallback. For `dry_run=true` or an empty generated result,
+both remain empty/null.
+
+Generation runtime fields:
+
+- `generation_backend`: `qwen`, `deterministic_local`, or `prompt_preview`.
+- `model`: actual Qwen model or `deterministic-local-v1`; local fallback never
+  claims a Qwen model.
+- `prompt_version`: versioned prompt and structured-output contract.
+- `index_version`: relational/vector build fingerprint used for evidence.
+- `cache_hit`: whether generated content came from SQLite cache.
+- `degraded_reason`: stable reason such as `scaffold_phase_active`,
+  `qwen_disabled`, `qwen_timeout`, or `qwen_invalid_structured_output`.
+- `attempt_count`: Qwen attempts made; zero for local generation and previews.
+
+`qiaopi_generation_logs` records request ID, endpoint, task, actual backend,
+model, prompt/index versions, cache state, attempt count, status, degradation
+reason, duration, and evidence count. It never stores API keys or raw prompts.
 
 Current validation limitations:
 
@@ -1054,10 +1125,23 @@ QWEN_API_KEY=
 QWEN_BASE_URL=
 QWEN_MODEL=qwen-plus
 QWEN_TIMEOUT_SECONDS=60
+QWEN_MAX_RETRIES=2
+QWEN_RETRY_BACKOFF_MS=250
 QWEN_ENABLED=false
+SCAFFOLD_PHASE_COMPLETE=false
 ```
 
-`QWEN_ENABLED=false` or a missing API key means live generation is disabled. Dry runs and prompt preview still work without a real key. API keys are never returned in responses or logs.
+Real network calls require all of the following:
+
+1. The project owner explicitly ends scaffold mode with
+   `SCAFFOLD_PHASE_COMPLETE=true`.
+2. `QWEN_ENABLED=true`.
+3. API key and base URL are configured.
+
+Until then, normal frontend requests use the deterministic local fallback with
+an explicit degradation marker. CI uses a simulated
+`QwenClient.generate_structured` implementation and must not depend on real
+network calls. API keys are never returned, cached, or logged.
 
 ## GET /api/generation/qwen-status
 
@@ -1072,6 +1156,8 @@ Response:
   "base_url_configured": true,
   "model": "qwen-plus",
   "timeout_seconds": 60,
+  "max_retries": 2,
+  "scaffold_phase_complete": true,
   "project_env_exists": true,
   "backend_env_exists": false,
   "live_generation_ready": true

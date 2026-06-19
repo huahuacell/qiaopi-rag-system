@@ -39,6 +39,30 @@
       <p>{{ error || result.error_message }}</p>
     </div>
 
+    <section v-if="result.generation_backend" class="generation-runtime-panel">
+      <article>
+        <span>生成后端</span>
+        <strong :class="{ degraded: generationRuntime.degraded }">{{ generationRuntime.backendLabel }}</strong>
+      </article>
+      <article>
+        <span>模型</span>
+        <strong>{{ generationRuntime.modelLabel }}</strong>
+      </article>
+      <article>
+        <span>Prompt 版本</span>
+        <strong>{{ generationRuntime.promptVersion }}</strong>
+      </article>
+      <article>
+        <span>索引版本</span>
+        <strong>{{ generationRuntime.indexVersion }}</strong>
+      </article>
+      <article>
+        <span>缓存</span>
+        <strong>{{ generationRuntime.cacheLabel }}</strong>
+      </article>
+      <p v-if="generationRuntime.degraded">{{ generationRuntime.degradedLabel }}</p>
+    </section>
+
     <section v-loading="loading" class="archive-interpretation-desk">
       <article class="archive-plain-card archive-source-card">
         <header class="archive-plain-card-head">
@@ -96,7 +120,7 @@
             </div>
             <p>{{ generatedText }}</p>
             <footer>
-              <span>模型：本地演示 / 后端服务</span>
+              <span>模型：{{ generationRuntime.modelLabel }}</span>
               <span>策略：证据约束</span>
               <span>粒度：句级映射</span>
             </footer>
@@ -198,6 +222,7 @@ import {
   demoMode
 } from '../config/runtime'
 import fallbackResult from '../mock/plain_interpretation.json'
+import { generationState } from '../utils/generationPresentation'
 
 const recordId = ref('CSQP-SFHC-TEXT-001')
 const originalText = ref('')
@@ -227,6 +252,7 @@ const fieldLabels = {
 
 const canGenerate = computed(() => Boolean(originalText.value.trim() || recordId.value.trim()))
 const generatedText = computed(() => result.value.generated_text || '')
+const generationRuntime = computed(() => generationState(result.value))
 
 const slotRows = computed(() =>
   Object.entries(result.value.slots || {}).map(([key, value]) => [slotLabels[key] || key, formatValue(value)])
@@ -409,7 +435,7 @@ async function runGeneration() {
       top_k: 8,
       filters: {},
       expansion_mode: 'balanced',
-      dry_run: true
+      dry_run: false
     })
   } catch (requestError) {
     if (demoMode) {

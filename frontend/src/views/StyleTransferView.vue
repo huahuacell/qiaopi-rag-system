@@ -38,6 +38,30 @@
       <p>{{ error || result.error_message }}</p>
     </div>
 
+    <section v-if="result.generation_backend" class="generation-runtime-panel">
+      <article>
+        <span>生成后端</span>
+        <strong :class="{ degraded: generationRuntime.degraded }">{{ generationRuntime.backendLabel }}</strong>
+      </article>
+      <article>
+        <span>模型</span>
+        <strong>{{ generationRuntime.modelLabel }}</strong>
+      </article>
+      <article>
+        <span>Prompt 版本</span>
+        <strong>{{ generationRuntime.promptVersion }}</strong>
+      </article>
+      <article>
+        <span>索引版本</span>
+        <strong>{{ generationRuntime.indexVersion }}</strong>
+      </article>
+      <article>
+        <span>缓存</span>
+        <strong>{{ generationRuntime.cacheLabel }}</strong>
+      </article>
+      <p v-if="generationRuntime.degraded">{{ generationRuntime.degradedLabel }}</p>
+    </section>
+
     <section class="archive-writing-desk">
       <article class="archive-style-card archive-input-card">
         <header class="archive-style-card-head">
@@ -171,6 +195,7 @@ import {
   demoMode
 } from '../config/runtime'
 import fallbackResult from '../mock/style_transfer.json'
+import { generationState } from '../utils/generationPresentation'
 
 const defaultPlainText = '母亲，我在新加坡平安，寄回八元给家里买米和药。请您放心。'
 
@@ -217,6 +242,7 @@ const inputChips = computed(() => [
 ])
 
 const generatedText = computed(() => result.value.generated_text || '')
+const generationRuntime = computed(() => generationState(result.value))
 const generatedLines = computed(() => splitLetterLines(generatedText.value))
 
 const slotRows = computed(() =>
@@ -402,7 +428,7 @@ async function runTransfer() {
       plain_text: plainText.value,
       top_k: 3,
       expansion_mode: 'balanced',
-      dry_run: true
+      dry_run: false
     })
   } catch (requestError) {
     if (demoMode) {

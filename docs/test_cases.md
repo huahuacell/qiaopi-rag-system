@@ -42,17 +42,23 @@
 - Open `/plain-interpretation`.
 - Use record `CSQP-SFHC-TEXT-017`.
 - Verify the page calls `POST /api/generation/interpret`.
-- In the current frontend baseline, verify `dry_run=true`, evidence references
-  and prompt context are returned, and no live Qwen request is required.
+- With scaffold mode active, verify
+  `generation_backend=deterministic_local`,
+  `degraded_reason=scaffold_phase_active`, model/prompt/index versions, and
+  sentence-level evidence mappings.
+- Repeat the same request and verify `cache_hit=true`.
+- Verify the page never labels deterministic fallback as Qwen.
 
 ## 6. Style Transfer
 
 - Open `/style-transfer`.
 - Enter a short modern family letter.
 - Verify the page calls `POST /api/generation/style-transfer` with
-  `dry_run=true`.
-- Verify style slots and evidence references render even when generated text is
-  empty.
+  `dry_run=false`; the backend safety gate decides whether Qwen is permitted.
+- Verify style slots, structured output, evidence mappings, actual generation
+  backend, model, prompt/index versions, cache state, and degradation reason.
+- In CI, enable the scaffold flag only with a simulated Qwen client and assert
+  no real network request is made.
 
 ## 7. Online NLP
 

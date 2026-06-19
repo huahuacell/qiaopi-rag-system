@@ -48,8 +48,8 @@
 | 数据看板 | `/api/dashboard/stats`、`/distributions` | 已接 SQLite；缺前端自动化测试 |
 | 检索工作台 | `/api/search/keyword`、`/semantic`、`/hybrid` | 已接；语义关闭时混合模式明确降级 |
 | 记录详情 | `/api/records/{id}`、`/entities`、`/evidence` | 已接 SQLite |
-| 白话释读 | `/api/generation/interpret` | 已收敛到新契约；当前前端固定 `dry_run` |
-| 风格转换 | `/api/generation/style-transfer` | 已接新契约；当前前端固定 `dry_run` |
+| 白话释读 | `/api/generation/interpret` | 已接实际后端、模型、Prompt/索引版本、缓存和降级状态 |
+| 风格转换 | `/api/generation/style-transfer` | 已接结构化生成、证据映射、缓存和降级状态 |
 | 在线 NLP | `/api/nlp/analyze` | 正式 `frontend/` 已接；展示双重偏移、规则版本、置信度和复核标记 |
 | 分析页 | 看板接口 | 静态图谱预览已移除，改为进入正式图谱工作台 |
 | 知识图谱工作台 | `/api/graph/*`、记录/证据/元数据详情接口 | 正式 `frontend/` 已接，支持节点来源追溯 |
@@ -72,10 +72,10 @@
 | 相似记录推荐 | 无正式接口 | 未接 | 无 | 未实现 |
 | SQLite 知识图谱 | 构建命令和 5 个 API 已有 | 正式图谱工作台已接 | 后端和前端有 | 已形成产品链路 |
 | RAG 上下文和 Prompt | 已实现 | 页面部分消费 | 后端有 | 部分验收 |
-| Qwen 客户端 | 有可选真实调用 | 当前页面 `dry_run` | 使用模拟调用测试 | 未形成生产闭环 |
+| Qwen/RAG 生成闭环 | 重试、JSON 输出、缓存、调用日志、证据映射、降级标记已实现 | 已接 | 模拟客户端与前后端测试 | 功能闭环；真实调用受 scaffold 安全门控制 |
 | 规则式一致性校验 | 已实现 | 页面可适配展示 | 后端有 | 部分验收 |
 | 查询日志 | 已写入 | 不展示 | 后端有 | 后端运行中 |
-| 生成缓存 | 仅表结构 | 未接 | 无 | 未实现 |
+| 生成缓存与调用日志 | SQLite 真实读写 | 页面展示缓存命中和实际后端 | 后端有 | 已实现 |
 | 在线 NLP | 真实确定性规则管线 `/api/nlp/analyze` | 已接 | 后端和前端有 | 已形成产品链路 |
 | 一键完整建库 | 隔离 `build-all`、验收后原子提升 | 不适用 | 后端有 | 已实现 |
 | 前端自动化/E2E | 不适用 | 无 | 无 | 未实现 |

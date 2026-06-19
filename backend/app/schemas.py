@@ -428,6 +428,28 @@ class EvidenceReference(BaseModel):
     unit_text: str
 
 
+class GenerationEvidenceMapping(BaseModel):
+    mapping_id: str
+    target_span: str
+    generated_start: int
+    generated_end: int
+    record_id: str = ""
+    unit_id: str = ""
+    source_field: str = ""
+    source_text: str = ""
+    reason: str
+    similarity_score: float = Field(ge=0.0, le=1.0)
+    mapping_method: str
+    needs_review: bool
+
+
+class StructuredGenerationOutput(BaseModel):
+    generated_text: str
+    summary: List[str] = Field(default_factory=list)
+    style_notes: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+
+
 class ValidationEvidenceCoverage(BaseModel):
     has_evidence_references: bool
     evidence_count: int
@@ -482,7 +504,17 @@ class GenerationInterpretResponse(BaseModel):
     prompt_context: str
     generated_text: str
     evidence_references: List[EvidenceReference]
+    evidence_mapping: List[GenerationEvidenceMapping] = Field(default_factory=list)
+    structured_output: StructuredGenerationOutput
+    request_id: str
+    generation_backend: Literal["qwen", "deterministic_local", "prompt_preview"]
     model: str
+    prompt_version: str
+    index_version: str
+    cache_hit: bool
+    cache_key: str
+    attempt_count: int
+    degraded_reason: Optional[str] = None
     dry_run: bool
     messages: List[ChatMessage] = Field(default_factory=list)
     error_message: Optional[str] = None
@@ -506,7 +538,17 @@ class GenerationStyleTransferResponse(BaseModel):
     prompt_context: str
     generated_text: str
     evidence_references: List[EvidenceReference]
+    evidence_mapping: List[GenerationEvidenceMapping] = Field(default_factory=list)
+    structured_output: StructuredGenerationOutput
+    request_id: str
+    generation_backend: Literal["qwen", "deterministic_local", "prompt_preview"]
     model: str
+    prompt_version: str
+    index_version: str
+    cache_hit: bool
+    cache_key: str
+    attempt_count: int
+    degraded_reason: Optional[str] = None
     dry_run: bool
     messages: List[ChatMessage] = Field(default_factory=list)
     error_message: Optional[str] = None
@@ -528,6 +570,8 @@ class PromptPreviewResponse(BaseModel):
     prompt_context: str
     messages: List[ChatMessage]
     evidence_references: List[EvidenceReference]
+    prompt_version: str
+    index_version: str
 
 
 class QwenConfigStatusResponse(BaseModel):
@@ -536,6 +580,8 @@ class QwenConfigStatusResponse(BaseModel):
     base_url_configured: bool
     model: str
     timeout_seconds: int
+    max_retries: int
+    scaffold_phase_complete: bool
     project_env_exists: bool
     backend_env_exists: bool
     live_generation_ready: bool

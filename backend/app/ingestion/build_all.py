@@ -63,6 +63,7 @@ RELATIONAL_TABLES: tuple[str, ...] = (
     "qiaopi_kg_nodes",
     "qiaopi_kg_edges",
     "qiaopi_generation_cache",
+    "qiaopi_generation_logs",
     "qiaopi_query_logs",
 )
 
@@ -341,6 +342,7 @@ def _validate_database(
         "qiaopi_kg_nodes": int(graph_stats["node_count"]),
         "qiaopi_kg_edges": int(graph_stats["edge_count"]),
         "qiaopi_generation_cache": 0,
+        "qiaopi_generation_logs": 0,
         "qiaopi_query_logs": 0,
     }
     mismatches = {
