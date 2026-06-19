@@ -77,6 +77,14 @@
             <span>档案编号</span>
             <input v-model="recordId" type="text" placeholder="CSQP-SFHC-TEXT-001" />
           </label>
+          <p
+            v-if="recordLookupMessage"
+            class="archive-record-lookup-message"
+            :class="{ warning: recordLookupWarning }"
+            role="status"
+          >
+            {{ recordLookupMessage }}
+          </p>
 
           <div class="archive-original-paper">
             <i aria-hidden="true"></i>
@@ -84,6 +92,7 @@
               v-model="originalText"
               rows="9"
               placeholder="请输入侨批原文..."
+              @input="markOriginalTextEdited"
             ></textarea>
           </div>
 
@@ -213,9 +222,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { generateInterpretation } from '../api/generation'
+import { fetchRecordDetail } from '../api/records'
 import {
   apiFailureMessage,
   demoFailureMessage,
@@ -223,12 +233,22 @@ import {
 } from '../config/runtime'
 import fallbackResult from '../mock/plain_interpretation.json'
 import { generationState } from '../utils/generationPresentation'
+import {
+  recordBodyText,
+  shouldReplaceOriginalText
+} from '../utils/recordTextAutofill'
 
 const recordId = ref('CSQP-SFHC-TEXT-001')
 const originalText = ref('')
 const result = ref(demoMode ? fallbackResult : {})
 const loading = ref(false)
 const error = ref('')
+const recordLookupMessage = ref('')
+const recordLookupWarning = ref(false)
+const originalTextManuallyEdited = ref(false)
+const lastAutoFilledText = ref('')
+let recordLookupTimer
+let recordLookupSequence = 0
 
 const inputChips = ['原文转写', '证据约束：开启', '句级映射', '不补充原文外信息']
 
@@ -421,8 +441,84 @@ function scoreLabel(score) {
 
 function clearContent() {
   originalText.value = ''
+  originalTextManuallyEdited.value = false
+  lastAutoFilledText.value = ''
   result.value = {}
   error.value = ''
+  recordLookupMessage.value = ''
+  recordLookupWarning.value = false
+}
+
+function markOriginalTextEdited() {
+  originalTextManuallyEdited.value =
+    originalText.value !== lastAutoFilledText.value
+  if (originalTextManuallyEdited.value) {
+    recordLookupMessage.value = '已保留手动输入的原文；更换档案编号不会覆盖这段内容。'
+    recordLookupWarning.value = false
+  }
+}
+
+async function loadRecordText(value) {
+  const normalizedRecordId = String(value || '').trim()
+  const sequence = ++recordLookupSequence
+  if (!normalizedRecordId) return
+
+  recordLookupMessage.value = '正在读取档案原文…'
+  recordLookupWarning.value = false
+  try {
+    const detail = await fetchRecordDetail(normalizedRecordId)
+    if (sequence !== recordLookupSequence) return
+    const bodyText = recordBodyText(detail)
+    if (!bodyText) {
+      recordLookupMessage.value = '已找到档案，但该记录没有可回填的正文。'
+      recordLookupWarning.value = true
+      return
+    }
+
+    if (
+      shouldReplaceOriginalText({
+        currentText: originalText.value,
+        manuallyEdited: originalTextManuallyEdited.value,
+        lastAutoFilledText: lastAutoFilledText.value
+      })
+    ) {
+      originalText.value = bodyText
+      lastAutoFilledText.value = bodyText
+      originalTextManuallyEdited.value = false
+      recordLookupMessage.value = `已自动载入 ${normalizedRecordId} 的原文。`
+      recordLookupWarning.value = false
+    } else {
+      recordLookupMessage.value = `已找到 ${normalizedRecordId}；为避免覆盖，已保留手动输入的原文。`
+      recordLookupWarning.value = false
+    }
+  } catch (requestError) {
+    if (sequence !== recordLookupSequence) return
+    const status = requestError?.response?.status
+    recordLookupMessage.value =
+      status === 404
+        ? `未找到档案 ${normalizedRecordId}，仍可直接粘贴原文进行释读。`
+        : apiFailureMessage(requestError, '档案原文读取')
+    recordLookupWarning.value = true
+  }
+}
+
+function scheduleRecordLookup(value) {
+  window.clearTimeout(recordLookupTimer)
+  const normalizedRecordId = String(value || '').trim()
+  if (!normalizedRecordId) {
+    recordLookupMessage.value = ''
+    recordLookupWarning.value = false
+    return
+  }
+  if (!/^CSQP-SFHC-TEXT-\d{3}$/i.test(normalizedRecordId)) {
+    recordLookupMessage.value = '请输入完整档案编号，例如 CSQP-SFHC-TEXT-002。'
+    recordLookupWarning.value = true
+    return
+  }
+  recordLookupTimer = window.setTimeout(
+    () => loadRecordText(normalizedRecordId),
+    350
+  )
 }
 
 async function runGeneration() {
@@ -450,5 +546,10 @@ async function runGeneration() {
   }
 }
 
-onMounted(runGeneration)
+watch(recordId, scheduleRecordLookup, { immediate: true })
+
+onBeforeUnmount(() => {
+  window.clearTimeout(recordLookupTimer)
+  recordLookupSequence += 1
+})
 </script>

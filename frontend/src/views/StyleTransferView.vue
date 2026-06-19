@@ -186,7 +186,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 
 import { generateStyleTransfer } from '../api/generation'
 import {
@@ -443,5 +443,4 @@ async function runTransfer() {
   }
 }
 
-onMounted(runTransfer)
 </script>

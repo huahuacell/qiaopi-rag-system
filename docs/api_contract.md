@@ -1124,7 +1124,7 @@ Generation uses these environment variables:
 QWEN_API_KEY=
 QWEN_BASE_URL=
 QWEN_MODEL=qwen-plus
-QWEN_TIMEOUT_SECONDS=60
+QWEN_TIMEOUT_SECONDS=120
 QWEN_MAX_RETRIES=2
 QWEN_RETRY_BACKOFF_MS=250
 QWEN_ENABLED=false
@@ -1155,7 +1155,7 @@ Response:
   "api_key_configured": true,
   "base_url_configured": true,
   "model": "qwen-plus",
-  "timeout_seconds": 60,
+  "timeout_seconds": 120,
   "max_retries": 2,
   "scaffold_phase_complete": true,
   "project_env_exists": true,

@@ -90,7 +90,7 @@ def _int_from_env(value: str | None, default: int) -> int:
 QWEN_API_KEY = _env("QWEN_API_KEY") or _env("DASHSCOPE_API_KEY")
 QWEN_BASE_URL = _env("QWEN_BASE_URL")
 QWEN_MODEL = _env("QWEN_MODEL", "qwen-plus")
-QWEN_TIMEOUT_SECONDS = _int_from_env(_env("QWEN_TIMEOUT_SECONDS"), 60)
+QWEN_TIMEOUT_SECONDS = _int_from_env(_env("QWEN_TIMEOUT_SECONDS"), 120)
 QWEN_MAX_RETRIES = _int_from_env(_env("QWEN_MAX_RETRIES"), 2)
 QWEN_RETRY_BACKOFF_MS = _int_from_env(_env("QWEN_RETRY_BACKOFF_MS"), 250)
 QWEN_ENABLED = _bool_from_env(_env("QWEN_ENABLED"), False)
