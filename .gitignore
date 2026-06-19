@@ -20,6 +20,7 @@ __pycache__/
 *$py.class
 
 .pytest_cache/
+backend/data/test-temp/
 .mypy_cache/
 .ruff_cache/
 .coverage
