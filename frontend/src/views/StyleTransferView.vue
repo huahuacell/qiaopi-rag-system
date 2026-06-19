@@ -165,6 +165,11 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 
 import { generateStyleTransfer } from '../api/generation'
+import {
+  apiFailureMessage,
+  demoFailureMessage,
+  demoMode
+} from '../config/runtime'
 import fallbackResult from '../mock/style_transfer.json'
 
 const defaultPlainText = '母亲，我在新加坡平安，寄回八元给家里买米和药。请您放心。'
@@ -176,7 +181,7 @@ const slots = reactive({
   money: '八元',
   purpose: '米粮和药费'
 })
-const result = ref(fallbackResult)
+const result = ref(demoMode ? fallbackResult : {})
 const loading = ref(false)
 const error = ref('')
 
@@ -399,9 +404,14 @@ async function runTransfer() {
       expansion_mode: 'balanced',
       dry_run: true
     })
-  } catch {
-    result.value = fallbackResult
-    error.value = '后端不可用，已加载风格转换本地 mock 数据。'
+  } catch (requestError) {
+    if (demoMode) {
+      result.value = fallbackResult
+      error.value = demoFailureMessage('风格转换请求')
+    } else {
+      result.value = {}
+      error.value = apiFailureMessage(requestError, '风格转换请求')
+    }
   } finally {
     loading.value = false
   }

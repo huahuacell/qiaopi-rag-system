@@ -23,6 +23,10 @@ Open `/search` and run keyword and hybrid searches. If semantic retrieval is
 disabled, point out the controlled `keyword_fallback` state instead of
 presenting it as true semantic fusion.
 
+Show the “actual execution mode” panel. Explain that BM25, cosine similarity,
+and RRF are displayed as separate ranking contributions rather than converted
+to percentages.
+
 ## 4:30–5:30 Record Detail
 
 Open `/records/CSQP-SFHC-TEXT-002`. Show `body_clean`, metadata, entities, and
@@ -45,9 +49,8 @@ Use the standalone `kg-viewer/` if it is running, or show `/api/graph/stats` and
 one record graph in Swagger. Clarify that the official `frontend/` analysis page
 has not yet integrated these graph APIs.
 
-## 9:30–10:00 Next Work
+## 9:30–10:00 Runtime Boundary
 
-Summarize the remaining work: one-command reproducible build, production-grade
-semantic configuration, official metadata/graph frontend integration, vector
-similarity recommendations, online NLP, Qwen retry/cache/structured output, and
-quality evaluation.
+Show the top-right runtime badge. `VITE_DEMO_MODE=false` is the production
+default and never silently loads Mock JSON. `VITE_DEMO_MODE=true` is reserved
+for an explicitly labelled offline demonstration.

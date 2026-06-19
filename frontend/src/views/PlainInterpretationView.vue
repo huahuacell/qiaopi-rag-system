@@ -192,11 +192,16 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { generateInterpretation } from '../api/generation'
+import {
+  apiFailureMessage,
+  demoFailureMessage,
+  demoMode
+} from '../config/runtime'
 import fallbackResult from '../mock/plain_interpretation.json'
 
 const recordId = ref('CSQP-SFHC-TEXT-001')
 const originalText = ref('')
-const result = ref(fallbackResult)
+const result = ref(demoMode ? fallbackResult : {})
 const loading = ref(false)
 const error = ref('')
 
@@ -406,9 +411,14 @@ async function runGeneration() {
       expansion_mode: 'balanced',
       dry_run: true
     })
-  } catch {
-    result.value = fallbackResult
-    error.value = '后端不可用，已加载白话解读本地 mock 数据。'
+  } catch (requestError) {
+    if (demoMode) {
+      result.value = fallbackResult
+      error.value = demoFailureMessage('白话解读请求')
+    } else {
+      result.value = {}
+      error.value = apiFailureMessage(requestError, '白话解读请求')
+    }
   } finally {
     loading.value = false
   }

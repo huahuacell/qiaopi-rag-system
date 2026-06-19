@@ -59,7 +59,7 @@
 - 先说明将修改哪些文件。
 - 不改 `backend/`。
 - 不改 API 请求逻辑。
-- 不改 mock fallback 逻辑。
+- Mock 只能由 `VITE_DEMO_MODE=true` 显式启用；正式运行不得静默回退。
 - 不改 `package.json`，除非明确要求。
 - 不改其他页面业务逻辑。
 - 改完运行 `npm run build`。

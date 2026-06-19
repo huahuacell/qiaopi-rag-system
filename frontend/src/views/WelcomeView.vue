@@ -22,7 +22,7 @@
 
         <span class="qp-home-status">
           <i></i>
-          本地演示模式
+          {{ demoMode ? '显式演示模式' : '正式接口模式' }}
         </span>
       </div>
     </header>
@@ -338,6 +338,8 @@
 </template>
 
 <script setup>
+import { demoMode } from '../config/runtime'
+
 const heroMetrics = [
   { value: '50,064', label: '馆藏记录' },
   { value: '213', label: '可释读文本' },

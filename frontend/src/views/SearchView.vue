@@ -97,47 +97,78 @@
         <el-alert
           v-if="error || response.error_message"
           :title="error || response.error_message"
-          type="warning"
+          :type="requestFailed ? 'error' : 'warning'"
           show-icon
           :closable="false"
           class="archive-search-alert"
         />
 
+        <section
+          v-if="hasSearched"
+          class="search-execution-status"
+          :class="`is-${execution.tone}`"
+          aria-live="polite"
+        >
+          <div>
+            <span>实际执行模式</span>
+            <strong>{{ execution.effectiveLabel }}</strong>
+          </div>
+          <p>{{ execution.explanation }}</p>
+          <em>{{ execution.dataLabel }}</em>
+        </section>
+
         <section class="archive-result-summary">
           <div>
-            <span>检索结果：</span>
+            <span>命中单元：</span>
             <strong>{{ resultCount }}</strong>
-            <span>条相关侨批记录</span>
+            <span>条</span>
+          </div>
+          <div>
+            <span>涉及记录：</span>
+            <strong>{{ recordCount }}</strong>
+            <span>封</span>
           </div>
           <i></i>
           <div>
-            <span>当前模式：</span>
-            <em>{{ modeLabel(response.mode || mode) }}</em>
+            <span>请求模式：</span>
+            <em>{{ execution.requestedLabel }}</em>
+          </div>
+          <div>
+            <span>实际模式：</span>
+            <em :class="{ degraded: execution.degraded }">{{ execution.effectiveLabel }}</em>
           </div>
           <i></i>
           <div class="summary-evidence">
-            <span>证据来源：</span>
-            <b>原文片段</b>
-            <b>元数据字段</b>
-            <b>语义匹配</b>
+            <span>排序来源：</span>
+            <b v-for="source in execution.sources" :key="source">{{ source }}</b>
+            <b v-if="!execution.sources.length">未执行</b>
           </div>
           <i></i>
-          <p>数据状态：{{ error ? '本地演示数据' : '接口数据 / 本地回退可用' }}</p>
+          <p>数据状态：{{ execution.dataLabel }}</p>
         </section>
 
         <section v-loading="loading" class="archive-result-list">
           <SearchResultCard
             v-for="(result, index) in response.results"
-            :key="result.record_id"
+            :key="result.unit_id || `${result.record_id}-${index}`"
             :result="result"
             :rank="index + 1"
+            :execution="execution"
           />
-          <el-empty v-if="!response.results?.length && !loading" description="暂无记录" />
+          <el-empty
+            v-if="!response.results?.length && !loading"
+            :description="requestFailed ? '检索服务不可用，未加载 Mock 数据' : '暂无检索结果'"
+          />
         </section>
 
         <aside class="archive-search-hint">
           <span>i</span>
-          <p>如果后端语义索引尚未初始化，系统将显示本地演示结果并保留检索流程展示。</p>
+          <p v-if="demoMode">
+            当前显式启用了演示模式；接口失败时才会加载本地演示结果，并清楚标记为测试数据。
+          </p>
+          <p v-else>
+            正式接口模式不会静默回退到 Mock。混合检索降级时，页面会明确显示“关键词检索（混合降级）”。
+          </p>
         </aside>
       </main>
 
@@ -164,7 +195,9 @@
 
           <footer>
             <span></span>
-            <p>各证据来源相互补充，混合检索模式下优先返回原文证据与语义匹配的交集记录。</p>
+            <p>
+              BM25、余弦相似度与 RRF 属于不同排序尺度。页面仅展示各自的排序贡献，不换算为百分比。
+            </p>
           </footer>
         </div>
       </aside>
@@ -177,23 +210,33 @@ import { computed, onMounted, reactive, ref } from 'vue'
 
 import { hybridSearch, keywordSearch, semanticSearch } from '../api/search'
 import SearchResultCard from '../components/SearchResultCard.vue'
+import {
+  apiFailureMessage,
+  demoFailureMessage,
+  demoMode
+} from '../config/runtime'
 import fallbackResults from '../mock/search_results.json'
+import {
+  buildDemoSearchResponse,
+  resolveSearchExecution
+} from '../utils/searchPresentation'
 
 const mode = ref('hybrid')
-const query = ref('八元 母亲 新加坡')
+const lastRequestedMode = ref('hybrid')
+const query = ref('母亲 寄款 查收')
 const filters = reactive({
-  origin_place: '新加坡',
-  destination_place: '',
-  kinship: '母亲'
+  place: '',
+  year_normalized: '',
+  has_remittance: false
 })
 const uiFilters = reactive({
-  era: true,
-  evidenceFirst: true,
-  rag: true
+  remittanceUnit: false
 })
-const response = ref({ total: 0, results: [] })
+const response = ref({ results: [], grouped_by_record: [] })
 const loading = ref(false)
 const error = ref('')
+const requestFailed = ref(false)
+const hasSearched = ref(false)
 
 const searchModes = [
   { value: 'keyword', label: '关键词检索' },
@@ -208,58 +251,61 @@ const searchers = {
 }
 
 const evidenceGuide = [
-  { title: '原文片段', desc: '来自侨批正文中的直接匹配内容', tone: 'red' },
-  { title: '元数据字段', desc: '来源地、亲属关系、年代等结构化信息', tone: 'green' },
-  { title: '语义匹配', desc: '基于语义相似度返回的相关记录', tone: 'teal' },
-  { title: 'RAG 证据', desc: '用于释读和生成任务的可追溯依据', tone: 'brown' }
+  { title: 'BM25 原始值', desc: 'FTS5 关键词排序信号；只在同一查询内比较。', tone: 'red' },
+  { title: '余弦相似度', desc: '同一向量模型下的语义接近程度，不是置信百分比。', tone: 'green' },
+  { title: 'RRF 融合值', desc: '融合关键词名次和语义名次，不与余弦值直接比较。', tone: 'teal' },
+  { title: '证据追溯', desc: '每个命中保留记录、检索单元与来源字段。', tone: 'brown' }
 ]
 
-const resultCount = computed(() => response.value.total ?? response.value.results?.length ?? 0)
+const execution = computed(() =>
+  resolveSearchExecution(lastRequestedMode.value, response.value, {
+    demoMode,
+    requestFailed: requestFailed.value,
+    failureMessage: error.value
+  })
+)
+
+const resultCount = computed(() => response.value.results?.length ?? 0)
+const recordCount = computed(() => {
+  if (response.value.grouped_by_record?.length) return response.value.grouped_by_record.length
+  return new Set((response.value.results || []).map((item) => item.record_id).filter(Boolean)).size
+})
 
 const filterChips = computed(() => [
   {
-    key: 'origin_place',
-    label: `来源地：${filters.origin_place || '新加坡'}`,
+    key: 'place',
+    label: `地点：${filters.place || '新加坡'}`,
     mark: '地',
-    active: Boolean(filters.origin_place),
+    active: Boolean(filters.place),
     apply: () => {
-      filters.origin_place = filters.origin_place ? '' : '新加坡'
+      filters.place = filters.place ? '' : '新加坡'
     }
   },
   {
-    key: 'kinship',
-    label: `亲属关系：${filters.kinship || '母亲'}`,
-    mark: '亲',
-    active: Boolean(filters.kinship),
+    key: 'has_remittance',
+    label: '包含汇款',
+    mark: '款',
+    active: filters.has_remittance,
     apply: () => {
-      filters.kinship = filters.kinship ? '' : '母亲'
+      filters.has_remittance = !filters.has_remittance
     }
   },
   {
-    key: 'era',
-    label: '年代：1930s',
+    key: 'year_normalized',
+    label: `年代：${filters.year_normalized || '1933'}`,
     mark: '年',
-    active: uiFilters.era,
+    active: Boolean(filters.year_normalized),
     apply: () => {
-      uiFilters.era = !uiFilters.era
+      filters.year_normalized = filters.year_normalized ? '' : '1933'
     }
   },
   {
-    key: 'evidenceFirst',
-    label: '证据优先',
+    key: 'remittanceUnit',
+    label: '仅汇款证据单元',
     mark: '证',
-    active: uiFilters.evidenceFirst,
+    active: uiFilters.remittanceUnit,
     apply: () => {
-      uiFilters.evidenceFirst = !uiFilters.evidenceFirst
-    }
-  },
-  {
-    key: 'rag',
-    label: 'RAG 片段',
-    mark: 'R',
-    active: uiFilters.rag,
-    apply: () => {
-      uiFilters.rag = !uiFilters.rag
+      uiFilters.remittanceUnit = !uiFilters.remittanceUnit
     }
   }
 ])
@@ -270,46 +316,54 @@ function toggleChip(chip) {
 
 function clearConditions() {
   query.value = ''
-  filters.origin_place = ''
-  filters.destination_place = ''
-  filters.kinship = ''
-  uiFilters.era = false
-  uiFilters.evidenceFirst = false
-  uiFilters.rag = false
+  filters.place = ''
+  filters.year_normalized = ''
+  filters.has_remittance = false
+  uiFilters.remittanceUnit = false
 }
 
 function activeFilters() {
-  return Object.fromEntries(Object.entries(filters).filter(([, value]) => value))
+  return Object.fromEntries(
+    Object.entries(filters).filter(([, value]) => value !== '' && value !== false)
+  )
 }
 
 async function runSearch() {
   loading.value = true
   error.value = ''
+  requestFailed.value = false
+  lastRequestedMode.value = mode.value
   const payload = {
     query: query.value,
     filters: activeFilters(),
     top_k: 10,
+    unit_types: uiFilters.remittanceUnit ? ['remittance'] : [],
     expansion_mode: 'balanced'
   }
 
   try {
     response.value = await searchers[mode.value](payload)
-  } catch {
-    response.value = { ...fallbackResults, mode: mode.value, query: query.value }
-    error.value = '后端不可用，已加载检索本地 mock 数据。'
+  } catch (requestError) {
+    if (demoMode) {
+      response.value = buildDemoSearchResponse(fallbackResults, mode.value, query.value)
+      error.value = demoFailureMessage('检索请求')
+    } else {
+      response.value = {
+        query: query.value,
+        results: [],
+        grouped_by_record: [],
+        semantic_enabled: false,
+        semantic_quality: 'disabled',
+        fusion_method: null,
+        error_message: null
+      }
+      requestFailed.value = true
+      error.value = apiFailureMessage(requestError, '检索请求')
+    }
   } finally {
     loading.value = false
+    hasSearched.value = true
   }
-}
-
-function modeLabel(value) {
-  const labels = {
-    keyword: '关键词检索',
-    semantic: '语义检索',
-    hybrid: '混合检索',
-    similar: '相似推荐'
-  }
-  return labels[value] || value
 }
 
 onMounted(runSearch)

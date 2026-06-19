@@ -39,7 +39,9 @@
 
       <div v-else class="analysis-status-note">
         <span></span>
-        <p>当前分析基于正式数据接口返回结果生成；若后端数据库或图谱服务尚未初始化，系统会保留本地 mock 演示流程。</p>
+        <p>
+          当前分析基于正式数据接口返回结果生成；正式模式下接口失败不会静默加载 Mock 数据。
+        </p>
       </div>
 
       <div class="analysis-visual-grid">
@@ -146,10 +148,15 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { fetchDashboardDistributions, fetchDashboardStats } from '../api/dashboard'
+import {
+  apiFailureMessage,
+  demoFailureMessage,
+  demoMode
+} from '../config/runtime'
 import RelationGraph from '../components/RelationGraph.vue'
 import fallbackStats from '../mock/dashboard.json'
 
-const stats = ref(fallbackStats)
+const stats = ref(demoMode ? fallbackStats : {})
 const distributions = ref({})
 const loading = ref(false)
 const error = ref('')
@@ -249,10 +256,16 @@ async function loadStats() {
     ])
     stats.value = statsPayload
     distributions.value = distributionsPayload
-  } catch {
-    stats.value = fallbackStats
-    distributions.value = {}
-    error.value = '后端数据库尚未初始化，当前展示本地 mock 演示数据。'
+  } catch (requestError) {
+    if (demoMode) {
+      stats.value = fallbackStats
+      distributions.value = {}
+      error.value = demoFailureMessage('分析数据请求')
+    } else {
+      stats.value = {}
+      distributions.value = {}
+      error.value = apiFailureMessage(requestError, '分析数据请求')
+    }
   } finally {
     loading.value = false
   }

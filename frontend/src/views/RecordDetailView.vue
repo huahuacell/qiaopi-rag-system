@@ -133,7 +133,9 @@
 
         <aside class="archive-detail-note">
           <span>i</span>
-          <p>当前页面保留正式记录详情、实体抽取与证据接口；后端不可用时展示本地 mock 数据，用于演示单封侨批的展陈、释读与证据追踪流程。</p>
+          <p>
+            当前页面读取正式记录详情、实体与证据接口。仅在显式演示模式下，接口失败才会加载本地演示数据。
+          </p>
         </aside>
       </main>
 
@@ -191,6 +193,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { fetchRecordDetail, fetchRecordEntities, fetchRecordEvidence } from '../api/records'
+import {
+  apiFailureMessage,
+  demoFailureMessage,
+  demoMode
+} from '../config/runtime'
 import fallbackRecord from '../mock/record_detail.json'
 
 const route = useRoute()
@@ -359,7 +366,11 @@ const traceBlocks = computed(() => [
   },
   {
     key: '一致性检查',
-    value: error.value ? '当前为本地 mock 演示数据，正式接口恢复后可重新校验。' : '当前详情、实体与证据接口已完成同页展示。'
+    value: error.value
+      ? demoMode
+        ? '当前为显式演示数据，正式接口恢复后可重新校验。'
+        : '正式接口请求失败，页面未加载 Mock 数据。'
+      : '当前详情、实体与证据接口已完成同页展示。'
   }
 ])
 
@@ -441,11 +452,18 @@ async function loadRecord(recordId) {
     detail.value = detailPayload || {}
     entities.value = entitiesPayload?.entities || []
     evidence.value = evidencePayload?.evidence || []
-  } catch {
-    detail.value = { ...fallbackRecord, record_id: recordId }
-    entities.value = fallbackRecord.entities || []
-    evidence.value = fallbackRecord.evidence || []
-    error.value = '后端不可用，已加载记录详情本地 mock 数据。'
+  } catch (requestError) {
+    if (demoMode) {
+      detail.value = { ...fallbackRecord, record_id: recordId }
+      entities.value = fallbackRecord.entities || []
+      evidence.value = fallbackRecord.evidence || []
+      error.value = demoFailureMessage('记录详情请求')
+    } else {
+      detail.value = { record_id: recordId }
+      entities.value = []
+      evidence.value = []
+      error.value = apiFailureMessage(requestError, '记录详情请求')
+    }
   } finally {
     loading.value = false
   }

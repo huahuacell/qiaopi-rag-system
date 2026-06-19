@@ -24,8 +24,8 @@
         </div>
 
         <div class="archive-score-badge">
-          <strong>{{ scoreNumber }}</strong>
-          <span>SCORE</span>
+          <strong>#{{ rank }}</strong>
+          <span>RANK</span>
         </div>
       </header>
 
@@ -34,6 +34,18 @@
       <section class="archive-result-reason">
         <h3>匹配原因</h3>
         <p>{{ matchReason }}</p>
+      </section>
+
+      <section class="archive-score-contributions">
+        <h3>排序贡献</h3>
+        <div v-if="scoreContributions.length" class="score-contribution-list">
+          <article v-for="item in scoreContributions" :key="item.key">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+            <p>{{ item.meaning }}</p>
+          </article>
+        </div>
+        <p v-else class="score-contribution-empty">该结果未返回可解释的排序分量。</p>
       </section>
 
       <section class="archive-result-evidence">
@@ -65,20 +77,17 @@
 
 <script setup>
 import { computed } from 'vue'
+import { buildScoreContributions } from '../utils/searchPresentation'
 
 const props = defineProps({
   result: { type: Object, required: true },
-  rank: { type: Number, default: 1 }
+  rank: { type: Number, default: 1 },
+  execution: { type: Object, default: () => ({}) }
 })
 
-const rawScore = computed(
-  () => props.result.score ?? props.result.final_score ?? props.result.semantic_score ?? props.result.similarity_score ?? 0
+const scoreContributions = computed(() =>
+  buildScoreContributions(props.result, props.execution)
 )
-
-const scoreNumber = computed(() => {
-  const score = Number(rawScore.value || 0)
-  return score <= 1 ? score.toFixed(2) : score.toFixed(2)
-})
 
 const evidenceItems = computed(() => {
   if (props.result.evidence?.length) return props.result.evidence
@@ -93,9 +102,9 @@ const evidenceItems = computed(() => {
   }
   return [
     {
-      source_field: 'rag_summary_text',
+      source_field: props.result.source_column || 'retrieval_unit',
       source_text: props.result.snippet || props.result.unit_text || '',
-      reason: '本地演示证据'
+      reason: props.result.matched_reason || '后端检索命中'
     }
   ]
 })
@@ -104,7 +113,7 @@ const matchReason = computed(() => {
   const first = evidenceItems.value[0]
   if (props.result.matched_reason) return props.result.matched_reason
   if (first?.reason) return first.reason
-  return '匹配关键词、元数据字段与语义相似度，返回相关侨批记录。'
+  return '后端返回该检索单元，但未提供更具体的匹配说明。'
 })
 
 const evidenceText = computed(() => {

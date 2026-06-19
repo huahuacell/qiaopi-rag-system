@@ -183,6 +183,11 @@ import * as echarts from 'echarts'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { fetchDashboardDistributions, fetchDashboardStats } from '../api/dashboard'
+import {
+  apiFailureMessage,
+  demoFailureMessage,
+  demoMode
+} from '../config/runtime'
 import fallbackStats from '../mock/dashboard.json'
 
 const stats = ref({})
@@ -421,10 +426,16 @@ async function loadStats() {
     ])
     stats.value = statsPayload
     distributions.value = distributionsPayload
-  } catch {
-    stats.value = fallbackStats
-    distributions.value = {}
-    error.value = '后端数据库暂未初始化，当前展示本地 mock 演示数据。'
+  } catch (requestError) {
+    if (demoMode) {
+      stats.value = fallbackStats
+      distributions.value = {}
+      error.value = demoFailureMessage('数据看板请求')
+    } else {
+      stats.value = {}
+      distributions.value = {}
+      error.value = apiFailureMessage(requestError, '数据看板请求')
+    }
   } finally {
     loading.value = false
     await nextTick()

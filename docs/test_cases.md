@@ -5,15 +5,18 @@
 - Open `/dashboard`.
 - Verify metadata count, text count, place distribution, relationship
   distribution, and timeline render from the dashboard APIs.
-- Stop the backend and verify the page clearly labels deterministic fallback
-  data.
+- With `VITE_DEMO_MODE=false`, stop the backend and verify the page shows an
+  interface error and does not load deterministic Mock data.
+- With `VITE_DEMO_MODE=true`, repeat and verify fallback data is explicitly
+  labelled as demonstration data.
 
 ## 2. Keyword Search
 
 - Open `/search` and select keyword mode.
 - Search for `母亲 寄款 查收`.
 - Verify each result shows a retrieval unit, matched reason, source field,
-  BM25/final score data, and a record-detail link.
+  BM25/keyword-rerank contribution, and a record-detail link.
+- Verify scores are raw ranking contributions, never percentages.
 
 ## 3. Semantic and Hybrid Status
 
@@ -21,9 +24,11 @@
 - Verify the page shows the controlled backend message and does not label
   keyword fallback as semantic results.
 - Run hybrid search and verify `fusion_method=keyword_fallback` is represented
-  as degradation.
+  as `关键词检索（混合降级）`.
 - With a test semantic index enabled, verify semantic results and RRF hybrid
-  results can differ from keyword ordering.
+  results can differ from keyword ordering and are labelled `测试向量`.
+- With a validated production index, verify BM25, cosine similarity, and RRF
+  are displayed as separate, non-comparable ranking contributions.
 
 ## 4. Record Detail
 
@@ -55,3 +60,11 @@
 - Requests to `/api/records/{record_id}/similar` return 404.
 - The backend contract test must fail if an endpoint or schema changes without
   an intentional baseline update.
+
+## 8. Production Mock Boundary
+
+- Build or run with `VITE_DEMO_MODE=false`.
+- Stop the backend and visit all six workflows.
+- Verify no page silently inserts data from `frontend/src/mock/`.
+- Repeat with `VITE_DEMO_MODE=true` and verify every fallback message contains
+  an explicit demonstration-mode label.

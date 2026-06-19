@@ -50,9 +50,11 @@
         <div class="topbar-heading">
           <div class="topbar-kicker">QIAOPI DIGITAL ARCHIVE</div>
           <div class="topbar-title">{{ currentTitle }}</div>
-          <div class="topbar-meta"><span>LOCAL API</span>http://localhost:8000</div>
+          <div class="topbar-meta"><span>API</span>{{ apiBaseUrl }}</div>
         </div>
-        <el-tag type="success" effect="plain">本地演示模式</el-tag>
+        <el-tag :type="demoMode ? 'warning' : 'success'" effect="plain">
+          {{ demoMode ? '显式演示模式' : '正式接口模式' }}
+        </el-tag>
       </el-header>
 
       <el-main class="app-main">
@@ -65,6 +67,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { apiBaseUrl, demoMode } from './config/runtime'
 
 const route = useRoute()
 
