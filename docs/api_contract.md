@@ -88,11 +88,12 @@ files and restores the previous live assets if any replacement fails.
 
 Each accepted build writes `qiaopi_build_manifest.json` containing canonical
 per-table counts and SHA-256 checksums, a schema checksum, the embedding
-provider/model/dimension, vector count, corpus fingerprint, and fixed-query
-retrieval regression results. `created_at` fields are excluded from relational
-checksums. Vector bytes and small floating-point score differences are not
-cross-hardware equality requirements; baseline comparison uses vector identity,
-corpus fingerprint, dimensions, counts, and ranked unit IDs.
+provider/model/dimension, vector count, ordered retrieval-unit corpus manifest,
+corpus fingerprint, and fixed-query retrieval regression results. `created_at`
+fields are excluded from relational checksums. Vector bytes and small
+floating-point score differences are not cross-hardware equality requirements;
+baseline comparison uses vector identity, corpus fingerprint, dimensions,
+counts, and ranked unit IDs.
 
 Use `--baseline-manifest <path>` to require a new isolated build to match a
 previous accepted manifest. See `backend/BUILDING.md` for the full operational
@@ -108,9 +109,42 @@ Step C adds RAG evidence context and qiaopi style context construction. These AP
 
 Step D1 adds a Qwen generation foundation for prompt preview, evidence-grounded modern interpretation, and qiaopi-style drafting. Qwen calls are disabled unless environment variables explicitly enable them.
 
-Step F adds optional semantic retrieval over `qiaopi_retrieval_units`. Build the local semantic index with `python -m app.ingestion.build_semantic_index` after rebuilding the SQLite database. Runtime semantic retrieval remains disabled until `SEMANTIC_SEARCH_ENABLED=true` and index files exist. Generated content is not historical source material and must be displayed with evidence references.
+Step F adds optional semantic retrieval over `qiaopi_retrieval_units`. Build the
+local semantic index with `python -m app.ingestion.build_semantic_index` after
+rebuilding the SQLite database. Runtime semantic retrieval remains disabled
+until `SEMANTIC_SEARCH_ENABLED=true` and the index, metadata, and manifest files
+all exist. Runtime loading rejects provider, model, dimension, ordered corpus,
+or corpus-fingerprint mismatches. Hash embeddings are deterministic test
+plumbing only (`semantic_quality: test_hash`) and cannot satisfy production
+semantic acceptance. Generated content is not historical source material and
+must be displayed with evidence references.
 
 Step G adds a large-scale 50064-record metadata catalog layer for archive browsing, metadata search, statistics, timeline views, place distribution, and links to the 213 full-text records. Metadata-only records are catalog records, not full-text evidence. They must not be inserted into `qiaopi_retrieval_units`, `qiaopi_retrieval_units_fts`, the semantic index, RAG context, or Qwen generation prompts. Only linked 213 full-text records may be used for RAG or generation tasks.
+
+## Retrieval Corpus Domains and Evaluation
+
+Retrieval has two independent corpus domains:
+
+- `metadata_catalog`: 50,064 catalog records, searched through
+  `POST /api/metadata/search`. This domain is for archive discovery and
+  browsing. Its rows are never direct RAG evidence.
+- `full_text_evidence`: 213 full-text records represented by 1,959 traceable
+  retrieval units. Keyword, semantic, hybrid, and RAG retrieval operate only in
+  this domain.
+
+The version-controlled benchmark is
+`backend/data/evaluation/retrieval_benchmark.jsonl`. Run from `backend/`:
+
+```bash
+python -m app.evaluation.retrieval_evaluation
+```
+
+It reports Recall@K, MRR, and NDCG separately for metadata records, full-text
+records, and retrieval units. `--build-hash-test-index` creates a temporary
+deterministic diagnostic index, but that report is ineligible for production
+semantic acceptance. A production hybrid candidate must cover every full-text
+benchmark query and must not regress from keyword retrieval on NDCG@10 or
+MRR@10 at either unit or record level.
 
 Step Date-1 adds deterministic date normalization for `qiaopi_text_records` and `qiaopi_metadata_records`. Raw fields such as `date_text` and existing `year_normalized` values are preserved. The normalized display field is `date_standard` using `YYYY.M.D`, `YYYY.M`, or `YYYY` only when those parts are known. Missing month or day values are never defaulted to `1`.
 
@@ -326,16 +360,26 @@ Response:
   "configured_enabled": true,
   "index_exists": true,
   "metadata_exists": true,
+  "manifest_exists": true,
+  "manifest_valid": true,
   "embedding_provider": "local",
   "embedding_model": "BAAI/bge-small-zh-v1.5",
   "index_path": "backend/data/index/qiaopi_retrieval_units.faiss",
   "metadata_path": "backend/data/index/qiaopi_retrieval_units_meta.jsonl",
+  "manifest_path": "backend/data/index/qiaopi_retrieval_units_manifest.json",
   "vector_count": 1959,
+  "corpus_domain": "full_text_evidence",
+  "corpus_fingerprint": "sha256...",
+  "semantic_quality": "production",
+  "production_semantic_eligible": true,
   "error_message": null
 }
 ```
 
-If semantic search is disabled or the index is missing, the endpoint returns HTTP 200 with `semantic_enabled=false` and an `error_message`. It never returns embedding or generation API keys.
+If semantic search is disabled, an artifact is missing, or the runtime
+provider/model/dimension/corpus does not match the manifest, the endpoint
+returns HTTP 200 with `semantic_enabled=false` and a controlled
+`error_message`. It never returns embedding or generation API keys.
 
 ## POST /api/search/semantic
 
@@ -359,6 +403,7 @@ Response:
   "query": "母亲寄款查收",
   "top_k": 10,
   "semantic_enabled": true,
+  "semantic_quality": "production",
   "results": [
     {
       "record_id": "CSQP-SFHC-TEXT-017",
@@ -390,7 +435,10 @@ Response:
 }
 ```
 
-If `SEMANTIC_SEARCH_ENABLED=false` or index files are missing, the endpoint returns HTTP 200 with `semantic_enabled=false`, empty `results`, and a controlled `error_message`.
+If `SEMANTIC_SEARCH_ENABLED=false`, index artifacts are missing, or manifest
+validation fails, the endpoint returns HTTP 200 with
+`semantic_enabled=false`, `semantic_quality="disabled"`, empty `results`, and a
+controlled `error_message`.
 
 ## POST /api/search/hybrid
 
@@ -413,6 +461,7 @@ Response shape is the same as `/api/search/keyword`, with:
 ```json
 {
   "semantic_enabled": true,
+  "semantic_quality": "production",
   "fusion_method": "rrf",
   "error_message": null
 }
@@ -424,6 +473,11 @@ Each result includes:
 - `semantic_score`: embedding similarity when present.
 - `final_score`: fused RRF score for hybrid responses.
 - `retrieval_sources`: `["keyword"]`, `["semantic"]`, or `["keyword", "semantic"]`.
+
+`semantic_quality` is `production` only for a validated non-Hash index,
+`test_hash` for an explicitly configured deterministic Hash index, and
+`disabled` when semantic retrieval did not participate. Hash-backed hybrid
+results are useful for tests but are not accepted as real semantic retrieval.
 
 ## POST /api/rag/context
 
@@ -451,6 +505,7 @@ Response:
   "expanded_query": "母亲寄款查收的侨批内容 母亲 寄款 查收 慈亲 萱堂 家母 批款 寄上 汇上 收讫 照收 如数查收 大人 膝下 阿母 阿妈 付去 兹托 带去 奉上 收用 检收 祈收 严慈 批局 查明",
   "expansion_mode": "balanced",
   "semantic_enabled": false,
+  "semantic_quality": "disabled",
   "contexts": [
     {
       "record_id": "CSQP-SFHC-TEXT-017",
@@ -525,6 +580,9 @@ Current limitations:
 - This RAG context endpoint does not call Qwen; it only prepares evidence for generation endpoints.
 - Semantic retrieval is optional and falls back to keyword retrieval when disabled or missing an index.
 - `semantic_enabled` reports whether semantic retrieval participated in this response.
+- `semantic_quality` distinguishes validated production embeddings from
+  `test_hash`; Hash-backed context must not be treated as production semantic
+  or production RAG acceptance.
 
 ## POST /api/rag/style-context
 
@@ -550,6 +608,7 @@ Response:
   "expanded_query": "母亲您好 我在新加坡平安 寄八元回家 请弟弟好好读书 母亲 平安 寄款 读书 新加坡 慈亲 大人 膝下 安好 无恙 勿念 汇款 批款 查收 勤学 学业 务望 萱堂 家母 批款 寄上 汇上 勤读 学业 星洲 叻坡 石叻 阿母 阿妈 付去 兹托 带去 奉上 书馆 课程 成绩 温习 南洋 严慈 安康 批局 教训",
   "expansion_mode": "balanced",
   "semantic_enabled": false,
+  "semantic_quality": "disabled",
   "style_slots": {
     "opening": [
       {
@@ -740,6 +799,7 @@ Response:
   "query": "这封侨批主要说了什么？",
   "record_id": "CSQP-SFHC-TEXT-017",
   "semantic_enabled": false,
+  "semantic_quality": "disabled",
   "prompt_context": "【检索问题】\n这封侨批主要说了什么？\n\n【相关侨批证据 1】\n来源记录：CSQP-SFHC-TEXT-017\n...",
   "generated_text": "【生成解读】...",
   "evidence_references": [
@@ -825,6 +885,7 @@ Response:
   "task_type": "style-transfer",
   "plain_text": "母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。",
   "semantic_enabled": false,
+  "semantic_quality": "disabled",
   "style_slots": {
     "opening": [
       {

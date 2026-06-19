@@ -16,6 +16,7 @@ def _configure_hash_index(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(settings, "EMBEDDING_DIM", 64)
     monkeypatch.setattr(settings, "SEMANTIC_FAISS_INDEX_PATH", tmp_path / "semantic.faiss")
     monkeypatch.setattr(settings, "SEMANTIC_FAISS_METADATA_PATH", tmp_path / "semantic_meta.jsonl")
+    monkeypatch.setattr(settings, "SEMANTIC_FAISS_MANIFEST_PATH", tmp_path / "semantic_manifest.json")
 
 
 def test_semantic_search_api_reports_missing_index(monkeypatch, tmp_path):
@@ -47,11 +48,13 @@ def test_semantic_search_api_returns_results_when_index_exists(monkeypatch, tmp_
     status_payload = status_response.json()
     assert response.status_code == 200
     assert payload["semantic_enabled"] is True
+    assert payload["semantic_quality"] == "test_hash"
     assert payload["results"]
     assert payload["results"][0]["retrieval_sources"] == ["semantic"]
     assert "semantic_score" in payload["results"][0]
     assert status_response.status_code == 200
     assert status_payload["semantic_enabled"] is True
+    assert status_payload["production_semantic_eligible"] is False
     assert status_payload["vector_count"] > 0
 
 

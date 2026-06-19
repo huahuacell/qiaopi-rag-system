@@ -24,6 +24,7 @@ def test_interpret_dry_run_returns_prompt_and_evidence_references():
     assert payload["task_type"] == "interpret"
     assert payload["record_id"] == "CSQP-SFHC-TEXT-017"
     assert payload["semantic_enabled"] is False
+    assert payload["semantic_quality"] == "disabled"
     assert payload["dry_run"] is True
     assert payload["prompt_context"]
     assert payload["messages"]
@@ -51,6 +52,7 @@ def test_style_transfer_dry_run_returns_style_slots_and_references():
     assert response.status_code == 200
     assert payload["task_type"] == "style-transfer"
     assert payload["semantic_enabled"] is False
+    assert payload["semantic_quality"] == "disabled"
     assert payload["dry_run"] is True
     assert payload["style_slots"]
     assert "opening" in payload["style_slots"]

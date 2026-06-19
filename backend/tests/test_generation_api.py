@@ -115,7 +115,8 @@ def test_generation_enabled_with_api_key_does_not_return_disabled(monkeypatch):
     assert payload["dry_run"] is False
     assert payload["generated_text"]
     assert payload["error_message"] is None
-    assert "disabled" not in str(payload).lower()
+    assert payload["semantic_enabled"] is False
+    assert payload["semantic_quality"] == "disabled"
     assert unit_test_key not in str(payload)
     assert payload["validation_report"]
     assert payload["validation_report"]["risk_level"] in {"low", "medium"}

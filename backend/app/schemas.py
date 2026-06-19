@@ -215,6 +215,7 @@ class SearchResponse(BaseModel):
     expansion_terms: List[str]
     top_k: int
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     results: List[SearchResult]
     grouped_by_record: List[GroupedSearchRecord]
     fusion_method: Optional[str] = None
@@ -237,6 +238,7 @@ class SemanticSearchResponse(BaseModel):
     query: str
     top_k: int
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     results: List[SearchResult]
     error_message: Optional[str] = None
     index_backend: Optional[str] = None
@@ -247,11 +249,18 @@ class SemanticStatusResponse(BaseModel):
     configured_enabled: bool
     index_exists: bool
     metadata_exists: bool
+    manifest_exists: bool
+    manifest_valid: bool
     embedding_provider: str
     embedding_model: str
     index_path: str
     metadata_path: str
+    manifest_path: str
     vector_count: int
+    corpus_domain: Optional[str] = None
+    corpus_fingerprint: Optional[str] = None
+    semantic_quality: Literal["disabled", "test_hash", "production"]
+    production_semantic_eligible: bool
     error_message: Optional[str] = None
 
 
@@ -294,6 +303,7 @@ class RagContextResponse(BaseModel):
     expanded_query: str
     expansion_mode: Literal["strict", "balanced", "broad"]
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     contexts: List[RagContextItem]
     grouped_contexts: List[GroupedSearchRecord]
     prompt_context: str
@@ -326,6 +336,7 @@ class StyleContextResponse(BaseModel):
     expanded_query: str
     expansion_mode: Literal["strict", "balanced", "broad"]
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     style_slots: Dict[str, List[StyleSlotExample]]
     grouped_contexts: List[GroupedSearchRecord]
     prompt_context: str
@@ -397,6 +408,7 @@ class GenerationInterpretResponse(BaseModel):
     query: str
     record_id: Optional[str] = None
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     prompt_context: str
     generated_text: str
     evidence_references: List[EvidenceReference]
@@ -419,6 +431,7 @@ class GenerationStyleTransferResponse(BaseModel):
     task_type: Literal["style-transfer"]
     plain_text: str
     semantic_enabled: bool
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
     style_slots: Dict[str, List[StyleSlotExample]]
     prompt_context: str
     generated_text: str

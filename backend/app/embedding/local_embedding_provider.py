@@ -13,7 +13,9 @@ class LocalEmbeddingProvider:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:
             raise EmbeddingProviderError(
-                "sentence-transformers is not installed. Install it or set EMBEDDING_PROVIDER=hash for deterministic local testing."
+                "sentence-transformers is not installed. Install the production "
+                "semantic dependency. EMBEDDING_PROVIDER=hash is available only "
+                "for deterministic tests and cannot pass semantic acceptance."
             ) from exc
         self.model = SentenceTransformer(self.model_name)
 

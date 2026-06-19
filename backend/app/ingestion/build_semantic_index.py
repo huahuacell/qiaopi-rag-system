@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -15,21 +14,18 @@ from app.embedding.embedding_provider import (
     EmbeddingProviderError,
     get_embedding_provider,
 )
+from app.search.corpus_domains import (
+    FULL_TEXT_EVIDENCE_DOMAIN,
+    SEMANTIC_MANIFEST_VERSION,
+    embedding_model_name,
+    production_semantic_eligible,
+    semantic_corpus_fingerprint,
+    semantic_index_text,
+    semantic_quality,
+    text,
+)
 from app.search.semantic_retriever import _search_scores, load_semantic_index
 
-
-INDEX_TEXT_FIELDS: tuple[str, ...] = (
-    "unit_text",
-    "title_reference",
-    "sender",
-    "recipient",
-    "main_intent",
-    "theme_tags",
-    "style_keywords",
-    "relationship_type",
-    "place_mentions_normalized",
-    "retrieval_keywords",
-)
 
 METADATA_FIELDS: tuple[str, ...] = (
     "unit_id",
@@ -56,7 +52,6 @@ METADATA_FIELDS: tuple[str, ...] = (
     "countries_or_regions",
 )
 
-HASH_EMBEDDING_MODEL = "hash-sha256-char-v1"
 DEFAULT_REGRESSION_QUERIES: tuple[str, ...] = (
     "母亲 寄款 查收",
     "新加坡 平安",
@@ -65,12 +60,7 @@ DEFAULT_REGRESSION_QUERIES: tuple[str, ...] = (
 
 
 def _text(value: Any) -> str:
-    return "" if value is None else str(value).strip()
-
-
-def semantic_index_text(row: Mapping[str, Any]) -> str:
-    parts = [_text(row.get(field_name)) for field_name in INDEX_TEXT_FIELDS]
-    return "\n".join(part for part in parts if part)
+    return text(value)
 
 
 def _batched(values: list[str], batch_size: int) -> Iterable[list[str]]:
@@ -79,30 +69,16 @@ def _batched(values: list[str], batch_size: int) -> Iterable[list[str]]:
         yield values[start : start + safe_batch_size]
 
 
-def _embedding_model_name(provider_name: str) -> str:
-    if provider_name == "hash":
-        return HASH_EMBEDDING_MODEL
-    if provider_name == "qwen":
-        return settings.QWEN_EMBEDDING_MODEL or ""
-    return settings.EMBEDDING_MODEL
-
-
 def _resolve_provider(
     provider_name: str | None,
 ) -> tuple[EmbeddingProvider, str, str]:
     effective_provider_name = provider_name or settings.EMBEDDING_PROVIDER
-    try:
-        provider = get_embedding_provider(effective_provider_name)
-    except EmbeddingProviderError:
-        if (effective_provider_name or "").strip().lower() != "local":
-            raise
-        provider = get_embedding_provider("hash")
-        effective_provider_name = "hash"
     effective_provider_name = effective_provider_name.strip().lower()
+    provider = get_embedding_provider(effective_provider_name)
     return (
         provider,
         effective_provider_name,
-        _embedding_model_name(effective_provider_name),
+        embedding_model_name(effective_provider_name, settings),
     )
 
 
@@ -145,25 +121,6 @@ def _write_metadata(rows: list[Mapping[str, Any]], metadata_path: Path) -> None:
             file.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
 
 
-def corpus_fingerprint(rows: Iterable[Mapping[str, Any]]) -> str:
-    digest = hashlib.sha256()
-    for row in sorted(rows, key=lambda item: _text(item.get("unit_id"))):
-        payload = {
-            "unit_id": _text(row.get("unit_id")),
-            "text": semantic_index_text(row),
-        }
-        digest.update(
-            json.dumps(
-                payload,
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        )
-        digest.update(b"\n")
-    return digest.hexdigest()
-
-
 def _retrieval_regression(
     *,
     provider: EmbeddingProvider,
@@ -172,7 +129,11 @@ def _retrieval_regression(
     queries: Iterable[str],
     top_k: int = 5,
 ) -> list[dict[str, Any]]:
-    bundle = load_semantic_index(index_path, metadata_path)
+    bundle = load_semantic_index(
+        index_path,
+        metadata_path,
+        validate_manifest=False,
+    )
     results: list[dict[str, Any]] = []
     for query in queries:
         query_vector = provider.embed_texts([query])
@@ -196,10 +157,12 @@ def build_semantic_index(
     db_path: Path | str | None = None,
     index_path: Path | None = None,
     metadata_path: Path | None = None,
+    manifest_path: Path | None = None,
     regression_queries: Iterable[str] = DEFAULT_REGRESSION_QUERIES,
 ) -> dict[str, Any]:
     resolved_index_path = index_path or settings.SEMANTIC_FAISS_INDEX_PATH
     resolved_metadata_path = metadata_path or settings.SEMANTIC_FAISS_METADATA_PATH
+    resolved_manifest_path = manifest_path or settings.SEMANTIC_FAISS_MANIFEST_PATH
     rows = fetch_all_retrieval_units(db_path)
     texts = [semantic_index_text(row) for row in rows]
     vectors, provider, effective_provider_name, embedding_model = _embed_texts(
@@ -220,6 +183,29 @@ def build_semantic_index(
         metadata_path=resolved_metadata_path,
         queries=regression_queries,
     )
+    fingerprint = semantic_corpus_fingerprint(rows)
+    corpus_unit_ids = [_text(row.get("unit_id")) for row in rows]
+    manifest = {
+        "manifest_version": SEMANTIC_MANIFEST_VERSION,
+        "corpus_domain": FULL_TEXT_EVIDENCE_DOMAIN,
+        "retrieval_unit_count": len(rows),
+        "corpus_unit_ids": corpus_unit_ids,
+        "embedding_provider": effective_provider_name,
+        "embedding_model": embedding_model,
+        "embedding_dimension": int(vectors.shape[1]) if vectors.ndim == 2 else 0,
+        "corpus_fingerprint": fingerprint,
+        "index_backend": index_backend,
+        "semantic_quality": semantic_quality(effective_provider_name),
+        "production_semantic_eligible": production_semantic_eligible(
+            effective_provider_name
+        ),
+        "retrieval_regression": regression_results,
+    }
+    resolved_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    resolved_manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
     stats = {
         "status": "ok",
@@ -227,10 +213,14 @@ def build_semantic_index(
         "embedding_provider": effective_provider_name,
         "embedding_model": embedding_model,
         "embedding_dimension": int(vectors.shape[1]) if vectors.ndim == 2 else 0,
-        "corpus_fingerprint": corpus_fingerprint(rows),
+        "corpus_domain": FULL_TEXT_EVIDENCE_DOMAIN,
+        "corpus_fingerprint": fingerprint,
         "index_backend": index_backend,
         "index_path": str(resolved_index_path),
         "metadata_path": str(resolved_metadata_path),
+        "manifest_path": str(resolved_manifest_path),
+        "semantic_quality": manifest["semantic_quality"],
+        "production_semantic_eligible": manifest["production_semantic_eligible"],
         "retrieval_regression": regression_results,
     }
     return stats

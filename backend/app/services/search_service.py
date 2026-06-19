@@ -82,6 +82,10 @@ def _response(
         "expansion_terms": expansion.expansion_terms,
         "top_k": request.top_k,
         "semantic_enabled": semantic_enabled,
+        "semantic_quality": retrieval_result.get(
+            "semantic_quality",
+            "disabled",
+        ),
         "results": [
             _unit_result(row, expansion.normalized_query)
             for row in retrieval_result["results"]
@@ -140,6 +144,10 @@ def run_semantic_search(request: SemanticSearchRequest) -> dict[str, Any]:
         "query": request.query,
         "top_k": request.top_k,
         "semantic_enabled": bool(retrieval_result.get("semantic_enabled", False)),
+        "semantic_quality": retrieval_result.get(
+            "semantic_quality",
+            "disabled",
+        ),
         "results": [
             _unit_result(row, request.query)
             for row in retrieval_result.get("results", [])

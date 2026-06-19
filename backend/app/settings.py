@@ -110,6 +110,10 @@ SEMANTIC_FAISS_METADATA_PATH = _path_from_env(
     _env("FAISS_METADATA_PATH"),
     INDEX_DIR / "qiaopi_retrieval_units_meta.jsonl",
 )
+SEMANTIC_FAISS_MANIFEST_PATH = _path_from_env(
+    _env("FAISS_MANIFEST_PATH"),
+    INDEX_DIR / "qiaopi_retrieval_units_manifest.json",
+)
 QWEN_EMBEDDING_API_KEY = _env("QWEN_EMBEDDING_API_KEY") or QWEN_API_KEY
 QWEN_EMBEDDING_BASE_URL = _env("QWEN_EMBEDDING_BASE_URL")
 QWEN_EMBEDDING_MODEL = _env("QWEN_EMBEDDING_MODEL")

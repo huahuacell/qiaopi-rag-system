@@ -23,13 +23,17 @@ By default this command:
 The command never calls a remote embedding API. Supported providers are:
 
 - `hash`: deterministic dependency-free acceptance/smoke index.
-- `local`: the configured sentence-transformers model; if the optional
-  dependency is unavailable, the existing provider behavior falls back to
-  `hash` and records that effective provider in the manifest.
+- `local`: the configured sentence-transformers model. Install production
+  semantic dependencies with `pip install -r requirements-semantic.txt`.
 
-For real semantic retrieval, use `local` and make sure the runtime
-`EMBEDDING_PROVIDER` and `EMBEDDING_MODEL` agree with the promoted semantic
-manifest.
+There is no implicit `local` to `hash` fallback. Hash must be selected
+explicitly, is recorded as `semantic_quality: test_hash`, and cannot pass
+production semantic retrieval acceptance.
+
+For real semantic retrieval, use `local` or a configured production provider.
+The runtime provider, model, dimension, ordered retrieval-unit corpus, and
+corpus fingerprint must agree with the promoted semantic manifest. A mismatch
+causes the backend to refuse loading the index.
 
 ## Acceptance Manifest
 
@@ -41,6 +45,7 @@ The manifest records:
 - a combined relationship checksum and schema checksum;
 - embedding provider and model identifier;
 - embedding dimension and vector count;
+- ordered retrieval-unit ID corpus manifest;
 - retrieval corpus fingerprint;
 - ranked unit IDs for fixed retrieval regression queries.
 
@@ -95,3 +100,27 @@ python -m app.ingestion.build_all `
 
 This mode is for diagnostics and tests. The default path from raw Excel remains
 the reproducibility acceptance path.
+
+## Retrieval Evaluation
+
+The version-controlled benchmark is
+`data/evaluation/retrieval_benchmark.jsonl`. It keeps the 50,064-record metadata
+catalog separate from the 213 full-text records and 1,959 evidence retrieval
+units.
+
+Run the configured retrieval engines:
+
+```powershell
+python -m app.evaluation.retrieval_evaluation
+```
+
+For deterministic vector plumbing tests only:
+
+```powershell
+python -m app.evaluation.retrieval_evaluation --build-hash-test-index
+```
+
+The report writes Recall@1/3/5/10, NDCG@1/3/5/10, and MRR@10. Hash scores are
+diagnostic only. Production hybrid acceptance requires a non-Hash manifest,
+complete query coverage, and no NDCG@10 or MRR@10 regression against keyword
+retrieval at either retrieval-unit or text-record level.

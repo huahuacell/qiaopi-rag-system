@@ -78,6 +78,7 @@ backend/data/index/*
 # Ignore generated outputs and caches
 backend/outputs/generated_results.json
 backend/outputs/*.csv
+backend/outputs/*.json
 backend/outputs/*.jsonl
 
 # Keep scaffold output placeholders

@@ -516,8 +516,7 @@ def _promotion_artifacts(paths: BuildPaths) -> list[tuple[Path, Path]]:
             (paths.semantic_metadata_path, settings.SEMANTIC_FAISS_METADATA_PATH),
             (
                 paths.semantic_manifest_path,
-                settings.SEMANTIC_FAISS_METADATA_PATH.parent
-                / SEMANTIC_MANIFEST_NAME,
+                settings.SEMANTIC_FAISS_MANIFEST_PATH,
             ),
             (
                 paths.build_manifest_path,
@@ -615,6 +614,7 @@ def build_all(
         db_path=paths.database_path,
         index_path=paths.semantic_index_path,
         metadata_path=paths.semantic_metadata_path,
+        manifest_path=paths.semantic_manifest_path,
         regression_queries=DEFAULT_REGRESSION_QUERIES,
     )
 
@@ -631,18 +631,6 @@ def build_all(
         semantic_stats=semantic_stats,
         retrieval_unit_count=database_acceptance["counts"]["qiaopi_retrieval_units"],
     )
-    semantic_manifest = {
-        "manifest_version": PIPELINE_VERSION,
-        "embedding_provider": vector["embedding_provider"],
-        "embedding_model": vector["embedding_model"],
-        "embedding_dimension": vector["embedding_dimension"],
-        "vector_count": vector["vector_count"],
-        "corpus_fingerprint": vector["corpus_fingerprint"],
-        "retrieval_regression": vector["retrieval_regression"],
-        "byte_checksum_enforced": False,
-    }
-    _write_json(paths.semantic_manifest_path, semantic_manifest)
-
     manifest: dict[str, Any] = {
         "manifest_version": PIPELINE_VERSION,
         "pipeline": "qiaopi-build-all",
