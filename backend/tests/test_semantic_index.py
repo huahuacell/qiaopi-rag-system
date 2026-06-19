@@ -21,6 +21,11 @@ def test_build_semantic_index_writes_index_and_metadata(monkeypatch, tmp_path):
 
     assert stats["status"] == "ok"
     assert stats["embedding_provider"] == "hash"
+    assert stats["embedding_model"] == "hash-sha256-char-v1"
+    assert stats["embedding_dimension"] == 64
+    assert len(stats["corpus_fingerprint"]) == 64
+    assert stats["retrieval_regression"]
+    assert all(item["hits"] for item in stats["retrieval_regression"])
     assert stats["retrieval_unit_count"] == len(fetch_all_retrieval_units())
     assert settings.SEMANTIC_FAISS_INDEX_PATH.exists()
     assert settings.SEMANTIC_FAISS_METADATA_PATH.exists()

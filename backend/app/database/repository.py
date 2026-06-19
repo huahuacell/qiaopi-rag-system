@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
 from app.database.connection import get_connection
@@ -789,8 +790,10 @@ def fetch_retrieval_units(record_id: str) -> list[dict[str, Any]]:
     return _rows_to_dicts(rows)
 
 
-def fetch_all_retrieval_units() -> list[dict[str, Any]]:
-    with get_connection() as connection:
+def fetch_all_retrieval_units(
+    db_path: Path | str | None = None,
+) -> list[dict[str, Any]]:
+    with get_connection(db_path) as connection:
         rows = connection.execute(
             """
             SELECT
@@ -1028,8 +1031,10 @@ def _metadata_filter_sql(filters: Mapping[str, Any] | None) -> tuple[str, list[A
     return where_sql, params
 
 
-def fetch_metadata_stats() -> dict[str, Any]:
-    with get_connection() as connection:
+def fetch_metadata_stats(
+    db_path: Path | str | None = None,
+) -> dict[str, Any]:
+    with get_connection(db_path) as connection:
         year_row = connection.execute(
             """
             SELECT
@@ -1105,8 +1110,11 @@ def _split_distribution_for_metadata_column(
     ]
 
 
-def fetch_metadata_distributions(limit: int = 20) -> dict[str, list[dict[str, Any]]]:
-    with get_connection() as connection:
+def fetch_metadata_distributions(
+    limit: int = 20,
+    db_path: Path | str | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    with get_connection(db_path) as connection:
         return {
             "year_distribution": _distribution_for_metadata_column(connection, "year_normalized", limit),
             "country_or_region_distribution": _distribution_for_metadata_column(
@@ -1232,8 +1240,10 @@ def fetch_linked_text_for_metadata(metadata_id: str) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def fetch_metadata_link_stats() -> dict[str, Any]:
-    with get_connection() as connection:
+def fetch_metadata_link_stats(
+    db_path: Path | str | None = None,
+) -> dict[str, Any]:
+    with get_connection(db_path) as connection:
         text_count = count_rows(connection, "qiaopi_text_records")
         auto_link_count = count_rows(connection, "qiaopi_text_metadata_links")
         method_rows = connection.execute(
@@ -1256,8 +1266,10 @@ def fetch_metadata_link_stats() -> dict[str, Any]:
         }
 
 
-def fetch_text_records_for_metadata_linking() -> list[dict[str, Any]]:
-    with get_connection() as connection:
+def fetch_text_records_for_metadata_linking(
+    db_path: Path | str | None = None,
+) -> list[dict[str, Any]]:
+    with get_connection(db_path) as connection:
         rows = connection.execute(
             """
             SELECT
@@ -1279,8 +1291,10 @@ def fetch_text_records_for_metadata_linking() -> list[dict[str, Any]]:
     return _rows_to_dicts(rows)
 
 
-def fetch_metadata_records_for_linking() -> list[dict[str, Any]]:
-    with get_connection() as connection:
+def fetch_metadata_records_for_linking(
+    db_path: Path | str | None = None,
+) -> list[dict[str, Any]]:
+    with get_connection(db_path) as connection:
         rows = connection.execute(
             """
             SELECT

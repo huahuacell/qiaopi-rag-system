@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -10,9 +11,11 @@ import numpy as np
 from app import settings
 from app.database.repository import fetch_all_retrieval_units
 from app.embedding.embedding_provider import (
+    EmbeddingProvider,
     EmbeddingProviderError,
     get_embedding_provider,
 )
+from app.search.semantic_retriever import _search_scores, load_semantic_index
 
 
 INDEX_TEXT_FIELDS: tuple[str, ...] = (
@@ -53,6 +56,13 @@ METADATA_FIELDS: tuple[str, ...] = (
     "countries_or_regions",
 )
 
+HASH_EMBEDDING_MODEL = "hash-sha256-char-v1"
+DEFAULT_REGRESSION_QUERIES: tuple[str, ...] = (
+    "母亲 寄款 查收",
+    "新加坡 平安",
+    "读书 勤学",
+)
+
 
 def _text(value: Any) -> str:
     return "" if value is None else str(value).strip()
@@ -69,7 +79,17 @@ def _batched(values: list[str], batch_size: int) -> Iterable[list[str]]:
         yield values[start : start + safe_batch_size]
 
 
-def _embed_texts(texts: list[str], provider_name: str | None) -> tuple[np.ndarray, str]:
+def _embedding_model_name(provider_name: str) -> str:
+    if provider_name == "hash":
+        return HASH_EMBEDDING_MODEL
+    if provider_name == "qwen":
+        return settings.QWEN_EMBEDDING_MODEL or ""
+    return settings.EMBEDDING_MODEL
+
+
+def _resolve_provider(
+    provider_name: str | None,
+) -> tuple[EmbeddingProvider, str, str]:
     effective_provider_name = provider_name or settings.EMBEDDING_PROVIDER
     try:
         provider = get_embedding_provider(effective_provider_name)
@@ -78,13 +98,27 @@ def _embed_texts(texts: list[str], provider_name: str | None) -> tuple[np.ndarra
             raise
         provider = get_embedding_provider("hash")
         effective_provider_name = "hash"
+    effective_provider_name = effective_provider_name.strip().lower()
+    return (
+        provider,
+        effective_provider_name,
+        _embedding_model_name(effective_provider_name),
+    )
 
+
+def _embed_texts(
+    texts: list[str],
+    provider_name: str | None,
+) -> tuple[np.ndarray, EmbeddingProvider, str, str]:
+    provider, effective_provider_name, embedding_model = _resolve_provider(provider_name)
     batches: list[np.ndarray] = []
     for batch in _batched(texts, settings.EMBEDDING_BATCH_SIZE):
         batches.append(provider.embed_texts(batch))
     if not batches:
-        return np.zeros((0, settings.EMBEDDING_DIM or 384), dtype=np.float32), effective_provider_name
-    return np.vstack(batches).astype(np.float32), effective_provider_name
+        vectors = np.zeros((0, settings.EMBEDDING_DIM or 384), dtype=np.float32)
+    else:
+        vectors = np.vstack(batches).astype(np.float32)
+    return vectors, provider, effective_provider_name, embedding_model
 
 
 def _write_faiss_or_numpy_index(vectors: np.ndarray, index_path: Path) -> str:
@@ -111,27 +145,93 @@ def _write_metadata(rows: list[Mapping[str, Any]], metadata_path: Path) -> None:
             file.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
 
 
-def build_semantic_index(provider_name: str | None = None) -> dict[str, Any]:
-    rows = fetch_all_retrieval_units()
+def corpus_fingerprint(rows: Iterable[Mapping[str, Any]]) -> str:
+    digest = hashlib.sha256()
+    for row in sorted(rows, key=lambda item: _text(item.get("unit_id"))):
+        payload = {
+            "unit_id": _text(row.get("unit_id")),
+            "text": semantic_index_text(row),
+        }
+        digest.update(
+            json.dumps(
+                payload,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def _retrieval_regression(
+    *,
+    provider: EmbeddingProvider,
+    index_path: Path,
+    metadata_path: Path,
+    queries: Iterable[str],
+    top_k: int = 5,
+) -> list[dict[str, Any]]:
+    bundle = load_semantic_index(index_path, metadata_path)
+    results: list[dict[str, Any]] = []
+    for query in queries:
+        query_vector = provider.embed_texts([query])
+        ranked = _search_scores(bundle, query_vector, top_k)
+        hits = [
+            {
+                "rank": rank,
+                "unit_id": _text(bundle.metadata[vector_id].get("unit_id")),
+                "record_id": _text(bundle.metadata[vector_id].get("record_id")),
+                "score": round(float(score), 8),
+            }
+            for rank, (vector_id, score) in enumerate(ranked, start=1)
+        ]
+        results.append({"query": query, "hits": hits})
+    return results
+
+
+def build_semantic_index(
+    provider_name: str | None = None,
+    *,
+    db_path: Path | str | None = None,
+    index_path: Path | None = None,
+    metadata_path: Path | None = None,
+    regression_queries: Iterable[str] = DEFAULT_REGRESSION_QUERIES,
+) -> dict[str, Any]:
+    resolved_index_path = index_path or settings.SEMANTIC_FAISS_INDEX_PATH
+    resolved_metadata_path = metadata_path or settings.SEMANTIC_FAISS_METADATA_PATH
+    rows = fetch_all_retrieval_units(db_path)
     texts = [semantic_index_text(row) for row in rows]
-    vectors, effective_provider_name = _embed_texts(texts, provider_name)
+    vectors, provider, effective_provider_name, embedding_model = _embed_texts(
+        texts,
+        provider_name,
+    )
 
     if len(rows) != int(vectors.shape[0]):
         raise EmbeddingProviderError(
             f"Embedding count mismatch: expected {len(rows)}, got {vectors.shape[0]}."
         )
 
-    index_backend = _write_faiss_or_numpy_index(vectors, settings.SEMANTIC_FAISS_INDEX_PATH)
-    _write_metadata(rows, settings.SEMANTIC_FAISS_METADATA_PATH)
+    index_backend = _write_faiss_or_numpy_index(vectors, resolved_index_path)
+    _write_metadata(rows, resolved_metadata_path)
+    regression_results = _retrieval_regression(
+        provider=provider,
+        index_path=resolved_index_path,
+        metadata_path=resolved_metadata_path,
+        queries=regression_queries,
+    )
 
     stats = {
         "status": "ok",
         "retrieval_unit_count": len(rows),
         "embedding_provider": effective_provider_name,
+        "embedding_model": embedding_model,
         "embedding_dimension": int(vectors.shape[1]) if vectors.ndim == 2 else 0,
+        "corpus_fingerprint": corpus_fingerprint(rows),
         "index_backend": index_backend,
-        "index_path": str(settings.SEMANTIC_FAISS_INDEX_PATH),
-        "metadata_path": str(settings.SEMANTIC_FAISS_METADATA_PATH),
+        "index_path": str(resolved_index_path),
+        "metadata_path": str(resolved_metadata_path),
+        "retrieval_regression": regression_results,
     }
     return stats
 

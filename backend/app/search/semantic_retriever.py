@@ -67,11 +67,16 @@ def _index_files_exist() -> bool:
     return settings.SEMANTIC_FAISS_INDEX_PATH.exists() and settings.SEMANTIC_FAISS_METADATA_PATH.exists()
 
 
-def load_semantic_index() -> SemanticIndexBundle:
-    if not _index_files_exist():
+def load_semantic_index(
+    index_path: Path | None = None,
+    metadata_path: Path | None = None,
+) -> SemanticIndexBundle:
+    resolved_index_path = index_path or settings.SEMANTIC_FAISS_INDEX_PATH
+    resolved_metadata_path = metadata_path or settings.SEMANTIC_FAISS_METADATA_PATH
+    if not resolved_index_path.exists() or not resolved_metadata_path.exists():
         raise FileNotFoundError(MISSING_INDEX_MESSAGE)
-    metadata = _read_metadata(settings.SEMANTIC_FAISS_METADATA_PATH)
-    faiss_index, vectors, backend = _read_index(settings.SEMANTIC_FAISS_INDEX_PATH)
+    metadata = _read_metadata(resolved_metadata_path)
+    faiss_index, vectors, backend = _read_index(resolved_index_path)
     vector_count = int(faiss_index.ntotal) if faiss_index is not None else int(vectors.shape[0])
     if vector_count != len(metadata):
         raise RuntimeError(

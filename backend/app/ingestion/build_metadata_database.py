@@ -41,8 +41,8 @@ def build_metadata_database(
         metadata_record_count = insert_metadata_records(connection, metadata_rows)
         fts_row_count = rebuild_metadata_fts_index(connection)
         connection.commit()
-        stats = fetch_metadata_stats()
-        distributions = fetch_metadata_distributions(limit=8)
+        stats = fetch_metadata_stats(db_path)
+        distributions = fetch_metadata_distributions(limit=8, db_path=db_path)
         table_count = count_rows(connection, "qiaopi_metadata_records")
 
     return {

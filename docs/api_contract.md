@@ -69,6 +69,35 @@ Core tables:
 - `qiaopi_generation_cache`
 - `qiaopi_query_logs`
 
+## Reproducible Build-All Pipeline
+
+Run from `backend/`:
+
+```bash
+python -m app.ingestion.build_all --embedding-provider hash
+```
+
+The default command rebuilds all derived assets from the raw Excel workbooks in
+an isolated directory under `backend/data/builds/`. It does not modify the live
+database or index. The ordered stages are full-text preprocessing, text
+database and FTS5, metadata database and FTS5, text-metadata linking, SQLite
+knowledge graph, semantic index, and acceptance validation.
+
+Use `--promote` only after acceptance. Promotion prepares temporary sibling
+files and restores the previous live assets if any replacement fails.
+
+Each accepted build writes `qiaopi_build_manifest.json` containing canonical
+per-table counts and SHA-256 checksums, a schema checksum, the embedding
+provider/model/dimension, vector count, corpus fingerprint, and fixed-query
+retrieval regression results. `created_at` fields are excluded from relational
+checksums. Vector bytes and small floating-point score differences are not
+cross-hardware equality requirements; baseline comparison uses vector identity,
+corpus fingerprint, dimensions, counts, and ranked unit IDs.
+
+Use `--baseline-manifest <path>` to require a new isolated build to match a
+previous accepted manifest. See `backend/BUILDING.md` for the full operational
+workflow.
+
 `qiaopi_retrieval_units` stores record-level, body, evidence, style, and RAG summary retrieval units with stable `unit_id`, traceable source columns, evidence type, weight, and normalized `fts_text`.
 
 SQLite FTS5/BM25 search is built over retrieval units by `python -m app.ingestion.build_database`. It returns retrieval-unit-level matches and does not replace future semantic search.
