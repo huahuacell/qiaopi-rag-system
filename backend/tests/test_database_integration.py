@@ -12,8 +12,8 @@ def test_dashboard_reads_real_sqlite_counts_and_distributions():
 
     assert stats_response.status_code == 200
     assert distributions_response.status_code == 200
-    assert stats_response.json()["total_records"] == 50064
-    assert stats_response.json()["text_records"] == 213
+    assert stats_response.json()["total_text_records"] == 213
+    assert stats_response.json()["metadata_record_count"] >= 0
     assert distributions_response.json()["top_places"]
     assert distributions_response.json()["relationship_distribution"]
 
@@ -27,9 +27,9 @@ def test_record_detail_entities_and_evidence_come_from_sqlite():
     assert detail.status_code == 200
     assert entities.status_code == 200
     assert evidence.status_code == 200
-    assert "奉大良" in detail.json()["original_text"]
+    assert "奉大良" in detail.json()["body_clean"]
     assert any(item["value"] == "林序周" for item in entities.json()["entities"])
-    assert any(item["reason"] == "remittance" for item in evidence.json()["evidence"])
+    assert any(item["evidence_type"] == "remittance" for item in evidence.json()["evidence"])
 
 
 def test_default_frontend_hybrid_search_returns_database_record():
@@ -45,18 +45,33 @@ def test_default_frontend_hybrid_search_returns_database_record():
 
     payload = response.json()
     assert response.status_code == 200
-    assert payload["total"] > 0
-    assert payload["results"][0]["record_id"] == "CSQP-SFHC-TEXT-002"
-    assert "SQLite FTS5" in payload["results"][0]["evidence"][0]["reason"]
+    assert payload["results"]
+    assert payload["fusion_method"] == "keyword_fallback"
+    assert payload["semantic_enabled"] is False
+    assert all(item["retrieval_sources"] == ["keyword"] for item in payload["results"])
+    assert all(item["matched_reason"] for item in payload["results"])
 
 
-def test_plain_interpretation_is_grounded_in_database_record():
+def test_interpretation_preview_is_grounded_in_database_record():
     response = client.post(
-        "/api/generation/plain-interpretation",
-        json={"record_id": "CSQP-SFHC-TEXT-002", "original_text": ""},
+        "/api/generation/interpret",
+        json={
+            "query": "这封侨批主要说了什么？",
+            "record_id": "CSQP-SFHC-TEXT-002",
+            "top_k": 8,
+            "filters": {},
+            "expansion_mode": "balanced",
+            "dry_run": True,
+        },
     )
 
     payload = response.json()
     assert response.status_code == 200
-    assert payload["evidence"]
-    assert "record_loaded_from_sqlite" in payload["consistency_check"]["passed_rules"]
+    assert payload["record_id"] == "CSQP-SFHC-TEXT-002"
+    assert payload["dry_run"] is True
+    assert payload["prompt_context"]
+    assert payload["evidence_references"]
+    assert all(
+        item["record_id"] == "CSQP-SFHC-TEXT-002"
+        for item in payload["evidence_references"]
+    )

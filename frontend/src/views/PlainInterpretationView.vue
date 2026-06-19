@@ -191,7 +191,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 
-import { generatePlainInterpretation } from '../api/generation'
+import { generateInterpretation } from '../api/generation'
 import fallbackResult from '../mock/plain_interpretation.json'
 
 const recordId = ref('CSQP-SFHC-TEXT-001')
@@ -221,7 +221,7 @@ const fieldLabels = {
 }
 
 const canGenerate = computed(() => Boolean(originalText.value.trim() || recordId.value.trim()))
-const generatedText = computed(() => result.value.generated_text || result.value.prompt_context || '')
+const generatedText = computed(() => result.value.generated_text || '')
 
 const slotRows = computed(() =>
   Object.entries(result.value.slots || {}).map(([key, value]) => [slotLabels[key] || key, formatValue(value)])
@@ -398,9 +398,13 @@ async function runGeneration() {
   loading.value = true
   error.value = ''
   try {
-    result.value = await generatePlainInterpretation({
+    result.value = await generateInterpretation({
+      query: originalText.value.trim() || '请根据该档案记录解释这封侨批的主要内容。',
       record_id: recordId.value,
-      original_text: originalText.value
+      top_k: 8,
+      filters: {},
+      expansion_mode: 'balanced',
+      dry_run: true
     })
   } catch {
     result.value = fallbackResult

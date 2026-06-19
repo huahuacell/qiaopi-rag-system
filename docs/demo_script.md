@@ -1,38 +1,53 @@
-# 10-Minute Classroom Demo Script
+# 10-Minute Demo Script
 
-## 0:00-1:00 Project Overview
+## 0:00–1:00 Project and Contract
 
-Show the README, explain this is a local-only Vue + FastAPI scaffold for Qiaopi NLP/RAG work, and note that real models are intentionally not enabled yet.
+Open the README and explain the `2026-06-19-converged` API baseline. State that
+OpenAPI, the contract document, clients, and tests now describe one interface.
 
-## 1:00-2:00 Backend Contract
+## 1:00–2:00 Backend API
 
-Open `http://localhost:8000/docs`. Show the health endpoint, search endpoints, record endpoints, and generation endpoints.
+Open `http://localhost:8000/docs`. Show search, metadata, record, RAG,
+generation, validation, and graph endpoint groups.
 
-## 2:00-3:00 Dashboard
+Mention that `/api/generation/plain-interpretation` and
+`/api/records/{record_id}/similar` are not current endpoints.
 
-Open `http://localhost:5173/`. Explain collection scale, origin/destination distribution, kinship patterns, money amounts, and timeline placeholders.
+## 2:00–3:00 Dashboard
 
-## 3:00-4:00 Search
+Open `/dashboard`. Show SQLite-backed metadata/text counts and distributions.
 
-Open `/search`, run keyword, semantic, and hybrid searches. Point out that each result has metadata, snippet, score, and evidence.
+## 3:00–4:30 Search
 
-## 4:00-5:30 Record Detail
+Open `/search` and run keyword and hybrid searches. If semantic retrieval is
+disabled, point out the controlled `keyword_fallback` state instead of
+presenting it as true semantic fusion.
 
-Open `/records/CSQP-SFHC-TEXT-001`. Show metadata, original Qiaopi text, normalized text, entity cards, evidence table, and similar records.
+## 4:30–5:30 Record Detail
 
-## 5:30-7:00 Plain Interpretation
+Open `/records/CSQP-SFHC-TEXT-002`. Show `body_clean`, metadata, entities, and
+evidence from SQLite.
 
-Open `/plain-interpretation`, generate an interpretation for `CSQP-SFHC-TEXT-001`, and explain how the later RAG pipeline will ground generated text in evidence.
+## 5:30–7:00 Plain Interpretation
 
-## 7:00-8:30 Style Transfer
+Open `/plain-interpretation` with `CSQP-SFHC-TEXT-017`. Explain that the page now
+calls `/api/generation/interpret`. The current demo uses `dry_run=true`, showing
+evidence-grounded prompt preparation without making a live Qwen call.
 
-Open `/style-transfer`, submit a short plain Chinese letter, and show Qiaopi-style output with slot extraction and evidence mapping.
+## 7:00–8:30 Style Transfer
 
-## 8:30-9:30 Analysis
+Open `/style-transfer`. Submit a short family letter and show retrieved style
+slots and evidence references. The current frontend also uses `dry_run=true`.
 
-Open `/analysis`, show the word cloud, relation graph, small knowledge graph, and cultural storytelling placeholders.
+## 8:30–9:30 Knowledge Graph
 
-## 9:30-10:00 Next Steps
+Use the standalone `kg-viewer/` if it is running, or show `/api/graph/stats` and
+one record graph in Swagger. Clarify that the official `frontend/` analysis page
+has not yet integrated these graph APIs.
 
-Explain backend next steps: Excel ingestion, SQLite, search, FAISS, entity extraction, RAG, and Qwen integration. Explain frontend next steps: refine pages, preserve mock fallback, and test six workflows.
+## 9:30–10:00 Next Work
 
+Summarize the remaining work: one-command reproducible build, production-grade
+semantic configuration, official metadata/graph frontend integration, vector
+similarity recommendations, online NLP, Qwen retry/cache/structured output, and
+quality evaluation.

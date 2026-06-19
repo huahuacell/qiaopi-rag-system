@@ -2,7 +2,41 @@
 
 Base URL: `http://localhost:8000`
 
-Field names are stable and should not be renamed without explicit contract updates.
+Contract baseline: `2026-06-19-converged`
+
+Backend application version: `0.1.0`
+
+The running FastAPI OpenAPI document is the executable source of truth. This
+file explains the same contract for developers and must be updated in the same
+change as any intentional API modification.
+
+## Contract Change Policy
+
+- Additive optional response fields and new endpoints are backward-compatible
+  minor changes. They still require documentation, contract-test, frontend
+  client, mock, and integration-test review.
+- Removing or renaming an endpoint or field, changing its type or meaning, or
+  making an optional field required is a breaking change.
+- Breaking changes must use a coordinated migration. Prefer a new `/api/v2`
+  route family when old and new clients must coexist.
+- A deprecated endpoint or field must be documented with its replacement and
+  removal target. It remains covered by tests during the deprecation window.
+- Undocumented aliases are not added merely to hide client drift. Clients must
+  migrate to the converged contract.
+- `backend/tests/test_api_contract.py` freezes the public operations and a
+  canonical OpenAPI digest. Updating that digest without the related contract,
+  client, mock, and test updates is not an accepted API change.
+
+Retired scaffold-only operations:
+
+- `POST /api/generation/plain-interpretation` was replaced by
+  `POST /api/generation/interpret`.
+- `GET /api/records/{record_id}/similar` is not part of this baseline. A future
+  similarity endpoint requires a new documented contract and real vector-based
+  implementation.
+
+The frontend page route `/plain-interpretation` remains valid; page routes are
+not backend API routes.
 
 ## Step A Data Foundation
 
@@ -50,6 +84,10 @@ Step F adds optional semantic retrieval over `qiaopi_retrieval_units`. Build the
 Step G adds a large-scale 50064-record metadata catalog layer for archive browsing, metadata search, statistics, timeline views, place distribution, and links to the 213 full-text records. Metadata-only records are catalog records, not full-text evidence. They must not be inserted into `qiaopi_retrieval_units`, `qiaopi_retrieval_units_fts`, the semantic index, RAG context, or Qwen generation prompts. Only linked 213 full-text records may be used for RAG or generation tasks.
 
 Step Date-1 adds deterministic date normalization for `qiaopi_text_records` and `qiaopi_metadata_records`. Raw fields such as `date_text` and existing `year_normalized` values are preserved. The normalized display field is `date_standard` using `YYYY.M.D`, `YYYY.M`, or `YYYY` only when those parts are known. Missing month or day values are never defaulted to `1`.
+
+These normalized date columns are currently database fields used by ingestion,
+graph construction, and date-specific tests. They are not yet exposed by the
+`MetadataDetailResponse` or `RecordDetailResponse` models in this contract.
 
 Normalized date fields:
 
@@ -1466,7 +1504,10 @@ Supported filters: `year_from`, `year_to`, `country_or_region`, `origin_place`, 
 
 ## GET /api/metadata/{metadata_id}
 
-Returns the parsed metadata catalog record plus the original Excel row in `raw_json`. Metadata detail rows include the same normalized date fields as text records: `date_standard`, `date_year`, `date_month`, `date_day`, `date_precision`, `date_calendar`, `date_parse_confidence`, and `date_parse_note`.
+Returns the parsed metadata catalog record plus the original Excel row in
+`raw_json`. The current response exposes `date_text` and `year_normalized`.
+Normalized date columns remain internal database fields until they are added to
+the Pydantic response model through an explicit additive contract change.
 
 ## GET /api/metadata/{metadata_id}/linked-text
 
@@ -1512,14 +1553,6 @@ Response:
   "recipient_name_clean": "收批人名",
   "date_text": "癸九月十一日",
   "year_normalized": "1933",
-  "date_standard": "1933.9.11",
-  "date_year": 1933,
-  "date_month": 9,
-  "date_day": 11,
-  "date_precision": "day",
-  "date_calendar": "traditional_lunar_text",
-  "date_parse_confidence": 0.85,
-  "date_parse_note": "Traditional Chinese month/day normalized for display; not converted to exact Gregorian calendar date.",
   "body_clean": "清洗后正文",
   "body_core": "正文核心内容",
   "main_intent": "remittance",

@@ -1,57 +1,54 @@
 {
-  "record_id": "CSQP-SFHC-TEXT-001",
-  "generated_text": "这封侨批的意思是：寄信人在新加坡平安，托人带回八元钱，请母亲收到后用于购买米粮和药品。",
-  "summary": [
-    "寄信人在新加坡报平安。",
-    "寄信人汇给母亲八元。",
-    "汇款用于米粮和药费。"
-  ],
-  "slots": {
-    "sender": "陈生",
-    "recipient": "母亲",
-    "origin_place": "新加坡",
-    "destination_place": "广东潮州",
-    "money": "八元",
-    "purpose": "米粮和药费"
-  },
-  "evidence": [
+  "task_type": "interpret",
+  "query": "请根据该档案记录解释这封侨批的主要内容。",
+  "record_id": "CSQP-SFHC-TEXT-017",
+  "semantic_enabled": false,
+  "prompt_context": "【检索问题】\n请根据该档案记录解释这封侨批的主要内容。\n\n【相关侨批证据 1】\n来源记录：CSQP-SFHC-TEXT-017\n原文片段：兹寄批局，带去洋银肆元，至照查收，以安家计。",
+  "generated_text": "这封侨批主要说明寄信人托批局带回四元，请母亲查收，用于家中开支。",
+  "evidence_references": [
     {
-      "source_field": "original_text",
-      "source_text": "今托水客附上银八元",
-      "reason": "支持汇款金额",
-      "similarity_score": 0.95
-    },
-    {
-      "source_field": "original_text",
-      "source_text": "望收讫后置办米粮并药费",
-      "reason": "支持家用用途解读",
-      "similarity_score": 0.9
+      "record_id": "CSQP-SFHC-TEXT-017",
+      "unit_id": "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+      "unit_type": "remittance",
+      "title_reference": "癸（1933）九月十一日，越姚丁南寄潮安南桂家母亲大人",
+      "source_column": "evidence_remittance",
+      "evidence_type": "remittance",
+      "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。"
     }
   ],
-  "evidence_mapping": [
-    {
-      "target_span": "托人带回八元钱",
-      "source_field": "original_text",
-      "source_text": "今托水客附上银八元",
-      "reason": "生成片段由汇款证据支撑",
-      "similarity_score": 0.95
-    },
-    {
-      "target_span": "用于购买米粮和药品",
-      "source_field": "original_text",
-      "source_text": "置办米粮并药费",
-      "reason": "生成用途与原文一致",
-      "similarity_score": 0.9
-    }
-  ],
-  "consistency_check": {
-    "status": "passed",
-    "warnings": [],
-    "passed_rules": [
-      "money_supported_by_evidence",
-      "recipient_supported_by_evidence",
-      "purpose_supported_by_evidence"
+  "model": "deterministic-mock",
+  "dry_run": false,
+  "messages": [],
+  "error_message": null,
+  "validation_report": {
+    "is_consistent": true,
+    "risk_level": "low",
+    "summary": "离线演示释读与证据中的金额、人物和用途保持一致。",
+    "preserved_facts": [
+      "汇款金额已保留",
+      "收信对象已保留"
     ],
-    "failed_rules": []
+    "possible_hallucinations": [],
+    "missing_required_facts": [],
+    "unsupported_new_facts": [],
+    "evidence_coverage": {
+      "has_evidence_references": true,
+      "evidence_count": 1,
+      "covered_unit_types": [
+        "remittance"
+      ]
+    },
+    "checks": [
+      {
+        "name": "amount_support_check",
+        "status": "pass",
+        "message": "解释文本未新增证据外金额。"
+      },
+      {
+        "name": "evidence_reference_check",
+        "status": "pass",
+        "message": "已返回证据引用。"
+      }
+    ]
   }
 }

@@ -574,50 +574,6 @@ class RetrievalUnitsResponse(BaseModel):
     retrieval_units: List[RetrievalUnit]
 
 
-class EvidenceMappingItem(BaseModel):
-    target_span: str
-    source_field: str
-    source_text: str
-    reason: str
-    similarity_score: float = Field(ge=0.0, le=1.0)
-
-
-class ConsistencyCheck(BaseModel):
-    status: str
-    warnings: List[str] = Field(default_factory=list)
-    passed_rules: List[str] = Field(default_factory=list)
-    failed_rules: List[str] = Field(default_factory=list)
-
-
-class PlainInterpretationRequest(BaseModel):
-    record_id: Optional[str] = None
-    original_text: Optional[str] = None
-
-
-class PlainInterpretationResponse(BaseModel):
-    record_id: Optional[str]
-    generated_text: str
-    summary: List[str]
-    slots: Dict[str, str]
-    evidence: List[EvidenceItem]
-    evidence_mapping: List[EvidenceMappingItem]
-    consistency_check: ConsistencyCheck
-
-
-class StyleTransferRequest(BaseModel):
-    plain_text: str
-    slots: Dict[str, str] = Field(default_factory=dict)
-
-
-class StyleTransferResponse(BaseModel):
-    generated_text: str
-    summary: List[str]
-    slots: Dict[str, str]
-    evidence: List[EvidenceItem]
-    evidence_mapping: List[EvidenceMappingItem]
-    consistency_check: ConsistencyCheck
-
-
 class GraphNode(BaseModel):
     id: str
     label: str

@@ -1,56 +1,68 @@
 # Development Workflow
 
-## Scaffold Phase
+## Current Baseline
 
-1. Create the project structure.
-2. Start the backend at `http://localhost:8000`.
-3. Start the frontend at `http://localhost:5173`.
-4. Verify `/api/health`, `/docs`, and all frontend pages.
-5. Confirm pages render with backend API responses or fallback mock JSON.
+The active API baseline is `2026-06-19-converged`. FastAPI OpenAPI is the
+executable source of truth and `docs/api_contract.md` is its human-readable
+companion.
 
-## Backend Phase
+## Backend Workflow
 
-1. Place Excel files under `backend/data/raw/`.
-2. Build the SQLite database from raw spreadsheets.
-3. Implement real dashboard statistics.
-4. Implement keyword search.
-5. Implement semantic search and FAISS index build steps.
-6. Implement entity extraction.
-7. Implement RAG generation and Qwen integration.
+1. Implement or change backend behavior.
+2. Update Pydantic request/response models.
+3. Update `docs/api_contract.md`.
+4. Update integration tests.
+5. If the public contract changed intentionally, update the frozen OpenAPI
+   digest in `backend/tests/test_api_contract.py`.
+6. Run the complete backend suite.
 
-## Frontend Phase
+Do not update the digest merely to silence a failure.
 
-1. Use mock data first.
-2. Build all six views against the API contract.
-3. Switch to real API responses after backend readiness.
-4. Keep loading, error, and empty states visible and tested.
-5. Avoid embedding backend business logic in views.
+## Frontend Workflow
 
-## Integration Phase
+1. Consume endpoints only through `frontend/src/api/`.
+2. Keep loading, empty, disabled-feature, degradation, and error states visible.
+3. Treat `semantic_enabled` and `fusion_method` as runtime truth.
+4. Keep mock fallback deterministic and use it only after request failure.
+5. Update affected mocks and workflow tests when a contract changes.
+6. Run `npm run build`.
 
-1. Freeze API response fields before connecting real data.
-2. Test all six core features.
-3. Prepare demo cases and stable record IDs.
-4. Capture screenshots for the classroom demo.
-5. File contract changes as explicit API updates.
+## Compatible Changes
 
-## Demo Phase
+New endpoints and optional response fields are normally additive. They still
+require documentation and affected client/test review.
 
-1. Start backend with `uvicorn main:app --reload`.
-2. Start frontend with `npm run dev`.
-3. Follow `docs/demo_script.md`.
-4. Show fallback behavior if the backend is stopped.
-5. End with next-step ownership for backend and frontend developers.
+## Breaking Changes
 
-## API Freeze Rule
+The following are breaking:
 
-After a response field is documented in `docs/api_contract.md`, do not rename or remove it without updating tests, frontend mocks, and both developers.
+- removing or renaming an endpoint or field;
+- changing field type or meaning;
+- making an optional request/response field required;
+- changing fallback or error semantics relied on by clients.
 
-## Mock-First Rule
+Use a coordinated migration, and prefer `/api/v2` if old and new clients must
+coexist. Deprecated behavior must remain documented and tested until removal.
 
-Every feature must work with deterministic mock data before real Excel, FAISS, or Qwen integration begins.
+## Retired Scaffold Contract
 
-## No-Cross-Boundary Rule
+- `/api/generation/plain-interpretation` is replaced by
+  `/api/generation/interpret`.
+- `/api/records/{record_id}/similar` has no replacement in the current baseline.
 
-Backend and frontend developers should stay inside their assigned directories. Cross-boundary changes require explicit agreement.
+Do not add silent aliases for these routes.
 
+## Verification Gate
+
+A contract-related change is complete only when:
+
+1. backend tests pass;
+2. frontend build passes;
+3. API documentation matches OpenAPI;
+4. frontend API wrappers use the current routes;
+5. acceptance and demo documents no longer claim retired behavior.
+
+## Ownership
+
+Backend and frontend developers follow `AGENTS.md`. Cross-boundary contract
+changes require explicit coordination because they affect both owners.

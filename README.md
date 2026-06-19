@@ -1,14 +1,34 @@
 # Qiaopi RAG System
 
-Local-only full-stack scaffold for a Qiaopi document NLP/RAG system. This phase focuses on a stable project skeleton, API contract, deterministic mock services, and demo-ready Vue pages. Heavy NLP models, real Qwen API calls, and real Excel ingestion are intentionally left as later work.
+Local Vue 3 + FastAPI application for Qiaopi archive browsing, retrieval,
+evidence tracing, graph exploration, and evidence-grounded generation work.
+
+Current contract baseline: `2026-06-19-converged`
+
+## Current Capabilities
+
+- SQLite dashboard over 213 full-text records and 50,064 metadata records.
+- FTS5/BM25 retrieval over 1,959 retrieval units.
+- Optional vector semantic retrieval and RRF hybrid fusion.
+- Metadata catalog search and full-text linkage APIs.
+- Record detail, amount, entity, place, evidence, and retrieval-unit APIs.
+- SQLite knowledge-graph build and query APIs.
+- RAG/style context, prompt preview, optional Qwen generation, and rule-based
+  consistency reports.
+
+Semantic retrieval is disabled unless its runtime flag and index are available.
+Hybrid retrieval reports `keyword_fallback` when semantic retrieval did not
+participate. The official frontend currently sends generation requests with
+`dry_run=true`, so it does not trigger live Qwen calls.
+
+Similarity recommendation and online NLP extraction are not part of the current
+public API.
 
 ## Tech Stack
 
 - Frontend: Vue 3, Vite, Element Plus, Axios, Vue Router, ECharts
-- Backend: Python, FastAPI, SQLite, Pydantic, pandas placeholders, FAISS placeholder structure, Qwen placeholder client
-- Local frontend: http://localhost:5173
-- Local backend: http://localhost:8000
-- Backend API docs: http://localhost:8000/docs
+- Backend: Python, FastAPI, SQLite, Pydantic, pandas, FTS5, NumPy/FAISS
+- Optional integrations: sentence-transformers and OpenAI-compatible Qwen APIs
 
 ## Run Backend
 
@@ -18,11 +38,11 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-Verify:
+Backend URLs:
 
-```bash
-curl http://localhost:8000/api/health
-```
+- API: `http://localhost:8000`
+- OpenAPI UI: `http://localhost:8000/docs`
+- Health: `http://localhost:8000/api/health`
 
 ## Run Frontend
 
@@ -32,51 +52,44 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173.
+Open `http://localhost:5173`.
 
 ## Environment
 
-Copy `.env.example` to `.env` when you need local overrides. Do not commit real secrets.
+Copy `.env.example` to `.env` for local overrides. Never commit real secrets.
+Qwen and semantic retrieval remain opt-in. See `docs/api_contract.md` for the
+current configuration fields and behavior.
+
+## Data and Index Commands
+
+Run commands from `backend/`:
 
 ```bash
-DASHSCOPE_API_KEY=
-VITE_API_BASE_URL=http://localhost:8000
+python -m app.ingestion.preprocess_qiaopi_wide_table
+python -m app.ingestion.build_database
+python -m app.ingestion.build_metadata_database
+python -m app.ingestion.link_metadata_text_records
+python -m app.ingestion.build_semantic_index --provider hash
+python -m app.ingestion.build_knowledge_graph
 ```
 
-The scaffold does not call the real Qwen API. `DASHSCOPE_API_KEY` is read only so the later integration has a stable place to start.
+These commands are currently separate stages; a single safe `build-all`
+orchestrator is still pending.
 
-## Raw Excel Files
+## Contract Rules
 
-Place the final Excel files here when the backend phase begins:
+The running OpenAPI document and `docs/api_contract.md` define the converged
+public API. `backend/tests/test_api_contract.py` freezes public operations and
+the canonical OpenAPI digest.
 
-- `backend/data/raw/qiaopi_50064_metadata.xlsx`
-- `backend/data/raw/qiaopi_213_text.xlsx`
+The old `/api/generation/plain-interpretation` and
+`/api/records/{record_id}/similar` routes are not part of the current contract.
 
-The app runs without these files during the scaffold phase.
-
-## Six Core Features
-
-1. Data dashboard and filtering
-2. Keyword search and conditional search
-3. Semantic search and similar record recommendation
-4. Entity extraction and evidence cards
-5. Qiaopi original text to plain Chinese interpretation
-6. Plain Chinese letter to Qiaopi-style text transfer with evidence mapping
-
-## Two-Person Workflow
-
-- Backend developer owns `backend/` and `docs/api_contract.md`.
-- Frontend developer owns `frontend/`, `docs/test_cases.md`, and `docs/demo_script.md`.
-- API fields should stay stable after definition.
-- Both sides work mock-first, then integrate against the fixed contract.
-
-See `AGENTS.md` and `docs/workflow.md` for the detailed boundary and handoff rules.
-
-## Verification Commands
+## Verification
 
 ```bash
 cd backend
-pytest
+python -m pytest -q
 ```
 
 ```bash
@@ -84,3 +97,4 @@ cd frontend
 npm run build
 ```
 
+See `AGENTS.md` for backend/frontend ownership boundaries.

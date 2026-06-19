@@ -211,7 +211,7 @@ const inputChips = computed(() => [
   { label: '约束', value: '不补充原文外信息' }
 ])
 
-const generatedText = computed(() => result.value.generated_text || result.value.prompt_context || '')
+const generatedText = computed(() => result.value.generated_text || '')
 const generatedLines = computed(() => splitLetterLines(generatedText.value))
 
 const slotRows = computed(() =>
@@ -397,7 +397,7 @@ async function runTransfer() {
       plain_text: plainText.value,
       top_k: 3,
       expansion_mode: 'balanced',
-      dry_run: false
+      dry_run: true
     })
   } catch {
     result.value = fallbackResult
