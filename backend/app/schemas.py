@@ -594,6 +594,8 @@ class GraphNode(BaseModel):
     category: str
     normalized_label: str
     record_id: str = ""
+    source_table: str = ""
+    source_id: str = ""
     properties: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -605,8 +607,21 @@ class GraphEdge(BaseModel):
     label: str
     record_id: str = ""
     evidence_text: str = ""
+    source_table: str = ""
+    source_id: str = ""
+    weight: float = 0.0
     confidence: float = 0.0
     properties: Dict[str, Any] = Field(default_factory=dict)
+
+
+class GraphQualitySummary(BaseModel):
+    duplicate_logical_edge_count: int = 0
+    orphan_edge_count: int = 0
+    missing_node_provenance_count: int = 0
+    missing_edge_provenance_count: int = 0
+    traceable_evidence_node_count: int = 0
+    traceable_metadata_node_count: int = 0
+    record_node_count: int = 0
 
 
 class GraphStatsResponse(BaseModel):
@@ -614,6 +629,7 @@ class GraphStatsResponse(BaseModel):
     edge_count: int
     node_type_distribution: Dict[str, int] = Field(default_factory=dict)
     edge_type_distribution: Dict[str, int] = Field(default_factory=dict)
+    quality: GraphQualitySummary = Field(default_factory=GraphQualitySummary)
 
 
 class GraphRecordResponse(BaseModel):

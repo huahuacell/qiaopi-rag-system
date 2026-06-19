@@ -28,6 +28,10 @@ def test_graph_stats_returns_counts():
     assert payload["edge_count"] > 0
     assert payload["node_type_distribution"]["record"] >= 1
     assert payload["edge_type_distribution"]
+    assert payload["quality"]["duplicate_logical_edge_count"] == 0
+    assert payload["quality"]["orphan_edge_count"] == 0
+    assert payload["quality"]["missing_node_provenance_count"] == 0
+    assert payload["quality"]["missing_edge_provenance_count"] == 0
 
 
 def test_graph_record_returns_connected_nodes_and_edges():
@@ -39,8 +43,47 @@ def test_graph_record_returns_connected_nodes_and_edges():
     assert payload["nodes"]
     assert payload["edges"]
     assert {node["id"] for node in payload["nodes"]} >= {f"record:{RECORD_ID}"}
-    assert {"id", "label", "type", "category", "properties"}.issubset(payload["nodes"][0])
-    assert {"id", "source", "target", "type", "label", "properties"}.issubset(payload["edges"][0])
+    assert {
+        "id",
+        "label",
+        "type",
+        "category",
+        "source_table",
+        "source_id",
+        "properties",
+    }.issubset(payload["nodes"][0])
+    assert {
+        "id",
+        "source",
+        "target",
+        "type",
+        "label",
+        "source_table",
+        "source_id",
+        "properties",
+    }.issubset(payload["edges"][0])
+
+
+def test_graph_record_exposes_traceable_evidence_and_metadata_nodes():
+    response = client.get("/api/graph/record/CSQP-SFHC-TEXT-063")
+
+    payload = response.json()
+    assert response.status_code == 200
+    evidence_nodes = [node for node in payload["nodes"] if node["type"] == "evidence"]
+    metadata_nodes = [
+        node for node in payload["nodes"] if node["type"] == "metadata_record"
+    ]
+    assert evidence_nodes
+    assert metadata_nodes
+    assert all(
+        node["source_table"] == "qiaopi_evidence_spans" and node["source_id"]
+        for node in evidence_nodes
+    )
+    assert all(
+        node["source_table"] == "qiaopi_metadata_records"
+        and node["source_id"].startswith("CSQP-META-")
+        for node in metadata_nodes
+    )
 
 
 def test_graph_record_includes_global_connected_nodes():

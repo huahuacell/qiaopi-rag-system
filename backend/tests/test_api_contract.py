@@ -50,7 +50,7 @@ EXPECTED_OPERATIONS = {
 # The digest covers request parameters/bodies, response schemas, validation
 # constraints, defaults, enums, and every component schema exposed by OpenAPI.
 # Update it only together with docs/api_contract.md and affected clients/tests.
-EXPECTED_CONTRACT_SHA256 = "5cb9faea207acc52f15498f894fd7ac0954d2e079f06959a36477cb333f14512"
+EXPECTED_CONTRACT_SHA256 = "5a064a0b4375fb752ac7048d782f8368f9131d88a48ee95cf48e105b02b90efd"
 
 
 def _public_operations(openapi_schema: dict[str, Any]) -> set[tuple[str, str]]:

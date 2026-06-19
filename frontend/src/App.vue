@@ -38,6 +38,10 @@
           <el-icon><EditPen /></el-icon>
           <span>风格转换</span>
         </el-menu-item>
+        <el-menu-item index="/knowledge-graph">
+          <el-icon><Share /></el-icon>
+          <span>知识图谱</span>
+        </el-menu-item>
         <el-menu-item index="/analysis">
           <el-icon><Connection /></el-icon>
           <span>分析</span>
@@ -76,6 +80,7 @@ const titles = {
   '/search': '检索工作台',
   '/plain-interpretation': '白话解读',
   '/style-transfer': '侨批风格转换',
+  '/knowledge-graph': '知识图谱',
   '/analysis': '分析工作台'
 }
 

@@ -70,21 +70,21 @@
           <p class="analysis-card-note">基于侨批正文、来源地、亲属称谓与金额字段提取的高频词，字号表示词频权重。</p>
         </article>
 
-        <RelationGraph
-          title="关系图谱"
-          badge="Entity Graph"
-          note="展示侨批文本中人物、地点与金额之间的语义关系。"
-          :nodes="relationNodes"
-          :links="relationLinks"
-        />
-
-        <RelationGraph
-          title="小型知识图谱"
-          badge="Knowledge Graph"
-          note="侨批语义概念与证据关系的紧凑知识图谱。"
-          :nodes="knowledgeNodes"
-          :links="knowledgeLinks"
-        />
+        <article class="analysis-card analysis-graph-product-card">
+          <div class="analysis-card-marker"></div>
+          <div class="analysis-card-header">
+            <h2>正式知识图谱</h2>
+            <span class="analysis-badge">Knowledge Graph</span>
+          </div>
+          <p>
+            静态关系预览已退出正式链路。主站知识图谱直接读取 `/api/graph/*`，
+            支持记录子图、节点邻居、证据来源和目录元数据追溯。
+          </p>
+          <router-link to="/knowledge-graph">
+            打开知识图谱工作台
+            <span>→</span>
+          </router-link>
+        </article>
       </div>
 
       <div class="analysis-narrative-grid">
@@ -134,10 +134,9 @@
 
       <footer class="analysis-demo-note">
         <div></div>
-        <h2>演示说明</h2>
+        <h2>链路说明</h2>
         <p>
-          如果后端图谱服务或数据库尚未初始化，系统将展示本地演示分析结果，并保留词云、
-          关系图谱与文化叙事展示流程；这些内容仍来自正式项目的 API / fallback 数据链路。
+          文化分析仍使用看板统计；知识图谱已迁移到正式图谱工作台，不再由前端静态拼接节点。
         </p>
       </footer>
     </div>
@@ -153,7 +152,6 @@ import {
   demoFailureMessage,
   demoMode
 } from '../config/runtime'
-import RelationGraph from '../components/RelationGraph.vue'
 import fallbackStats from '../mock/dashboard.json'
 
 const stats = ref(demoMode ? fallbackStats : {})
@@ -198,40 +196,6 @@ const wordCloud = computed(() => {
     weight: word.value > 62 ? 600 : 500
   }))
 })
-
-const relationNodes = computed(() => [
-  { name: '陈生', symbolSize: 48, itemStyle: { color: '#0F4A43' } },
-  { name: primaryKinship.value || '母亲', symbolSize: 44, itemStyle: { color: '#1A6B61' } },
-  { name: primaryOrigin.value || '新加坡', symbolSize: 42, itemStyle: { color: '#A74432' } },
-  { name: primaryDestination.value || '广东潮州', symbolSize: 42, itemStyle: { color: '#1A6B61' } },
-  { name: primaryMoney.value || '八元', symbolSize: 38, itemStyle: { color: '#0F4A43' } }
-])
-
-const relationLinks = computed(() => [
-  { source: '陈生', target: primaryOrigin.value || '新加坡', name: '来源地' },
-  { source: '陈生', target: primaryKinship.value || '母亲', name: '寄予' },
-  { source: '陈生', target: primaryMoney.value || '八元', name: '汇款' },
-  { source: primaryKinship.value || '母亲', target: primaryDestination.value || '广东潮州', name: '目的地' }
-])
-
-const knowledgeNodes = computed(() => [
-  { name: '侨批文本', symbolSize: 54, itemStyle: { color: '#0F4A43' } },
-  { name: '汇款', symbolSize: 40, itemStyle: { color: '#1A6B61' } },
-  { name: '家属支持', symbolSize: 40, itemStyle: { color: '#1A6B61' } },
-  { name: '证据片段', symbolSize: 40, itemStyle: { color: '#0F4A43' } },
-  { name: '家庭关系', symbolSize: 40, itemStyle: { color: '#0F4A43' } },
-  { name: '跨境流动', symbolSize: 42, itemStyle: { color: '#A74432' } }
-])
-
-const knowledgeLinks = computed(() => [
-  { source: '侨批文本', target: '汇款' },
-  { source: '侨批文本', target: '家属支持' },
-  { source: '侨批文本', target: '证据片段' },
-  { source: '侨批文本', target: '家庭关系' },
-  { source: '侨批文本', target: '跨境流动' },
-  { source: '汇款', target: '证据片段' },
-  { source: '家属支持', target: '家庭关系' }
-])
 
 const insightMetrics = computed(() => [
   { label: '来源地类型', value: originPlaces.value.length || 4, color: '#0F4A43' },

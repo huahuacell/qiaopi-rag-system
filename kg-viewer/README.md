@@ -4,7 +4,13 @@ Standalone knowledge graph viewer for the Qiaopi RAG system.
 
 ## Purpose
 
-`kg-viewer/` previews the SQLite knowledge graph exposed by the backend Graph API. It is visually compatible with the main data-workbench style, but it is fully independent from `frontend/` and does not import or modify files from that folder.
+`kg-viewer/` previews the SQLite knowledge graph exposed by the backend Graph
+API. It is owned by the Frontend Developer as a diagnostic and development
+sandbox.
+
+The formal product graph workflow lives in `frontend/` at
+`/knowledge-graph`. Features implemented only in this standalone viewer are not
+considered product acceptance.
 
 ## Tech Stack
 
@@ -78,4 +84,4 @@ Not implemented:
 
 - Neo4j integration
 - Graph analytics algorithms
-- Official integration into `frontend/`
+- Authentication or deployment integration beyond the formal `frontend/`

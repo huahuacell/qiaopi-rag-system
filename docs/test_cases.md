@@ -54,17 +54,32 @@
 - Verify style slots and evidence references render even when generated text is
   empty.
 
-## 7. Contract Failure Checks
+## 7. Knowledge Graph
+
+- Open `/knowledge-graph`.
+- Verify graph counts and quality indicators come from `/api/graph/stats`.
+- Load `CSQP-SFHC-TEXT-063` and verify the record subgraph contains record,
+  evidence, and linked metadata nodes.
+- Click an evidence node and verify the trace panel resolves its
+  `source_table`, `source_id`, original evidence text, and record-detail link.
+- Click a metadata node and verify the metadata detail and linked full-text
+  record are displayed.
+- Click a shared person or place node and verify neighbor edges produce
+  traceable record links and edge evidence.
+- Verify duplicate logical edges, orphan edges, and missing provenance counts
+  are zero.
+
+## 8. Contract Failure Checks
 
 - Requests to `/api/generation/plain-interpretation` return 404.
 - Requests to `/api/records/{record_id}/similar` return 404.
 - The backend contract test must fail if an endpoint or schema changes without
   an intentional baseline update.
 
-## 8. Production Mock Boundary
+## 9. Production Mock Boundary
 
 - Build or run with `VITE_DEMO_MODE=false`.
-- Stop the backend and visit all six workflows.
+- Stop the backend and visit all formal workflows, including the graph page.
 - Verify no page silently inserts data from `frontend/src/mock/`.
 - Repeat with `VITE_DEMO_MODE=true` and verify every fallback message contains
   an explicit demonstration-mode label.

@@ -171,6 +171,8 @@ def _node_response(row: Mapping[str, Any]) -> dict[str, Any]:
         "category": node_type,
         "normalized_label": row.get("normalized_label", ""),
         "record_id": row.get("record_id") or "",
+        "source_table": row.get("source_table") or "",
+        "source_id": row.get("source_id") or "",
         "properties": _safe_properties(row.get("properties_json")),
     }
 
@@ -185,6 +187,9 @@ def _edge_response(row: Mapping[str, Any]) -> dict[str, Any]:
         "label": edge_type,
         "record_id": row.get("record_id") or "",
         "evidence_text": row.get("evidence_text") or "",
+        "source_table": row.get("source_table") or "",
+        "source_id": row.get("source_id") or "",
+        "weight": float(row.get("weight") or 0.0),
         "confidence": float(row.get("confidence") or 0.0),
         "properties": _safe_properties(row.get("properties_json")),
     }

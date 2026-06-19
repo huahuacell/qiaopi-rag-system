@@ -1155,7 +1155,7 @@ Linking rules:
 
 ## Knowledge Graph Layer
 
-Purpose: Step H1 implements the isolated SQLite knowledge graph foundation for relationship modeling, visualization, and explanation across qiaopi records. Step H1.1 optimizes duplicate fact handling by merging duplicate logical edges and duplicate amount nodes while preserving evidence in `properties_json`. Step H2 implements read-only Graph API endpoints backed by the SQLite KG tables. Step H3 adds a standalone `kg-viewer/` app for graph preview and demo recording. This layer remains derived from existing SQLite data. It does not implement Neo4j integration, advanced graph analytics, or official integration into `frontend/`.
+Purpose: Step H1 implements the SQLite knowledge graph foundation for relationship modeling, visualization, and explanation across qiaopi records. Step H1.1 optimizes duplicate fact handling by merging duplicate logical edges and duplicate amount nodes while preserving evidence in `properties_json`. Step H2 implements read-only Graph API endpoints backed by the SQLite KG tables. Step H3 adds a standalone `kg-viewer/` diagnostic app. The formal product integration now lives in `frontend/` at `/knowledge-graph`. This layer remains derived from existing SQLite data and does not implement Neo4j integration or advanced graph analytics.
 
 Implementation status:
 
@@ -1172,8 +1172,10 @@ Implemented:
 - Node neighbor query.
 - Limited graph overview query.
 - Place flow statistics.
-- Standalone `kg-viewer/`.
-- Vue 3, Vite, Element Plus, ECharts, and Axios viewer stack.
+- Formal `/knowledge-graph` page in `frontend/`.
+- Record, evidence, and metadata source tracing.
+- Standalone `kg-viewer/` diagnostic sandbox.
+- Vue 3, Vite, Element Plus, ECharts, and Axios graph stack.
 - Graph stats display.
 - Record graph display.
 - Overview graph display.
@@ -1324,7 +1326,10 @@ GET /api/graph/analytics/top-nodes
 GET /api/graph/analytics/centrality
 ```
 
-The Graph API reads from the SQLite KG tables. SQLite remains the source of truth. Neo4j is not required for H2. The existing `frontend/` folder is untouched. Metadata-only records are not full-text RAG evidence.
+The Graph API reads from the SQLite KG tables. SQLite remains the source of
+truth. Neo4j is not required. The formal product page at
+`/knowledge-graph` consumes these APIs directly. Metadata-only
+records are catalog links and are not full-text RAG evidence.
 
 Graph node shape:
 
@@ -1336,6 +1341,8 @@ Graph node shape:
   "category": "record",
   "normalized_label": "CSQP-SFHC-TEXT-017",
   "record_id": "CSQP-SFHC-TEXT-017",
+  "source_table": "qiaopi_text_records",
+  "source_id": "CSQP-SFHC-TEXT-017",
   "properties": {}
 }
 ```
@@ -1351,6 +1358,9 @@ Graph edge shape:
   "label": "SENT_BY",
   "record_id": "CSQP-SFHC-TEXT-017",
   "evidence_text": "",
+  "source_table": "qiaopi_text_records",
+  "source_id": "CSQP-SFHC-TEXT-017:sender",
+  "weight": 1.0,
   "confidence": 0.95,
   "properties": {}
 }
@@ -1358,25 +1368,40 @@ Graph edge shape:
 
 ## GET /api/graph/stats
 
-Returns graph table counts and type distributions. If the KG tables do not exist or are empty, returns zero counts instead of crashing.
+Returns graph table counts, type distributions, and structural quality
+indicators. If the KG tables do not exist or are empty, returns zero counts
+instead of crashing.
 
 Response:
 
 ```json
 {
-  "node_count": 2187,
-  "edge_count": 4897,
+  "node_count": 2195,
+  "edge_count": 4751,
   "node_type_distribution": {
     "record": 213,
-    "person": 324,
-    "place": 18
+    "person": 235,
+    "place": 19
   },
   "edge_type_distribution": {
     "HAS_THEME": 819,
     "SUPPORTED_BY": 1097
+  },
+  "quality": {
+    "duplicate_logical_edge_count": 0,
+    "orphan_edge_count": 0,
+    "missing_node_provenance_count": 0,
+    "missing_edge_provenance_count": 0,
+    "traceable_evidence_node_count": 1097,
+    "traceable_metadata_node_count": 1,
+    "record_node_count": 213
   }
 }
 ```
+
+Production acceptance requires all four structural failure counts to be zero.
+Traceable node counts verify that evidence and linked metadata nodes retain
+their source-table and source-ID provenance.
 
 ## GET /api/graph/record/{record_id}
 
@@ -1395,6 +1420,8 @@ Response:
       "category": "record",
       "normalized_label": "CSQP-SFHC-TEXT-017",
       "record_id": "CSQP-SFHC-TEXT-017",
+      "source_table": "qiaopi_text_records",
+      "source_id": "CSQP-SFHC-TEXT-017",
       "properties": {}
     }
   ],
@@ -1423,6 +1450,8 @@ Response:
     "category": "place",
     "normalized_label": "越南",
     "record_id": "",
+    "source_table": "qiaopi_text_records",
+    "source_id": "CSQP-SFHC-TEXT-017:origin_place",
     "properties": {}
   },
   "nodes": [],
@@ -1488,21 +1517,28 @@ Future Neo4j integration:
 - Neo4j must remain optional and must not be required for normal backend startup.
 - No real Neo4j implementation exists in Step H2.
 
+Formal `frontend/` integration:
+
+- `/knowledge-graph` is the formal graph product route.
+- It calls graph stats, record graph, overview, place flow, and node-neighbor
+  APIs.
+- Clicking a node uses `source_table`, `source_id`, `record_id`, and edge
+  evidence to trace back to record, evidence, and metadata APIs.
+- The analysis page no longer constructs static graph nodes.
+
 Standalone `kg-viewer/`:
 
-- H3 creates an independent `kg-viewer/` app.
-- It uses Vue 3, Vite, Element Plus, ECharts, and Axios.
-- It matches the existing frontend's data-workbench layout style with a left sidebar, top header, card-based main area, dashboard stat cards, graph cards, and table cards.
-- It calls `/api/graph/*` endpoints for graph preview and demo recording.
-- It displays graph stats, record graph, overview graph, place flow table, and node neighbors.
-- It must not import files from `frontend/`, modify `frontend/`, or depend on `frontend/` internals.
-- `frontend/` remains untouched.
+- It remains an independent diagnostic sandbox owned by the Frontend
+  Developer.
+- It may preview Graph API behavior, but features implemented only there do
+  not count as formal frontend acceptance.
 
 Important limitations:
 
 - The graph builder is SQLite-only and rebuilds derived `qiaopi_kg_nodes` and `qiaopi_kg_edges`.
 - No Neo4j exporter, importer, driver, or schema is implemented yet.
-- `kg-viewer/` is standalone and is not official integration into `frontend/`.
+- `kg-viewer/` remains standalone and is not a substitute for the formal
+  `/knowledge-graph` product route.
 - The graph is for relationship modeling, visualization, and explanation. It does not replace SQLite, FTS5/BM25 search, FAISS semantic search, RAG context, Qwen generation, validation, or metadata APIs.
 - Metadata-only records must not become full-text RAG evidence.
 
