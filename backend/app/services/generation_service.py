@@ -43,7 +43,7 @@ def _text(value: Any) -> str:
     return "" if value is None else str(value).strip()
 
 
-def _evidence_reference(item: Mapping[str, Any]) -> dict[str, str]:
+def _evidence_reference(item: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "record_id": _text(item.get("record_id")),
         "unit_id": _text(item.get("unit_id")),
@@ -52,13 +52,18 @@ def _evidence_reference(item: Mapping[str, Any]) -> dict[str, str]:
         "source_column": _text(item.get("source_column")),
         "evidence_type": _text(item.get("evidence_type")),
         "unit_text": _text(item.get("unit_text")),
+        "retrieval_sources": list(item.get("retrieval_sources") or []),
+        "semantic_score": float(item.get("semantic_score") or 0.0),
+        "final_score": float(item.get("final_score") or 0.0),
+        "slot_score": float(item.get("slot_score") or 0.0),
+        "prompt_included": bool(item.get("prompt_included", False)),
     }
 
 
 def _references_from_contexts(
     contexts: list[Mapping[str, Any]],
-) -> list[dict[str, str]]:
-    references: list[dict[str, str]] = []
+) -> list[dict[str, Any]]:
+    references: list[dict[str, Any]] = []
     seen_unit_ids: set[str] = set()
     for context in contexts:
         unit_id = _text(context.get("unit_id"))
@@ -71,8 +76,8 @@ def _references_from_contexts(
 
 def _references_from_style_slots(
     style_slots: Mapping[str, list[Mapping[str, Any]]],
-) -> list[dict[str, str]]:
-    references: list[dict[str, str]] = []
+) -> list[dict[str, Any]]:
+    references: list[dict[str, Any]] = []
     seen_unit_ids: set[str] = set()
     for examples in style_slots.values():
         for example in examples:
@@ -400,7 +405,11 @@ def _execute_generation(
 
     generated_text = structured_output["generated_text"]
     evidence_mapping = (
-        map_generated_text_to_evidence(generated_text, evidence_references)
+        map_generated_text_to_evidence(
+            generated_text,
+            evidence_references,
+            input_text=input_text if task_type == "style-transfer" else None,
+        )
         if generated_text
         else []
     )
@@ -538,8 +547,12 @@ def generate_style_transfer(
         "plain_text": request.plain_text,
         "semantic_enabled": context["semantic_enabled"],
         "semantic_quality": context.get("semantic_quality", "disabled"),
+        "retrieval_mode": context.get("retrieval_mode", "hybrid"),
+        "active_style_slots": context.get("active_style_slots", []),
         "style_slots": context["style_slots"],
         "prompt_context": context["prompt_context"],
+        "prompt_included_count": context.get("prompt_included_count", 0),
+        "prompt_character_count": context.get("prompt_character_count", 0),
         "evidence_references": evidence_references,
         "messages": messages,
         **generation,

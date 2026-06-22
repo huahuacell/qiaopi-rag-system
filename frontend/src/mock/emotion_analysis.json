@@ -1,0 +1,192 @@
+{
+  "total_records": 213,
+  "analyzed_records": 202,
+  "analyzed_segments": 1625,
+  "multi_label_records": 181,
+  "mixed_valence_records": 45,
+  "low_confidence_records": 7,
+  "dominant_emotion_key": "gratitude_blessing",
+  "dominant_emotion_label": "感激祝愿",
+  "label_distribution": [
+    {
+      "key": "practical_neutral",
+      "label": "事务陈述",
+      "record_count": 202,
+      "segment_count": 612,
+      "ratio": 1.0,
+      "average_confidence": 0.6816,
+      "valence": "neutral"
+    },
+    {
+      "key": "gratitude_blessing",
+      "label": "感激祝愿",
+      "record_count": 139,
+      "segment_count": 186,
+      "ratio": 0.6881,
+      "average_confidence": 0.5783,
+      "valence": "positive"
+    },
+    {
+      "key": "reassurance_relief",
+      "label": "平安欣慰",
+      "record_count": 110,
+      "segment_count": 154,
+      "ratio": 0.5446,
+      "average_confidence": 0.7188,
+      "valence": "positive"
+    },
+    {
+      "key": "care_instruction",
+      "label": "关爱嘱托",
+      "record_count": 40,
+      "segment_count": 53,
+      "ratio": 0.198,
+      "average_confidence": 0.6037,
+      "valence": "neutral"
+    },
+    {
+      "key": "worry_pressure",
+      "label": "忧虑压力",
+      "record_count": 32,
+      "segment_count": 45,
+      "ratio": 0.1584,
+      "average_confidence": 0.6411,
+      "valence": "negative"
+    },
+    {
+      "key": "longing_attachment",
+      "label": "思念牵挂",
+      "record_count": 19,
+      "segment_count": 24,
+      "ratio": 0.0941,
+      "average_confidence": 0.7168,
+      "valence": "mixed"
+    },
+    {
+      "key": "grief_sorrow",
+      "label": "悲伤哀痛",
+      "record_count": 10,
+      "segment_count": 13,
+      "ratio": 0.0495,
+      "average_confidence": 0.6725,
+      "valence": "negative"
+    }
+  ],
+  "valence_distribution": [
+    { "key": "positive", "label": "积极安慰", "record_count": 125, "ratio": 0.6188 },
+    { "key": "neutral", "label": "中性事务", "record_count": 25, "ratio": 0.1238 },
+    { "key": "negative", "label": "忧虑哀伤", "record_count": 7, "ratio": 0.0347 },
+    { "key": "mixed", "label": "复合情感", "record_count": 45, "ratio": 0.2228 }
+  ],
+  "cooccurrence": [
+    {
+      "left_key": "gratitude_blessing",
+      "left_label": "感激祝愿",
+      "right_key": "practical_neutral",
+      "right_label": "事务陈述",
+      "record_count": 139,
+      "ratio": 0.6881
+    },
+    {
+      "left_key": "practical_neutral",
+      "left_label": "事务陈述",
+      "right_key": "reassurance_relief",
+      "right_label": "平安欣慰",
+      "record_count": 110,
+      "ratio": 0.5446
+    },
+    {
+      "left_key": "care_instruction",
+      "left_label": "关爱嘱托",
+      "right_key": "worry_pressure",
+      "right_label": "忧虑压力",
+      "record_count": 18,
+      "ratio": 0.0891
+    }
+  ],
+  "time_trend": [
+    {
+      "period": "1920年代",
+      "record_count": 12,
+      "dominant_emotion_key": "reassurance_relief",
+      "dominant_emotion_label": "平安欣慰",
+      "distribution": { "reassurance_relief": 0.75 }
+    },
+    {
+      "period": "1930年代",
+      "record_count": 51,
+      "dominant_emotion_key": "gratitude_blessing",
+      "dominant_emotion_label": "感激祝愿",
+      "distribution": { "gratitude_blessing": 0.69 }
+    },
+    {
+      "period": "1940年代",
+      "record_count": 76,
+      "dominant_emotion_key": "gratitude_blessing",
+      "dominant_emotion_label": "感激祝愿",
+      "distribution": { "gratitude_blessing": 0.66 }
+    }
+  ],
+  "evidence_examples": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-002",
+      "year": "1921",
+      "emotion_key": "reassurance_relief",
+      "emotion_label": "平安欣慰",
+      "text": "承云母疾经已痊安，不胜喜乐之至也。",
+      "trigger_terms": ["痊安", "喜乐"],
+      "confidence": 0.82,
+      "valence": "positive",
+      "needs_review": false
+    },
+    {
+      "record_id": "CSQP-SFHC-TEXT-008",
+      "year": "1928",
+      "emotion_key": "worry_pressure",
+      "emotion_label": "忧虑压力",
+      "text": "现刻行情甚苦，财利实在难得。",
+      "trigger_terms": ["甚苦", "难得"],
+      "confidence": 0.8,
+      "valence": "negative",
+      "needs_review": false
+    },
+    {
+      "record_id": "CSQP-SFHC-TEXT-003",
+      "year": "1924",
+      "emotion_key": "care_instruction",
+      "emotion_label": "关爱嘱托",
+      "text": "家务尤宜勤作，弟妹亦当教养。",
+      "trigger_terms": ["勤作", "教养"],
+      "confidence": 0.7,
+      "valence": "neutral",
+      "needs_review": false
+    },
+    {
+      "record_id": "CSQP-SFHC-TEXT-012",
+      "year": "1931",
+      "emotion_key": "gratitude_blessing",
+      "emotion_label": "感激祝愿",
+      "text": "叩蒙神天之佑，两方均安是慰。",
+      "trigger_terms": ["蒙神天", "为慰"],
+      "confidence": 0.75,
+      "valence": "positive",
+      "needs_review": false
+    }
+  ],
+  "model": {
+    "engine": "pytorch",
+    "model_version": "qiaopi-emotion-pytorch-v1.0.0",
+    "torch_available": true,
+    "device": "cpu",
+    "classifier_type": "可解释领域特征 + PyTorch 多标签 Sigmoid 分类头",
+    "label_count": 7,
+    "threshold": 0.52,
+    "calibrated": false,
+    "methodology": "按标点切分句段，保留触发词和原文片段，执行多标签分类后聚合到信件、年代与馆藏层级。",
+    "limitations": "当前 213 条记录中有 202 封可用全文，尚未形成充分人工标注集；置信度用于排序与复核，不应解释为统计学概率。"
+  },
+  "warnings": [
+    "本结果是馆藏探索性统计，不能替代人工史料解读或监督学习金标准。",
+    "一封侨批可同时包含多种情感，因此各情感占比之和可能超过 100%。"
+  ]
+}

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.analysis import router as analysis_router
 from app.api.dashboard import router as dashboard_router
 from app.api.generation import router as generation_router
 from app.api.graph import router as graph_router
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(dashboard_router)
+    app.include_router(analysis_router)
     app.include_router(search_router)
     app.include_router(record_router)
     app.include_router(metadata_router)

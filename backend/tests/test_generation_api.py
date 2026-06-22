@@ -132,7 +132,7 @@ def test_generation_enabled_with_api_key_does_not_return_disabled(monkeypatch):
     assert payload["dry_run"] is False
     assert payload["generated_text"]
     assert payload["generation_backend"] == "qwen"
-    assert payload["prompt_version"] == "style-transfer-json-v2"
+    assert payload["prompt_version"] == "style-transfer-vernacular-json-v5"
     assert payload["index_version"]
     assert payload["cache_hit"] is False
     assert payload["degraded_reason"] is None

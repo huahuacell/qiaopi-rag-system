@@ -82,6 +82,104 @@ STYLE_SLOT_FALLBACK_TERMS: dict[str, tuple[str, ...]] = {
     "style_reference": ("侨批", "风格", "慈亲", "平安", "寄款"),
 }
 
+STYLE_SLOT_TRIGGER_TERMS: dict[str, tuple[str, ...]] = {
+    "safety": ("平安", "安好", "无恙", "健康", "身体", "勿念", "放心", "生意", "顺利"),
+    "remittance": ("寄回", "寄钱", "汇款", "寄款", "款项", "查收", "元", "银", "钱"),
+    "family_care": ("保重", "照顾", "操劳", "过劳", "调养", "珍重", "身体", "家中"),
+    "instruction": (
+        "请",
+        "务必",
+        "不要",
+        "不可",
+        "切勿",
+        "记得",
+        "商量",
+        "照看",
+        "读书",
+        "学习",
+        "练习",
+        "办理",
+    ),
+}
+
+STYLE_SLOT_MARKERS: dict[str, tuple[str, ...]] = {
+    "opening": ("尊前", "膝下", "如晤", "福安", "展信", "大人"),
+    "safety": ("平安", "安好", "无恙", "康健", "勿念", "毋念", "顺遂"),
+    "remittance": ("寄", "汇", "奉上", "带去", "付去", "查收", "收讫", "银", "元"),
+    "family_care": ("保重", "珍摄", "调养", "身体", "安康", "操劳"),
+    "instruction": ("务望", "切勿", "不可", "应当", "读书", "勤学", "办理", "照看"),
+    "closing": ("敬上", "谨上", "谨启", "谨禀", "叩上", "泐", "缄", "珍重"),
+    "style_reference": (),
+}
+
+STYLE_SLOT_CONTAMINATION_TERMS: dict[str, tuple[str, ...]] = {
+    "opening": ("奉上", "带去", "查收", "收讫", "务望", "切勿"),
+    "safety": ("奉上", "带去", "查收", "收讫", "务望", "切勿"),
+    "remittance": ("读书", "勤学", "保重", "珍摄", "调养"),
+    "family_care": ("奉上", "带去", "查收", "收讫"),
+    "instruction": ("奉上", "带去", "查收", "收讫"),
+    "closing": ("奉上", "带去", "查收", "收讫", "读书", "勤学"),
+    "style_reference": (),
+}
+
+STYLE_SLOT_CONCEPT_GROUPS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "opening": (
+        ("母亲", "妈妈", "阿母", "阿妈", "慈亲", "家母"),
+        ("父亲", "爸爸", "严亲", "家父"),
+        ("妻子", "妻", "夫人", "贤内"),
+        ("弟弟", "妹妹", "兄长", "姐姐", "兄弟", "姊妹"),
+        ("儿子", "女儿", "孩子"),
+    ),
+    "safety": (
+        ("身体", "健康", "安康", "无恙", "平安"),
+        ("生意", "营生", "工作", "码头"),
+        ("家中", "家人", "合家"),
+        ("行船", "旅途", "路上"),
+    ),
+    "remittance": (
+        ("药", "看病", "医治"),
+        ("学费", "读书", "学习"),
+        ("家用", "米", "粮", "生活"),
+        ("还债", "欠款", "借款"),
+    ),
+    "family_care": (
+        ("身体", "健康", "安康", "调养"),
+        ("操劳", "劳累", "过劳", "休息"),
+        ("家中", "家人", "父母", "孩子"),
+    ),
+    "instruction": (
+        ("读书", "学习", "勤学", "学业", "学校", "用功"),
+        ("回信", "来信", "写信"),
+        ("田地", "物业", "房产", "买卖"),
+        ("照看", "照顾", "办理", "商量"),
+        ("借款", "还款", "欠债", "开销"),
+    ),
+    "closing": (),
+    "style_reference": (),
+}
+
+STYLE_SLOT_LENGTH_LIMITS: dict[str, tuple[int, int]] = {
+    "opening": (2, 32),
+    "safety": (10, 72),
+    "remittance": (10, 88),
+    "family_care": (10, 72),
+    "instruction": (10, 72),
+    "closing": (2, 48),
+    "style_reference": (10, 120),
+}
+
+STYLE_SLOT_PREFERRED_MAX: dict[str, int] = {
+    "opening": 20,
+    "safety": 32,
+    "remittance": 60,
+    "family_care": 40,
+    "instruction": 48,
+    "closing": 24,
+    "style_reference": 90,
+}
+
+STYLE_PROMPT_CHARACTER_BUDGET = 900
+
 RECORD_CONTEXT_PRIORITY: dict[str, float] = {
     "body_core": 2.0,
     "remittance": 1.9,
@@ -96,6 +194,35 @@ RECORD_CONTEXT_PRIORITY: dict[str, float] = {
 }
 
 WHITESPACE_PATTERN = re.compile(r"\s+")
+STYLE_SEGMENT_PATTERN = re.compile(r"[^。！？；\n]+[。！？；]?")
+STYLE_BAD_SEPARATOR_PATTERN = re.compile(r"([。！？])\s*[；;]+")
+STYLE_REPEATED_SEPARATOR_PATTERN = re.compile(r"[；;]{2,}")
+STYLE_AMOUNT_PATTERN = re.compile(
+    r"(?:国币|中央币|港币|大洋|洋银|银)?"
+    r"[零〇一二三四五六七八九十百千万壹贰弍叁肆伍陆柒捌玖拾佰仟萬\d]+元"
+)
+STYLE_DATE_PATTERN = re.compile(
+    r"(?:民国)?[一二三四五六七八九十廿卅\d]{1,4}年"
+    r"[一二三四五六七八九十廿卅\d]{1,3}月"
+    r"[初十廿卅一二三四五六七八九\d]{1,4}日?"
+)
+STYLE_SPECIFIC_ROLE_TERMS = (
+    "孙",
+    "侄",
+    "婿",
+    "岳父",
+    "岳母",
+    "祖母",
+    "父亲",
+    "母亲",
+    "妻",
+    "夫",
+    "兄",
+    "弟",
+    "大妗",
+    "细姨",
+    "合家老少",
+)
 
 
 def _text(value: Any) -> str:
@@ -162,6 +289,245 @@ def _style_query_for_slot(query: str, slot_type: str) -> str:
         *STYLE_SLOT_FALLBACK_TERMS.get(slot_type, ()),
     ]
     return " ".join(_dedupe(terms))
+
+
+def _active_style_slots(query: str) -> list[str]:
+    active = ["opening"]
+    for slot_type in ("safety", "remittance", "family_care", "instruction"):
+        if any(term in query for term in STYLE_SLOT_TRIGGER_TERMS[slot_type]):
+            active.append(slot_type)
+    active.extend(["closing", "style_reference"])
+    return active
+
+
+def _clean_style_text(text: str) -> str:
+    clean = WHITESPACE_PATTERN.sub(" ", text).strip()
+    clean = STYLE_BAD_SEPARATOR_PATTERN.sub(r"\1", clean)
+    clean = STYLE_REPEATED_SEPARATOR_PATTERN.sub("；", clean)
+    return clean.strip("；; ")
+
+
+def _style_segments(text: str) -> list[str]:
+    return [
+        segment.strip()
+        for segment in STYLE_SEGMENT_PATTERN.findall(_clean_style_text(text))
+        if segment.strip("；; ")
+    ]
+
+
+def _extract_style_fragment(text: str, slot_type: str) -> str:
+    clean = _clean_style_text(text)
+    if not clean:
+        return ""
+    minimum, maximum = STYLE_SLOT_LENGTH_LIMITS[slot_type]
+    segments = _style_segments(clean)
+    markers = STYLE_SLOT_MARKERS[slot_type]
+    matching = [
+        segment
+        for segment in segments
+        if not markers or any(marker in segment for marker in markers)
+    ]
+
+    if slot_type == "opening":
+        candidates = matching or segments[:1]
+    elif slot_type == "closing":
+        candidates = list(reversed(matching or segments[-2:]))
+    else:
+        candidates = matching or segments
+
+    selected: list[str] = []
+    for segment in candidates:
+        candidate = _clean_style_text(segment)
+        if not candidate:
+            continue
+        if selected and len("".join(selected)) + len(candidate) > maximum:
+            continue
+        selected.append(candidate)
+        if len("".join(selected)) >= minimum or slot_type in {"opening", "closing"}:
+            break
+
+    fragment = "".join(reversed(selected)) if slot_type == "closing" else "".join(selected)
+    if not fragment:
+        fragment = clean
+    if len(fragment) > maximum:
+        fragment = fragment[:maximum].rstrip("，、；; ") + "…"
+    return fragment
+
+
+def _style_prompt_text(fragment: str, slot_type: str) -> str:
+    prompt_text = STYLE_AMOUNT_PATTERN.sub("【用户金额】", fragment)
+    prompt_text = STYLE_DATE_PATTERN.sub("【用户日期】", prompt_text)
+    if slot_type == "instruction":
+        instruction_markers = ("但须", "务望", "切勿", "不可", "须当", "应当", "请")
+        marker_positions = [
+            prompt_text.find(marker)
+            for marker in instruction_markers
+            if marker in prompt_text
+        ]
+        if marker_positions:
+            prompt_text = prompt_text[min(marker_positions) :]
+    if slot_type == "closing":
+        closing_match = re.fullmatch(
+            r"([儿男女弟兄夫妻侄孙]?)[\u4e00-\u9fff]{1,5}"
+            r"(敬上|谨上|谨启|谨禀|叩上|泐|缄)",
+            re.sub(r"\s+", "", prompt_text),
+        )
+        if closing_match:
+            relationship, marker = closing_match.groups()
+            prompt_text = f"{relationship}【署名】{marker}"
+    return prompt_text
+
+
+def _character_bigrams(text: str) -> set[str]:
+    compact = re.sub(r"[^\u4e00-\u9fffA-Za-z0-9]", "", text)
+    return {compact[index : index + 2] for index in range(max(0, len(compact) - 1))}
+
+
+def _style_lexical_score(query: str, fragment: str, slot_type: str) -> float:
+    query_bigrams = _character_bigrams(query)
+    fragment_bigrams = _character_bigrams(fragment)
+    bigram_score = (
+        len(query_bigrams & fragment_bigrams) / max(1, len(fragment_bigrams))
+        if fragment_bigrams
+        else 0.0
+    )
+    markers = STYLE_SLOT_MARKERS[slot_type]
+    marker_score = (
+        min(1.0, sum(1 for marker in markers if marker in fragment) / 2)
+        if markers
+        else 0.5
+    )
+    relevant_concepts = [
+        concept_terms
+        for concept_terms in STYLE_SLOT_CONCEPT_GROUPS[slot_type]
+        if any(term in query for term in concept_terms)
+    ]
+    concept_score = (
+        sum(
+            1
+            for concept_terms in relevant_concepts
+            if any(term in fragment for term in concept_terms)
+        )
+        / len(relevant_concepts)
+        if relevant_concepts
+        else 0.5
+    )
+    return min(
+        1.0,
+        (bigram_score * 0.35) + (marker_score * 0.20) + (concept_score * 0.45),
+    )
+
+
+def _style_quality_scores(
+    raw_text: str,
+    fragment: str,
+    slot_type: str,
+    query: str,
+) -> tuple[float, float]:
+    minimum, maximum = STYLE_SLOT_LENGTH_LIMITS[slot_type]
+    fragment_length = len(fragment)
+    if minimum <= fragment_length <= maximum:
+        length_score = 1.0
+    elif fragment_length < minimum:
+        length_score = max(0.25, fragment_length / max(1, minimum))
+    else:
+        length_score = max(0.0, 1 - ((fragment_length - maximum) / max(1, maximum)))
+    preferred_max = STYLE_SLOT_PREFERRED_MAX[slot_type]
+    if fragment_length > preferred_max:
+        length_score -= min(
+            0.45,
+            ((fragment_length - preferred_max) / max(1, maximum)) * 0.9,
+        )
+
+    malformed_count = len(re.findall(r"[。！？][；;]|[；;]{2,}", raw_text))
+    correction_count = len(re.findall(r"[（(][^）)]{1,6}[）)]", raw_text))
+    segment_count = len(_style_segments(raw_text))
+    role_mismatch_count = sum(
+        1
+        for term in STYLE_SPECIFIC_ROLE_TERMS
+        if term in fragment and term not in query
+    )
+    question_mismatch = "？" in fragment and not any(
+        marker in query for marker in ("？", "吗", "是否", "可否", "怎样", "如何")
+    )
+    contamination_count = sum(
+        1
+        for term in STYLE_SLOT_CONTAMINATION_TERMS[slot_type]
+        if term in fragment
+    )
+    quality_score = max(
+        0.0,
+        min(
+            1.0,
+            length_score
+            - (malformed_count * 0.18)
+            - (correction_count * 0.06)
+            - (max(0, segment_count - 3) * 0.08)
+            - (min(3, role_mismatch_count) * 0.10)
+            - (min(3, contamination_count) * 0.08)
+            - (0.12 if question_mismatch else 0.0),
+        ),
+    )
+
+    markers = STYLE_SLOT_MARKERS[slot_type]
+    marker_hit = any(marker in fragment for marker in markers) if markers else True
+    purity_score = 0.7 + (0.3 if marker_hit else 0.0)
+    if segment_count > 3:
+        purity_score -= min(0.35, (segment_count - 3) * 0.08)
+    purity_score -= min(0.25, role_mismatch_count * 0.08)
+    purity_score -= min(0.24, contamination_count * 0.08)
+    return round(max(0.0, purity_score), 4), round(quality_score, 4)
+
+
+def _rerank_style_rows(
+    rows: list[dict[str, Any]],
+    *,
+    query: str,
+    slot_type: str,
+) -> list[dict[str, Any]]:
+    reranked: list[dict[str, Any]] = []
+    for rank, row in enumerate(rows, start=1):
+        raw_text = _text(row.get("unit_text"))
+        fragment = _extract_style_fragment(raw_text, slot_type)
+        if not fragment:
+            continue
+        lexical_score = _style_lexical_score(query, fragment, slot_type)
+        purity_score, quality_score = _style_quality_scores(
+            raw_text,
+            fragment,
+            slot_type,
+            query,
+        )
+        semantic_score = max(0.0, min(1.0, _float(row.get("semantic_score"))))
+        rank_score = 1.0 / rank
+        slot_score = (
+            (rank_score * 0.12)
+            + (semantic_score * 0.20)
+            + (lexical_score * 0.35)
+            + (purity_score * 0.18)
+            + (quality_score * 0.15)
+        )
+        prepared = dict(row)
+        prepared["raw_unit_text"] = raw_text
+        prepared["unit_text"] = fragment
+        prepared["prompt_text"] = _style_prompt_text(fragment, slot_type)
+        prepared["slot_score"] = round(min(1.0, slot_score), 4)
+        prepared["slot_purity_score"] = purity_score
+        prepared["quality_score"] = quality_score
+        prepared["prompt_included"] = False
+        prepared["matched_reason"] = (
+            f"{_text(row.get('matched_reason'))}；槽位纯度与片段质量重排"
+        ).strip("；")
+        reranked.append(prepared)
+    return sorted(
+        reranked,
+        key=lambda item: (
+            -_float(item.get("slot_score")),
+            -_float(item.get("quality_score")),
+            -_float(item.get("semantic_score")),
+            _text(item.get("unit_id")),
+        ),
+    )
 
 
 def _matches_context_filters(row: Mapping[str, Any], filters: Mapping[str, Any]) -> bool:
@@ -247,10 +613,18 @@ def _style_slot_example(row: Mapping[str, Any]) -> dict[str, Any]:
         "unit_type": _text(row.get("unit_type")),
         "title_reference": _text(row.get("title_reference")),
         "unit_text": _text(row.get("unit_text")),
+        "prompt_text": _text(row.get("prompt_text")),
+        "raw_unit_text": _text(row.get("raw_unit_text")),
         "source_column": _text(row.get("source_column")),
         "evidence_type": _text(row.get("evidence_type")),
         "matched_reason": _text(row.get("matched_reason")),
         "final_score": _float(row.get("final_score")),
+        "semantic_score": _float(row.get("semantic_score")),
+        "slot_score": _float(row.get("slot_score")),
+        "slot_purity_score": _float(row.get("slot_purity_score")),
+        "quality_score": _float(row.get("quality_score")),
+        "retrieval_sources": list(row.get("retrieval_sources") or []),
+        "prompt_included": bool(row.get("prompt_included", False)),
     }
 
 
@@ -319,22 +693,50 @@ def _record_context_rows(record_id: str, filters: Mapping[str, Any]) -> list[dic
 def _build_style_prompt_context(
     query: str,
     style_slots: Mapping[str, list[dict[str, Any]]],
-) -> str:
-    parts = ["【用户白话输入】", query.strip()]
-    for slot_type in STYLE_SLOT_TYPES:
-        parts.extend(["", f"【{STYLE_SLOT_LABELS[slot_type]}】"])
+    *,
+    active_slots: Iterable[str],
+    character_budget: int = STYLE_PROMPT_CHARACTER_BUDGET,
+) -> tuple[str, int]:
+    parts = [
+        "【事实来源（唯一）】",
+        query.strip(),
+        "",
+        "【文体参考使用规则】",
+        "以下知识库片段只用于借鉴称谓、句式和收束方式，不得复制其中的人物、金额、地点或事件。",
+    ]
+    used_characters = sum(len(part) for part in parts)
+    included_count = 0
+    active_slot_list = list(active_slots)
+    if any(
+        slot_type in active_slot_list
+        for slot_type in ("safety", "remittance", "family_care", "instruction")
+    ):
+        active_slot_list = [
+            slot_type
+            for slot_type in active_slot_list
+            if slot_type != "style_reference"
+        ]
+    for slot_type in active_slot_list:
         examples = style_slots.get(slot_type, [])
         if not examples:
-            parts.append("暂无可用样例。")
             continue
-        for index, example in enumerate(examples, start=1):
-            parts.extend(
-                [
-                    f"{index}. {example['unit_text']}",
-                    f"来源：{example['record_id']}",
-                ]
-            )
-    return "\n".join(parts)
+        example = examples[0]
+        section = [
+            "",
+            f"【{STYLE_SLOT_LABELS[slot_type]}】",
+            example.get("prompt_text") or example["unit_text"],
+            f"来源：{example['record_id']} / {example['unit_id']}",
+        ]
+        section_length = sum(len(part) for part in section)
+        if used_characters + section_length > character_budget:
+            continue
+        example["prompt_included"] = True
+        parts.extend(section)
+        used_characters += section_length
+        included_count += 1
+    if included_count == 0:
+        parts.extend(["", "【文体参考】", "暂无达到质量要求的知识库样例。"])
+    return "\n".join(parts), included_count
 
 
 def build_rag_context(
@@ -463,20 +865,36 @@ def build_style_context(
     filters: Mapping[str, Any],
     expansion_mode: str,
 ) -> dict[str, Any]:
-    style_slots: dict[str, list[dict[str, Any]]] = {}
+    active_slots = _active_style_slots(query)
+    style_slots: dict[str, list[dict[str, Any]]] = {
+        slot_type: [] for slot_type in STYLE_SLOT_TYPES
+    }
     selected_rows_by_slot: dict[str, list[dict[str, Any]]] = {}
     all_selected_rows: list[dict[str, Any]] = []
+    semantic_enabled = False
+    semantic_qualities: list[str] = []
 
-    for slot_type in STYLE_SLOT_TYPES:
-        retrieval_result = retrieve_keyword(
+    for slot_type in active_slots:
+        retrieval_result = retrieve_hybrid(
             query=_style_query_for_slot(query, slot_type),
-            top_k=max(10, top_k * 4),
+            top_k=max(20, top_k * 8),
             unit_types=[slot_type],
             filters=filters,
             expansion_mode=expansion_mode,
         )
-        selected_rows = _select_units(
+        semantic_enabled = semantic_enabled or bool(
+            retrieval_result.get("semantic_enabled", False)
+        )
+        semantic_qualities.append(
+            _text(retrieval_result.get("semantic_quality")) or "disabled"
+        )
+        reranked_rows = _rerank_style_rows(
             retrieval_result["results"],
+            query=query,
+            slot_type=slot_type,
+        )
+        selected_rows = _select_units(
+            reranked_rows,
             top_k,
             preferred_unit_types=[slot_type],
             max_per_record=1,
@@ -485,6 +903,11 @@ def build_style_context(
         all_selected_rows.extend(selected_rows)
         style_slots[slot_type] = [_style_slot_example(row) for row in selected_rows]
 
+    prompt_context, prompt_included_count = _build_style_prompt_context(
+        query,
+        style_slots,
+        active_slots=active_slots,
+    )
     normalized_query, expanded_query = _expanded_query(_style_base_query(query), expansion_mode)
     source_record_ids = {
         _text(row.get("record_id"))
@@ -497,10 +920,20 @@ def build_style_context(
         "normalized_query": normalized_query,
         "expanded_query": expanded_query,
         "expansion_mode": expansion_mode if expansion_mode in {"strict", "balanced", "broad"} else "balanced",
-        "semantic_enabled": False,
-        "semantic_quality": "disabled",
+        "semantic_enabled": semantic_enabled,
+        "semantic_quality": (
+            "production"
+            if "production" in semantic_qualities
+            else "test_hash"
+            if "test_hash" in semantic_qualities
+            else "disabled"
+        ),
+        "retrieval_mode": "hybrid",
+        "active_style_slots": active_slots,
         "style_slots": style_slots,
         "grouped_contexts": group_results_by_record(all_selected_rows),
-        "prompt_context": _build_style_prompt_context(query, style_slots),
+        "prompt_context": prompt_context,
+        "prompt_included_count": prompt_included_count,
+        "prompt_character_count": len(prompt_context),
         "source_record_count": len(source_record_ids),
     }

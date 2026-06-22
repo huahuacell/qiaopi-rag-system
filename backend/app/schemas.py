@@ -112,6 +112,83 @@ class DashboardDistributionsResponse(BaseModel):
     year_distribution: List[ChartItem]
 
 
+class EmotionLabelMetric(BaseModel):
+    key: str
+    label: str
+    record_count: int = Field(ge=0)
+    segment_count: int = Field(ge=0)
+    ratio: float = Field(ge=0.0, le=1.0)
+    average_confidence: float = Field(ge=0.0, le=1.0)
+    valence: Literal["positive", "neutral", "negative", "mixed"]
+
+
+class EmotionValenceMetric(BaseModel):
+    key: Literal["positive", "neutral", "negative", "mixed"]
+    label: str
+    record_count: int = Field(ge=0)
+    ratio: float = Field(ge=0.0, le=1.0)
+
+
+class EmotionCooccurrenceItem(BaseModel):
+    left_key: str
+    left_label: str
+    right_key: str
+    right_label: str
+    record_count: int = Field(ge=0)
+    ratio: float = Field(ge=0.0, le=1.0)
+
+
+class EmotionTimePoint(BaseModel):
+    period: str
+    record_count: int = Field(ge=0)
+    dominant_emotion_key: str
+    dominant_emotion_label: str
+    distribution: Dict[str, float] = Field(default_factory=dict)
+
+
+class EmotionEvidenceExample(BaseModel):
+    record_id: str
+    year: str = ""
+    emotion_key: str
+    emotion_label: str
+    text: str
+    trigger_terms: List[str] = Field(default_factory=list)
+    confidence: float = Field(ge=0.0, le=1.0)
+    valence: Literal["positive", "neutral", "negative", "mixed"]
+    needs_review: bool
+
+
+class EmotionModelInfo(BaseModel):
+    engine: Literal["pytorch", "python_compatible_fallback"]
+    model_version: str
+    torch_available: bool
+    device: str
+    classifier_type: str
+    label_count: int = Field(ge=1)
+    threshold: float = Field(ge=0.0, le=1.0)
+    calibrated: bool
+    methodology: str
+    limitations: str
+
+
+class EmotionAnalysisResponse(BaseModel):
+    total_records: int = Field(ge=0)
+    analyzed_records: int = Field(ge=0)
+    analyzed_segments: int = Field(ge=0)
+    multi_label_records: int = Field(ge=0)
+    mixed_valence_records: int = Field(ge=0)
+    low_confidence_records: int = Field(ge=0)
+    dominant_emotion_key: str
+    dominant_emotion_label: str
+    label_distribution: List[EmotionLabelMetric]
+    valence_distribution: List[EmotionValenceMetric]
+    cooccurrence: List[EmotionCooccurrenceItem]
+    time_trend: List[EmotionTimePoint]
+    evidence_examples: List[EmotionEvidenceExample]
+    model: EmotionModelInfo
+    warnings: List[str] = Field(default_factory=list)
+
+
 class SearchRequest(BaseModel):
     query: str = ""
     top_k: int = Field(default=10, ge=1, le=100)
@@ -394,10 +471,18 @@ class StyleSlotExample(BaseModel):
     unit_type: str
     title_reference: str
     unit_text: str
+    prompt_text: str = ""
+    raw_unit_text: str = ""
     source_column: str
     evidence_type: str
     matched_reason: str
     final_score: float
+    semantic_score: float = 0.0
+    slot_score: float = 0.0
+    slot_purity_score: float = 0.0
+    quality_score: float = 0.0
+    retrieval_sources: List[str] = Field(default_factory=list)
+    prompt_included: bool = False
 
 
 class StyleContextResponse(BaseModel):
@@ -407,9 +492,13 @@ class StyleContextResponse(BaseModel):
     expansion_mode: Literal["strict", "balanced", "broad"]
     semantic_enabled: bool
     semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
+    retrieval_mode: Literal["hybrid"] = "hybrid"
+    active_style_slots: List[str] = Field(default_factory=list)
     style_slots: Dict[str, List[StyleSlotExample]]
     grouped_contexts: List[GroupedSearchRecord]
     prompt_context: str
+    prompt_included_count: int = 0
+    prompt_character_count: int = 0
     source_record_count: int
 
 
@@ -426,6 +515,11 @@ class EvidenceReference(BaseModel):
     source_column: str
     evidence_type: str
     unit_text: str
+    retrieval_sources: List[str] = Field(default_factory=list)
+    semantic_score: float = 0.0
+    final_score: float = 0.0
+    slot_score: float = 0.0
+    prompt_included: bool = False
 
 
 class GenerationEvidenceMapping(BaseModel):
@@ -438,6 +532,7 @@ class GenerationEvidenceMapping(BaseModel):
     source_field: str = ""
     source_text: str = ""
     reason: str
+    evidence_role: Literal["content", "style", "unmatched"] = "style"
     similarity_score: float = Field(ge=0.0, le=1.0)
     mapping_method: str
     needs_review: bool
@@ -534,8 +629,12 @@ class GenerationStyleTransferResponse(BaseModel):
     plain_text: str
     semantic_enabled: bool
     semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
+    retrieval_mode: Literal["hybrid"] = "hybrid"
+    active_style_slots: List[str] = Field(default_factory=list)
     style_slots: Dict[str, List[StyleSlotExample]]
     prompt_context: str
+    prompt_included_count: int = 0
+    prompt_character_count: int = 0
     generated_text: str
     evidence_references: List[EvidenceReference]
     evidence_mapping: List[GenerationEvidenceMapping] = Field(default_factory=list)

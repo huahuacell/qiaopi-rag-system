@@ -38,35 +38,23 @@
       <p>{{ error || result.error_message }}</p>
     </div>
 
-    <section v-if="result.generation_backend" class="generation-runtime-panel">
-      <article>
-        <span>生成后端</span>
-        <strong :class="{ degraded: generationRuntime.degraded }">{{ generationRuntime.backendLabel }}</strong>
-      </article>
-      <article>
-        <span>模型</span>
-        <strong>{{ generationRuntime.modelLabel }}</strong>
-      </article>
-      <article>
-        <span>Prompt 版本</span>
-        <strong>{{ generationRuntime.promptVersion }}</strong>
-      </article>
-      <article>
-        <span>索引版本</span>
-        <strong>{{ generationRuntime.indexVersion }}</strong>
-      </article>
-      <article>
-        <span>缓存</span>
-        <strong>{{ generationRuntime.cacheLabel }}</strong>
-      </article>
-      <p v-if="generationRuntime.degraded">{{ generationRuntime.degradedLabel }}</p>
-    </section>
-
     <section class="archive-writing-desk">
       <article class="archive-style-card archive-input-card">
         <header class="archive-style-card-head">
           <strong>白话内容输入</strong>
           <span>现代白话家书原文</span>
+          <div
+            v-if="result.generation_backend"
+            class="archive-runtime-tags"
+            aria-label="本次生成使用的模型与提示词版本"
+          >
+            <span class="archive-draft-tag" :title="generationRuntime.backendLabel">
+              {{ generationRuntime.modelLabel }}
+            </span>
+            <span class="archive-draft-tag" :title="generationRuntime.promptVersion">
+              {{ promptBadgeLabel }}
+            </span>
+          </div>
         </header>
         <div class="archive-style-card-body">
           <p class="archive-style-help">
@@ -100,39 +88,27 @@
           <strong>侨批体生成结果</strong>
           <span v-if="generatedText" class="archive-draft-tag">Generated Draft</span>
         </header>
-        <div class="archive-output-body">
-          <div class="archive-output-paper" :class="{ empty: !generatedText }">
-            <div class="archive-output-seal" aria-hidden="true">侨批</div>
-            <i class="archive-output-redline one" aria-hidden="true"></i>
-            <i class="archive-output-redline two" aria-hidden="true"></i>
-            <template v-if="generatedText">
-              <p
-                v-for="(line, index) in generatedLines"
-                :key="`${line}-${index}`"
-                :class="{ head: index === 0, foot: index === generatedLines.length - 1 }"
-              >
-                {{ line || '\u00A0' }}
-              </p>
-            </template>
-            <p v-else class="archive-output-empty">暂无生成结果。输入内容后点击生成侨批体。</p>
-          </div>
-          <div class="archive-output-tools">
-            <button type="button" :disabled="!generatedText" @click="copyGeneratedText">复制文本</button>
-          </div>
-        </div>
+        <QiaopiEnvelopePanel
+          v-model="generatedText"
+          :loading="loading"
+          :generation-key="generationKey"
+          @copy="copyGeneratedText"
+        />
       </article>
     </section>
 
     <section class="archive-style-card archive-slot-panel">
       <header class="archive-style-card-head">
         <strong>风格槽位</strong>
-        <span>Style Slots</span>
+        <span>按本次输入意图检索，仅最佳样例注入提示词</span>
+        <em>{{ result.retrieval_mode === 'hybrid' ? '混合检索' : '槽位检索' }}</em>
       </header>
       <div class="archive-style-slot-grid">
         <article v-for="slot in styleSlotCards" :key="slot.num" class="archive-style-slot-card">
           <em>{{ slot.num }}</em>
           <span>{{ slot.name }}</span>
           <strong>{{ slot.value }}</strong>
+          <small>{{ slot.meta }}</small>
         </article>
       </div>
     </section>
@@ -140,17 +116,17 @@
     <section class="archive-style-card archive-reference-panel">
       <header class="archive-style-card-head">
         <strong>证据依据</strong>
-        <span>Evidence References</span>
-        <em>RAG Grounded</em>
+        <span>用户输入证明事实，知识库片段证明文体</span>
+        <em>双重证据映射</em>
       </header>
       <div class="archive-reference-list" :class="{ empty: !evidenceRows.length }">
         <template v-if="evidenceRows.length">
           <article v-for="(row, index) in evidenceRows" :key="`${row.source_text}-${index}`">
             <div class="archive-reference-type">
               <i></i>
-              <span>{{ row.reason || fieldLabel(row.source_field) }}</span>
+              <span>{{ reasonLabel(row.reason) }}</span>
             </div>
-            <blockquote>{{ row.source_text || row.target_span || '暂无证据片段' }}</blockquote>
+            <blockquote>{{ evidenceSourceText(row) }}</blockquote>
             <p>{{ fieldLabel(row.source_field) }}</p>
             <em>{{ row.target_span || `REF-${String(index + 1).padStart(3, '0')}` }}</em>
           </article>
@@ -189,6 +165,7 @@
 import { computed, reactive, ref } from 'vue'
 
 import { generateStyleTransfer } from '../api/generation'
+import QiaopiEnvelopePanel from '../components/QiaopiEnvelopePanel.vue'
 import {
   apiFailureMessage,
   demoFailureMessage,
@@ -207,6 +184,7 @@ const slots = reactive({
   purpose: '米粮和药费'
 })
 const result = ref(demoMode ? fallbackResult : {})
+const generatedText = ref(demoMode ? fallbackResult.generated_text || '' : '')
 const loading = ref(false)
 const error = ref('')
 
@@ -231,7 +209,49 @@ const fieldLabels = {
   style_pattern: '风格模式',
   source_column: '来源字段',
   body_core: '正文核心',
-  prompt_context: 'Prompt 上下文'
+  prompt_context: '提示词上下文',
+  style_reference_text: '综合文体参考',
+  evidence_instruction: '嘱托表达证据',
+  evidence_closing: '结尾署名证据',
+  evidence_safety: '平安问候证据',
+  evidence_remittance: '寄款表达证据',
+  evidence_family_care: '亲属关怀证据',
+  evidence_opening: '称谓开头证据',
+  opening: '称谓开头',
+  safety: '平安问候',
+  remittance: '寄款表达',
+  family_care: '亲属关怀',
+  instruction: '嘱托表达',
+  closing: '结尾署名',
+  style_reference: '综合文体参考',
+  user_input: '用户输入'
+}
+
+const reasonLabels = {
+  lexical_overlap: '词句重合匹配',
+  no_supported_evidence_match: '未找到足够匹配的知识库证据',
+  no_user_input_support: '未找到对应的用户输入事实',
+  hybrid_style_support: '混合检索文体依据',
+  semantic_style_support: '语义相似文体依据',
+  lexical_style_support: '关键词文体依据',
+  semantic_similarity: '语义相似匹配',
+  hybrid_match: '综合检索匹配',
+  exact_match: '原文精确匹配',
+  user_input_support: '用户输入事实依据',
+  style_reference_text: '综合文体参考',
+  evidence_instruction: '嘱托表达证据',
+  evidence_closing: '结尾署名证据',
+  evidence_safety: '平安问候证据',
+  evidence_remittance: '寄款表达证据',
+  evidence_family_care: '亲属关怀证据',
+  evidence_opening: '称谓开头证据',
+  opening: '称谓开头参考',
+  safety: '平安问候参考',
+  remittance: '寄款表达参考',
+  family_care: '亲属关怀参考',
+  instruction: '嘱托表达参考',
+  closing: '结尾署名参考',
+  style_reference: '综合文体参考'
 }
 
 const inputChips = computed(() => [
@@ -241,10 +261,15 @@ const inputChips = computed(() => [
   { label: '约束', value: '不补充原文外信息' }
 ])
 
-const generatedText = computed(() => result.value.generated_text || '')
 const generationRuntime = computed(() => generationState(result.value))
-const generatedLines = computed(() => splitLetterLines(generatedText.value))
-
+const generationKey = computed(() =>
+  String(result.value.request_id || result.value.cache_key || '')
+)
+const promptBadgeLabel = computed(() => {
+  const version = generationRuntime.value.promptVersion
+  const match = String(version).match(/v(\d+)$/i)
+  return match ? `prompt-v${match[1]}` : version
+})
 const slotRows = computed(() =>
   Object.entries(result.value.slots || {}).map(([key, value]) => [slotLabels[key] || key, formatValue(value)])
 )
@@ -255,6 +280,8 @@ const styleSlotRows = computed(() =>
     examples?.[0]?.unit_text || `${examples?.length || 0} 条样例`
   ])
 )
+
+const activeStyleSlots = computed(() => new Set(result.value.active_style_slots || []))
 
 const evidenceRows = computed(() => {
   if (result.value.evidence_mapping?.length) return normalizeEvidence(result.value.evidence_mapping)
@@ -294,28 +321,46 @@ const consistencyCheck = computed(() => {
 })
 
 const styleSlotCards = computed(() => {
-  const sourceRows = new Map([...styleSlotRows.value, ...slotRows.value])
-  return [
-    {
-      num: '01',
-      name: '称谓格式',
-      value: sourceRows.get('称谓格式') || inferOpening() || sourceRows.get('收信人') || '待生成'
-    },
-    {
-      num: '02',
-      name: '问安表达',
-      value: sourceRows.get('问安表达') || inferSafety() || '待生成'
-    },
-    {
-      num: '03',
-      name: '汇款表达',
-      value: sourceRows.get('汇款表达') || inferRemittance() || sourceRows.get('汇款') || '待生成'
-    },
-    {
-      num: '04',
-      name: '结尾格式',
-      value: sourceRows.get('结尾格式') || inferClosing() || '待生成'
+  const styleSlots = result.value.style_slots || {}
+  const card = (num, key, name) => {
+    const active = activeStyleSlots.value.has(key)
+    const example = styleSlots[key]?.[0]
+    if (!active) {
+      return {
+        num,
+        name,
+        value: '本次输入未涉及该表达',
+        meta: '未启用，不注入提示词'
+      }
     }
+    if (!example) {
+      return {
+        num,
+        name,
+        value: '未检索到合格样例',
+        meta: '建议人工检查知识库槽位数据'
+      }
+    }
+    const sources = new Set(example.retrieval_sources || [])
+    const sourceLabel =
+      sources.has('keyword') && sources.has('semantic')
+        ? '关键词＋语义'
+        : sources.has('semantic')
+          ? '语义检索'
+          : '关键词检索'
+    const score = Math.round((example.slot_score || example.final_score || 0) * 100)
+    return {
+      num,
+      name,
+      value: example.unit_text,
+      meta: `${sourceLabel} · 槽位评分 ${score}% · ${example.prompt_included ? '已注入提示词' : '仅作备选'}`
+    }
+  }
+  return [
+    card('01', 'opening', '称谓格式'),
+    card('02', 'safety', '问安表达'),
+    card('03', 'remittance', '汇款表达'),
+    card('04', 'closing', '结尾格式')
   ]
 })
 
@@ -355,8 +400,17 @@ function normalizeEvidence(rows) {
     source_field: row.source_field || row.source_column,
     source_text: row.source_text || row.evidence_text || row.unit_text,
     reason: row.reason || row.evidence_type || row.unit_type,
+    evidence_role: row.evidence_role || 'style',
     similarity_score: row.similarity_score
   }))
+}
+
+function evidenceSourceText(row) {
+  if (row.source_text) return row.source_text
+  if (row.reason === 'no_user_input_support') {
+    return '该生成句未与用户输入形成足够匹配，请人工复核是否新增或改变了事实。'
+  }
+  return row.target_span || '暂无证据片段'
 }
 
 function normalizeCheck(check) {
@@ -366,33 +420,6 @@ function normalizeCheck(check) {
     passed_rules: check.passed_rules || [],
     failed_rules: check.failed_rules || []
   }
-}
-
-function splitLetterLines(text) {
-  if (!text) return []
-  const trimmed = String(text).trim()
-  if (trimmed.includes('\n')) return trimmed.split('\n')
-  return trimmed
-    .replace(/([。！？；：])/g, '$1\n')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-}
-
-function inferOpening() {
-  return generatedLines.value[0] || ''
-}
-
-function inferSafety() {
-  return generatedLines.value.find((line) => /平安|勿念|放心|安好/.test(line)) || ''
-}
-
-function inferRemittance() {
-  return generatedLines.value.find((line) => /银|元|汇|寄|奉上|托/.test(line)) || ''
-}
-
-function inferClosing() {
-  return generatedLines.value[generatedLines.value.length - 1] || ''
 }
 
 function findRuleText(rules, pattern) {
@@ -406,12 +433,17 @@ function formatValue(value) {
 }
 
 function fieldLabel(field) {
-  return fieldLabels[field] || field || '侨批原文片段'
+  return fieldLabels[field] || '知识库来源字段'
+}
+
+function reasonLabel(reason) {
+  return reasonLabels[reason] || fieldLabels[reason] || '知识库证据'
 }
 
 function clearContent() {
   plainText.value = ''
   result.value = {}
+  generatedText.value = ''
   error.value = ''
 }
 
@@ -430,12 +462,15 @@ async function runTransfer() {
       expansion_mode: 'balanced',
       dry_run: false
     })
+    generatedText.value = result.value.generated_text || ''
   } catch (requestError) {
     if (demoMode) {
       result.value = fallbackResult
+      generatedText.value = fallbackResult.generated_text || ''
       error.value = demoFailureMessage('风格转换请求')
     } else {
       result.value = {}
+      generatedText.value = ''
       error.value = apiFailureMessage(requestError, '风格转换请求')
     }
   } finally {

@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from typing import Mapping
 
+from app.llm.style_transfer_prompts import (
+    ACTIVE_STYLE_TRANSFER_PROMPT_VERSION,
+    build_versioned_style_transfer_prompt,
+)
 
 INTERPRETATION_PROMPT_VERSION = "interpret-json-v2"
-STYLE_TRANSFER_PROMPT_VERSION = "style-transfer-json-v2"
+STYLE_TRANSFER_PROMPT_VERSION = ACTIVE_STYLE_TRANSFER_PROMPT_VERSION
 
 
 def _evidence_reference_lines(evidence_references: list[Mapping[str, str]]) -> str:
@@ -74,43 +78,11 @@ def build_style_transfer_prompt(
     plain_text: str,
     prompt_context: str,
     evidence_references: list[Mapping[str, str]],
+    version: str = STYLE_TRANSFER_PROMPT_VERSION,
 ) -> list[dict[str, str]]:
-    system_prompt = (
-        "你是侨批文体改写助手。你可以参考真实侨批样例的措辞和结构，"
-        "但不得把生成内容声称为历史原文，也不得新增用户未提供的事实。"
-        "只输出一个合法 JSON 对象，不要输出 Markdown 代码围栏。"
+    return build_versioned_style_transfer_prompt(
+        plain_text=plain_text,
+        prompt_context=prompt_context,
+        evidence_references=evidence_references,
+        version=version,
     )
-    user_prompt = f"""请把用户白话内容改写为侨批体草稿。
-
-要求：
-1. 根据用户白话内容写成侨批体。
-2. 参考真实侨批样例，但不要逐字抄袭过长片段。
-3. 保留用户给出的事实：人物、地点、金额、嘱托。
-4. 不要新增用户没有提供的金额、日期、姓名。
-5. 输出结构包括：
-   - 侨批体正文
-   - 风格依据说明
-   - 参考证据列表
-6. 明确标注这是“生成草稿”，不是历史原文。
-
-用户白话内容：
-{plain_text}
-
-风格与证据上下文：
-{prompt_context}
-
-参考证据：
-{_evidence_reference_lines(evidence_references)}
-
-请严格输出以下 JSON 结构：
-{{
-  "generated_text": "完整的侨批体生成草稿",
-  "summary": ["保留的事实要点"],
-  "style_notes": ["采用的侨批文体特征"],
-  "warnings": ["无法确定或需要复核的内容"]
-}}
-"""
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
-    ]

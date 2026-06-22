@@ -23,7 +23,7 @@
           <h1>从侨批文本中识别主题、关系与证据结构</h1>
           <p>
             数据看板关注馆藏规模、地点与年代分布；这里进一步分析正文表达，
-            比较主题意图、亲属关系、汇款线索、检索单元和证据覆盖，回答“侨批在说什么”。
+            比较情感、主题意图、亲属关系、汇款线索、检索单元和证据覆盖，回答“侨批在说什么、如何表达”。
           </p>
         </div>
         <div class="analysis-hero-tags">
@@ -36,6 +36,181 @@
         <span></span>
         <p>{{ statusMessage }}</p>
       </div>
+
+      <section class="analysis-emotion-section" aria-labelledby="emotion-analysis-title">
+        <div class="analysis-section-heading">
+          <div>
+            <p>PYTORCH · MULTI-LABEL EMOTION</p>
+            <h2 id="emotion-analysis-title">侨批情感结构分析</h2>
+            <span>
+              以句段为最小判断单元，一封信可同时包含多种情感；每项结果均保留原文证据片段。
+            </span>
+          </div>
+          <div class="analysis-section-badges">
+            <span class="analysis-badge analysis-badge-red">
+              {{ emotionAnalysis.model.engine === 'pytorch' ? 'PyTorch' : '兼容模式' }}
+            </span>
+            <span class="analysis-code">{{ emotionAnalysis.model.model_version }}</span>
+          </div>
+        </div>
+
+        <section class="analysis-emotion-signal-grid" aria-label="情感分类摘要">
+          <article v-for="signal in emotionSignals" :key="signal.label">
+            <small>{{ signal.eyebrow }}</small>
+            <strong>{{ signal.value }}</strong>
+            <span>{{ signal.label }}</span>
+            <p>{{ signal.note }}</p>
+          </article>
+        </section>
+
+        <div class="analysis-emotion-grid">
+          <article class="analysis-card analysis-emotion-distribution-card">
+            <div class="analysis-card-marker"></div>
+            <div class="analysis-card-header">
+              <h2>多标签情感分布</h2>
+              <span class="analysis-badge">Record Coverage</span>
+            </div>
+            <p class="analysis-card-intro">
+              占比按“包含该情感的信件数 / 已分析全文数”计算，因此总和允许超过 100%。
+            </p>
+            <div class="analysis-emotion-rank-list">
+              <div v-for="(item, index) in emotionItems" :key="item.key">
+                <span class="analysis-emotion-index">{{ String(index + 1).padStart(2, '0') }}</span>
+                <div>
+                  <header>
+                    <strong>{{ item.label }}</strong>
+                    <em>{{ formatNumber(item.record_count) }} 封 · {{ formatPercent(item.ratio) }}</em>
+                  </header>
+                  <i>
+                    <b
+                      :class="`is-${item.valence}`"
+                      :style="{ width: `${Math.max(3, item.ratio * 100)}%` }"
+                    ></b>
+                  </i>
+                  <small>
+                    {{ formatNumber(item.segment_count) }} 个句段 · 平均置信度
+                    {{ formatPercent(item.average_confidence, 1) }}
+                  </small>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="analysis-card analysis-valence-card">
+            <div class="analysis-card-marker"></div>
+            <div class="analysis-card-header">
+              <h2>情感极性与复合度</h2>
+              <span class="analysis-badge">Valence Mix</span>
+            </div>
+            <div class="analysis-valence-layout">
+              <div class="analysis-valence-ring" :style="valenceRingStyle">
+                <div>
+                  <strong>{{ formatNumber(emotionAnalysis.analyzed_records) }}</strong>
+                  <span>全文信件</span>
+                </div>
+              </div>
+              <div class="analysis-valence-legend">
+                <div v-for="item in valenceItems" :key="item.key">
+                  <i :style="{ background: valenceColor(item.key) }"></i>
+                  <span>{{ item.label }}</span>
+                  <strong>{{ formatPercent(item.ratio) }}</strong>
+                  <small>{{ formatNumber(item.record_count) }} 封</small>
+                </div>
+              </div>
+            </div>
+            <aside class="analysis-method-note">
+              <strong>为什么不是简单“正面 / 负面”？</strong>
+              <p>
+                侨批常把平安、牵挂、压力和事务安排写在同一封信中；“复合情感”用于保留这种共存关系。
+              </p>
+            </aside>
+          </article>
+
+          <article class="analysis-card analysis-cooccurrence-card">
+            <div class="analysis-card-marker"></div>
+            <div class="analysis-card-header">
+              <h2>情感共现关系</h2>
+              <span class="analysis-badge">Co-occurrence</span>
+            </div>
+            <p class="analysis-card-intro">
+              同一封信中共同出现的情感组合，用于观察“事务—问安—牵挂”等叙事结构。
+            </p>
+            <div class="analysis-cooccurrence-list">
+              <div v-for="item in cooccurrenceItems" :key="`${item.left_key}-${item.right_key}`">
+                <span>{{ item.left_label }}</span>
+                <i aria-hidden="true">＋</i>
+                <span>{{ item.right_label }}</span>
+                <b>{{ formatNumber(item.record_count) }} 封</b>
+              </div>
+              <p v-if="!cooccurrenceItems.length">暂无达到展示条件的共现组合。</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="analysis-emotion-detail-grid">
+          <article class="analysis-card analysis-emotion-evidence-card">
+            <div class="analysis-card-marker"></div>
+            <div class="analysis-card-header">
+              <h2>原文判断依据</h2>
+              <span class="analysis-badge">Traceable Evidence</span>
+            </div>
+            <div class="analysis-emotion-evidence-list">
+              <article v-for="item in evidenceExamples" :key="`${item.record_id}-${item.emotion_key}-${item.text}`">
+                <header>
+                  <strong>{{ item.emotion_label }}</strong>
+                  <span>{{ item.record_id }}<template v-if="item.year"> · {{ item.year }}</template></span>
+                </header>
+                <blockquote>{{ item.text }}</blockquote>
+                <footer>
+                  <span>
+                    触发：
+                    {{ item.trigger_terms?.length ? item.trigger_terms.join('、') : '上下文特征' }}
+                  </span>
+                  <em>{{ formatPercent(item.confidence, 1) }}</em>
+                </footer>
+              </article>
+              <p v-if="!evidenceExamples.length" class="analysis-empty-copy">暂无可展示证据片段。</p>
+            </div>
+          </article>
+
+          <article class="analysis-card analysis-emotion-trend-card">
+            <div class="analysis-card-marker"></div>
+            <div class="analysis-card-header">
+              <h2>年代情感侧写</h2>
+              <span class="analysis-badge">Time Profile</span>
+            </div>
+            <p class="analysis-card-intro">
+              只统计具有可靠年份且该年代至少含两封全文的记录，避免孤立样本造成误导。
+            </p>
+            <div class="analysis-emotion-timeline">
+              <div v-for="item in emotionTimeTrend" :key="item.period">
+                <span>{{ item.period }}</span>
+                <i></i>
+                <div>
+                  <strong>{{ item.dominant_emotion_label }}</strong>
+                  <small>{{ formatNumber(item.record_count) }} 封可用全文</small>
+                </div>
+              </div>
+              <p v-if="!emotionTimeTrend.length">当前有效年份不足，暂不生成趋势结论。</p>
+            </div>
+            <aside class="analysis-model-card">
+              <span>模型审计信息</span>
+              <dl>
+                <div><dt>执行引擎</dt><dd>{{ emotionAnalysis.model.engine }}</dd></div>
+                <div><dt>分类阈值</dt><dd>{{ emotionAnalysis.model.threshold }}</dd></div>
+                <div><dt>标签数量</dt><dd>{{ emotionAnalysis.model.label_count }}</dd></div>
+                <div><dt>复核记录</dt><dd>{{ formatNumber(emotionAnalysis.low_confidence_records) }} 封</dd></div>
+              </dl>
+              <p>{{ emotionAnalysis.model.limitations }}</p>
+            </aside>
+          </article>
+        </div>
+
+        <div v-if="emotionAnalysis.warnings.length" class="analysis-emotion-warning">
+          <span>!</span>
+          <p>{{ emotionAnalysis.warnings.join(' ') }}</p>
+        </div>
+      </section>
 
       <section class="analysis-signal-grid" aria-label="文本分析摘要">
         <article v-for="signal in contentSignals" :key="signal.label">
@@ -205,6 +380,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 
+import { fetchEmotionAnalysis } from '../api/analysis'
 import { fetchDashboardDistributions, fetchDashboardStats } from '../api/dashboard'
 import {
   apiFailureMessage,
@@ -212,13 +388,28 @@ import {
   demoMode
 } from '../config/runtime'
 import fallbackStats from '../mock/dashboard.json'
+import fallbackEmotionAnalysis from '../mock/emotion_analysis.json'
+import {
+  emptyEmotionAnalysis,
+  normalizeEmotionAnalysis,
+  percentText
+} from '../utils/emotionPresentation'
 
 const stats = ref(demoMode ? fallbackStats : {})
 const distributions = ref({})
+const emotionAnalysis = ref(
+  normalizeEmotionAnalysis(demoMode ? fallbackEmotionAnalysis : emptyEmotionAnalysis)
+)
 const loading = ref(false)
 const error = ref('')
 
 const palette = ['#0F4A43', '#A74432', '#6D765F', '#1A6B61', '#8A6A47', '#6F7C78']
+const valencePalette = {
+  positive: '#2F6F63',
+  neutral: '#9A8D76',
+  negative: '#A74432',
+  mixed: '#C2884B'
+}
 
 const totalTextRecords = computed(() =>
   Number(stats.value.total_text_records ?? stats.value.text_records ?? 0)
@@ -278,6 +469,61 @@ const entityPerRecord = computed(() =>
 const retrievalUnitsPerRecord = computed(() =>
   averageLabel(stats.value.retrieval_unit_count, totalTextRecords.value)
 )
+
+const emotionItems = computed(() => emotionAnalysis.value.label_distribution || [])
+const valenceItems = computed(() => emotionAnalysis.value.valence_distribution || [])
+const cooccurrenceItems = computed(() => (emotionAnalysis.value.cooccurrence || []).slice(0, 8))
+const evidenceExamples = computed(() => (emotionAnalysis.value.evidence_examples || []).slice(0, 8))
+const emotionTimeTrend = computed(() => emotionAnalysis.value.time_trend || [])
+
+const emotionSignals = computed(() => [
+  {
+    eyebrow: 'DOMINANT',
+    value: emotionAnalysis.value.dominant_emotion_label || '暂无',
+    label: '主要情感表达',
+    note: '排除纯事务背景后，全文馆藏中覆盖最多的情感类型'
+  },
+  {
+    eyebrow: 'MULTI-LABEL',
+    value: ratioLabel(
+      emotionAnalysis.value.multi_label_records,
+      emotionAnalysis.value.analyzed_records
+    ),
+    label: '多情感共存',
+    note: `${formatNumber(emotionAnalysis.value.multi_label_records)} 封信同时包含两类及以上表达`
+  },
+  {
+    eyebrow: 'MIXED',
+    value: ratioLabel(
+      emotionAnalysis.value.mixed_valence_records,
+      emotionAnalysis.value.analyzed_records
+    ),
+    label: '复合情感信件',
+    note: '积极安慰与忧虑、牵挂等表达在同一封信中共存'
+  },
+  {
+    eyebrow: 'TRACE',
+    value: formatNumber(emotionAnalysis.value.analyzed_segments),
+    label: '已分析句段',
+    note: `${formatNumber(emotionAnalysis.value.analyzed_records)} / ${formatNumber(emotionAnalysis.value.total_records)} 条记录具有可用全文`
+  }
+])
+
+const valenceRingStyle = computed(() => {
+  let cursor = 0
+  const segments = valenceItems.value.map((item) => {
+    const start = cursor
+    cursor += Number(item.ratio || 0) * 100
+    return `${valenceColor(item.key)} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`
+  })
+  if (!segments.length || cursor <= 0) {
+    return { background: 'conic-gradient(#ddd6c8 0 100%)' }
+  }
+  if (cursor < 100) {
+    segments.push(`#ebe4d8 ${cursor.toFixed(2)}% 100%`)
+  }
+  return { background: `conic-gradient(${segments.join(', ')})` }
+})
 
 const contentSignals = computed(() => [
   {
@@ -349,7 +595,7 @@ const evidenceItems = computed(() => [
 
 const statusMessage = computed(() => {
   if (error.value) return error.value
-  return '分析工作台使用正式统计接口计算文本主题、关系强度与证据密度；知识图谱保持为独立关系产品。'
+  return '分析工作台使用正式接口计算句段级多标签情感、文本主题、关系强度与证据密度；知识图谱保持为独立关系产品。'
 })
 
 const labelMap = {
@@ -388,6 +634,14 @@ function formatNumber(value) {
   return Number(value || 0).toLocaleString()
 }
 
+function formatPercent(value, digits = 0) {
+  return percentText(value, digits)
+}
+
+function valenceColor(key) {
+  return valencePalette[key] || '#9A8D76'
+}
+
 function maxValue(items) {
   return Math.max(...items.map((item) => Number(item.value || 0)), 1)
 }
@@ -412,22 +666,45 @@ async function loadStats() {
   loading.value = true
   error.value = ''
   try {
-    const [statsPayload, distributionsPayload] = await Promise.all([
+    const [statsResult, distributionsResult, emotionResult] = await Promise.allSettled([
       fetchDashboardStats(),
-      fetchDashboardDistributions()
+      fetchDashboardDistributions(),
+      fetchEmotionAnalysis()
     ])
-    stats.value = statsPayload
-    distributions.value = distributionsPayload
-  } catch (requestError) {
-    if (demoMode) {
+
+    const failureMessages = []
+    if (statsResult.status === 'fulfilled') {
+      stats.value = statsResult.value
+    } else if (demoMode) {
       stats.value = fallbackStats
-      distributions.value = {}
-      error.value = demoFailureMessage('分析数据请求')
+      failureMessages.push(demoFailureMessage('统计数据请求'))
     } else {
       stats.value = {}
-      distributions.value = {}
-      error.value = apiFailureMessage(requestError, '分析数据请求')
+      failureMessages.push(apiFailureMessage(statsResult.reason, '统计数据请求'))
     }
+
+    if (distributionsResult.status === 'fulfilled') {
+      distributions.value = distributionsResult.value
+    } else {
+      distributions.value = {}
+      failureMessages.push(
+        demoMode
+          ? demoFailureMessage('分布数据请求')
+          : apiFailureMessage(distributionsResult.reason, '分布数据请求')
+      )
+    }
+
+    if (emotionResult.status === 'fulfilled') {
+      emotionAnalysis.value = normalizeEmotionAnalysis(emotionResult.value)
+    } else if (demoMode) {
+      emotionAnalysis.value = normalizeEmotionAnalysis(fallbackEmotionAnalysis)
+      failureMessages.push(demoFailureMessage('情感分析请求'))
+    } else {
+      emotionAnalysis.value = normalizeEmotionAnalysis(emptyEmotionAnalysis)
+      failureMessages.push(apiFailureMessage(emotionResult.reason, '情感分析请求'))
+    }
+
+    error.value = failureMessages.join(' ')
   } finally {
     loading.value = false
   }

@@ -693,6 +693,27 @@ def fetch_dashboard_distributions(limit: int = 10) -> dict[str, list[dict[str, i
     }
 
 
+def fetch_emotion_analysis_records() -> list[dict[str, Any]]:
+    """Return only the traceable full-text fields required by emotion analysis."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                record_id,
+                year_normalized,
+                body_clean,
+                body_core,
+                theme_tags,
+                main_intent
+            FROM qiaopi_text_records
+            WHERE has_full_text = 1
+              AND COALESCE(NULLIF(body_core, ''), NULLIF(body_clean, '')) IS NOT NULL
+            ORDER BY record_id
+            """
+        ).fetchall()
+    return _rows_to_dicts(rows)
+
+
 def fetch_text_record(record_id: str) -> dict[str, Any] | None:
     with get_connection() as connection:
         row = connection.execute(

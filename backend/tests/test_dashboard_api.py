@@ -46,3 +46,30 @@ def test_dashboard_distributions_return_expected_dimensions():
     ):
         assert payload[key], key
         assert {"label", "value"}.issubset(payload[key][0])
+
+
+def test_emotion_analysis_returns_pytorch_multilabel_evidence():
+    response = client.get("/api/analysis/emotions")
+
+    payload = response.json()
+    assert response.status_code == 200
+    assert payload["total_records"] == 213
+    assert payload["analyzed_records"] > 0
+    assert payload["analyzed_segments"] > payload["analyzed_records"]
+    assert payload["multi_label_records"] > 0
+    assert payload["dominant_emotion_label"]
+    assert payload["model"]["model_version"] == "qiaopi-emotion-pytorch-v1.0.0"
+    assert payload["model"]["engine"] in {
+        "pytorch",
+        "python_compatible_fallback",
+    }
+    assert len(payload["label_distribution"]) == 7
+    assert {item["key"] for item in payload["valence_distribution"]} == {
+        "positive",
+        "neutral",
+        "negative",
+        "mixed",
+    }
+    assert payload["evidence_examples"]
+    assert all(item["record_id"] for item in payload["evidence_examples"])
+    assert all(item["text"] for item in payload["evidence_examples"])

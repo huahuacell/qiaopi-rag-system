@@ -7,6 +7,7 @@ openpyxl
 jieba
 numpy
 scikit-learn
+torch>=2.2,<3
 pytest
 httpx
 faiss-cpu

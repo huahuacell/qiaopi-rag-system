@@ -57,6 +57,15 @@
   `dry_run=false`; the backend safety gate decides whether Qwen is permitted.
 - Verify style slots, structured output, evidence mappings, actual generation
   backend, model, prompt/index versions, cache state, and degradation reason.
+- Edit the generated text, save it, and verify `复制文本` copies the latest
+  edited value rather than the original backend response.
+- Click `装入信封` and verify the panel transitions through folding,
+  inserting, sealing, and sealed states without duplicate clicks.
+- In sealed state, click `拆开重看` and verify the edited text is preserved.
+- With `prefers-reduced-motion: reduce`, verify the component skips directly to
+  the sealed presentation.
+- Use the five diverse inputs in `docs/style_transfer_examples.md` to exercise
+  spouse, parent, sibling, business, and bereavement letter contexts.
 - In CI, enable the scaffold flag only with a simulated Qwen client and assert
   no real network request is made.
 
@@ -91,14 +100,32 @@
 - Verify duplicate logical edges, orphan edges, and missing provenance counts
   are zero.
 
-## 9. Contract Failure Checks
+## 9. Emotion Analysis
+
+- Open `/analysis` with the backend running.
+- Verify the page calls `GET /api/analysis/emotions` independently from the
+  two dashboard requests; failure of the emotion endpoint must not erase
+  existing dashboard statistics.
+- Verify the page displays seven multi-label emotion categories, four valence
+  buckets, co-occurrence pairs, time profiles, model version, threshold, and
+  low-confidence review count.
+- Verify each evidence card contains a `record_id`, original text, trigger
+  terms, and confidence score.
+- Confirm emotion coverage is explicitly documented as multi-label and is not
+  forced to sum to 100%.
+- Confirm the UI explains that confidence is not a calibrated probability and
+  that the current PyTorch classifier is an interpretable phase-1 baseline.
+- Stop the backend with `VITE_DEMO_MODE=false`; verify the emotion section
+  reports an API error while the page retains independent request handling.
+
+## 10. Contract Failure Checks
 
 - Requests to `/api/generation/plain-interpretation` return 404.
 - Requests to `/api/records/{record_id}/similar` return 404.
 - The backend contract test must fail if an endpoint or schema changes without
   an intentional baseline update.
 
-## 10. Production Mock Boundary
+## 11. Production Mock Boundary
 
 - Build or run with `VITE_DEMO_MODE=false`.
 - Stop the backend and visit all formal workflows, including the graph page.

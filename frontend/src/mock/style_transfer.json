@@ -2,6 +2,16 @@
   "task_type": "style-transfer",
   "plain_text": "母亲，我在新加坡平安，寄回八元给家里买米和药。请您放心。",
   "semantic_enabled": false,
+  "retrieval_mode": "hybrid",
+  "active_style_slots": [
+    "opening",
+    "safety",
+    "remittance",
+    "closing",
+    "style_reference"
+  ],
+  "prompt_included_count": 2,
+  "prompt_character_count": 286,
   "style_slots": {
     "opening": [
       {
@@ -13,7 +23,12 @@
         "source_column": "evidence_opening",
         "evidence_type": "opening",
         "matched_reason": "侨批常见亲属尊称",
-        "final_score": 1.0
+        "final_score": 1.0,
+        "slot_score": 0.92,
+        "quality_score": 1.0,
+        "slot_purity_score": 1.0,
+        "retrieval_sources": ["keyword", "semantic"],
+        "prompt_included": true
       }
     ],
     "remittance": [
@@ -26,7 +41,12 @@
         "source_column": "evidence_remittance",
         "evidence_type": "remittance",
         "matched_reason": "侨批汇款与查收表达",
-        "final_score": 1.0
+        "final_score": 1.0,
+        "slot_score": 0.88,
+        "quality_score": 1.0,
+        "slot_purity_score": 1.0,
+        "retrieval_sources": ["keyword", "semantic"],
+        "prompt_included": true
       }
     ]
   },
@@ -52,7 +72,11 @@
       "unit_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。"
     }
   ],
+  "generation_backend": "deterministic_local",
   "model": "deterministic-mock",
+  "prompt_version": "style-transfer-vernacular-json-v5",
+  "index_version": "demo-index",
+  "cache_hit": false,
   "dry_run": false,
   "messages": [],
   "error_message": null,
