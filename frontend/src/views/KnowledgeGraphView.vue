@@ -19,7 +19,7 @@
     <el-alert
       v-if="error"
       :title="error"
-      type="error"
+      :type="demoMode ? 'warning' : 'error'"
       show-icon
       :closable="false"
       class="kg-product-alert"
@@ -253,7 +253,16 @@ import {
 import { fetchMetadataDetail, fetchMetadataLinkedText } from '../api/metadata'
 import { fetchRecordDetail, fetchRecordEvidence } from '../api/records'
 import KnowledgeGraphCanvas from '../components/KnowledgeGraphCanvas.vue'
-import { apiFailureMessage } from '../config/runtime'
+import {
+  apiFailureMessage,
+  demoFailureMessage,
+  demoMode
+} from '../config/runtime'
+import {
+  buildFallbackNeighborGraph,
+  buildFallbackRecordGraph,
+  buildFallbackSourceDetail
+} from '../utils/graphFallback'
 import {
   edgeTypeLabel,
   evidenceIdFromNode,
@@ -361,8 +370,16 @@ async function loadRecordGraph() {
     const recordNode = graph.value.nodes?.find((node) => nodeType(node) === 'record')
     if (recordNode) await selectNode(recordNode)
   } catch (requestError) {
-    graph.value = { nodes: [], edges: [] }
-    error.value = apiFailureMessage(requestError, '记录子图请求')
+    if (demoMode) {
+      graph.value = buildFallbackRecordGraph(value)
+      graphMode.value = 'record'
+      error.value = demoFailureMessage('记录子图请求')
+      const recordNode = graph.value.nodes.find((node) => nodeType(node) === 'record')
+      if (recordNode) await selectNode(recordNode)
+    } else {
+      graph.value = { nodes: [], edges: [] }
+      error.value = apiFailureMessage(requestError, '记录子图请求')
+    }
   } finally {
     graphLoading.value = false
   }
@@ -401,11 +418,9 @@ async function selectNode(node) {
   try {
     const neighbors = await fetchNodeNeighbors(node.id, { depth: 1, limit: 100 })
     if (requestId !== traceRequestId) return
-    neighborGraph.value = neighbors
-    relatedRecordIds.value = recordIdsFromGraph(node, neighbors)
-    evidenceTraces.value = evidenceTracesFromGraph(neighbors)
+    applyNeighborGraph(node, neighbors)
     try {
-      const detail = await loadDirectSource(node)
+      const detail = await loadDirectSourceWithFallback(node)
       if (requestId !== traceRequestId) return
       sourceDetail.value = detail
     } catch (sourceError) {
@@ -415,13 +430,28 @@ async function selectNode(node) {
     }
   } catch (requestError) {
     if (requestId !== traceRequestId) return
-    neighborGraph.value = { nodes: [], edges: [] }
-    relatedRecordIds.value = recordIdsFromGraph(node, {})
-    evidenceTraces.value = []
-    error.value = apiFailureMessage(requestError, '节点追溯请求')
+    const fallbackNeighbors = demoMode
+      ? buildFallbackNeighborGraph(node.id, graph.value)
+      : null
+    if (fallbackNeighbors) {
+      applyNeighborGraph(node, fallbackNeighbors)
+      sourceDetail.value = await loadDirectSourceWithFallback(node)
+      if (!error.value) error.value = demoFailureMessage('节点追溯请求')
+    } else {
+      neighborGraph.value = { nodes: [], edges: [] }
+      relatedRecordIds.value = recordIdsFromGraph(node, {})
+      evidenceTraces.value = []
+      error.value = apiFailureMessage(requestError, '节点追溯请求')
+    }
   } finally {
     if (requestId === traceRequestId) traceLoading.value = false
   }
+}
+
+function applyNeighborGraph(node, neighbors) {
+  neighborGraph.value = neighbors
+  relatedRecordIds.value = recordIdsFromGraph(node, neighbors)
+  evidenceTraces.value = evidenceTracesFromGraph(neighbors)
 }
 
 function selectEdge(edge) {
@@ -489,6 +519,16 @@ async function loadDirectSource(node) {
     }
   }
   return null
+}
+
+async function loadDirectSourceWithFallback(node) {
+  try {
+    return await loadDirectSource(node)
+  } catch (requestError) {
+    if (!demoMode) throw requestError
+    if (!error.value) error.value = demoFailureMessage('节点源数据请求')
+    return buildFallbackSourceDetail(node)
+  }
 }
 
 onMounted(async () => {

@@ -1,0 +1,1716 @@
+{
+  "benchmark_domain_counts": {
+    "full_text_evidence": 7,
+    "metadata_catalog": 7
+  },
+  "benchmark_path": "C:\\Users\\TroY2567\\Desktop\\qiaopi-rag-system\\backend\\data\\evaluation\\retrieval_benchmark.jsonl",
+  "benchmark_query_count": 14,
+  "benchmark_sha256": "b07d0e414aa760155f178c5894146dd9855be774f91a6892aaaf9388f4ee8b77",
+  "benchmark_validation": {
+    "metadata_judgment_count": 16,
+    "record_judgment_count": 7,
+    "unit_judgment_count": 30
+  },
+  "corpus_boundaries": {
+    "full_text_evidence": {
+      "domain": "full_text_evidence",
+      "rag_evidence_allowed": true,
+      "record_count": 213,
+      "retrieval_unit_count": 1959
+    },
+    "metadata_catalog": {
+      "domain": "metadata_catalog",
+      "rag_evidence_allowed": false,
+      "record_count": 50064
+    },
+    "metadata_units_in_full_text_corpus": 0,
+    "orphan_retrieval_units": 0,
+    "unlinked_metadata_in_rag_corpus": 0
+  },
+  "created_at": "2026-06-19T03:22:06.446719+00:00",
+  "hash_test_index_used": true,
+  "improvement": {
+    "acceptance_rule": "Production semantic/hybrid evaluation requires a non-Hash manifest. Hybrid NDCG@10 and MRR@10 must not regress against keyword retrieval at both retrieval-unit and text-record levels.",
+    "comparisons": [
+      {
+        "acceptance_eligible": false,
+        "available": true,
+        "delta_vs_keyword": {
+          "mrr@10": -0.05754,
+          "ndcg@1": -0.142857,
+          "ndcg@10": -0.02722,
+          "ndcg@3": -0.083713,
+          "ndcg@5": 0.002664,
+          "recall@1": -0.042858,
+          "recall@10": 0.142857,
+          "recall@3": 0.021428,
+          "recall@5": 0.121429
+        },
+        "method": "semantic",
+        "target_level": "retrieval_unit"
+      },
+      {
+        "acceptance_eligible": false,
+        "available": true,
+        "delta_vs_keyword": {
+          "mrr@10": 0.035714,
+          "ndcg@1": 0.0,
+          "ndcg@10": 0.028608,
+          "ndcg@3": 0.090133,
+          "ndcg@5": 0.028608,
+          "recall@1": 0.0,
+          "recall@10": 0.0,
+          "recall@3": 0.142858,
+          "recall@5": 0.0
+        },
+        "method": "semantic",
+        "target_level": "text_record"
+      },
+      {
+        "acceptance_eligible": false,
+        "available": true,
+        "delta_vs_keyword": {
+          "mrr@10": 0.174603,
+          "ndcg@1": 0.0,
+          "ndcg@10": 0.158922,
+          "ndcg@3": 0.126975,
+          "ndcg@5": 0.20974,
+          "recall@1": 0.0,
+          "recall@10": 0.25,
+          "recall@3": 0.1,
+          "recall@5": 0.307143
+        },
+        "method": "hybrid",
+        "target_level": "retrieval_unit"
+      },
+      {
+        "acceptance_eligible": false,
+        "available": true,
+        "delta_vs_keyword": {
+          "mrr@10": 0.25,
+          "ndcg@1": 0.142857,
+          "ndcg@10": 0.261598,
+          "ndcg@3": 0.323123,
+          "ndcg@5": 0.261598,
+          "recall@1": 0.142857,
+          "recall@10": 0.285714,
+          "recall@3": 0.428572,
+          "recall@5": 0.285714
+        },
+        "method": "hybrid",
+        "target_level": "text_record"
+      }
+    ],
+    "production_semantic_accepted": false
+  },
+  "queries": [
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "metadata-001",
+      "ranked_ids": [
+        "CSQP-META-000001",
+        "CSQP-META-000002",
+        "CSQP-META-014192",
+        "CSQP-META-014246",
+        "CSQP-META-001970",
+        "CSQP-META-000025",
+        "CSQP-META-014194",
+        "CSQP-META-003130",
+        "CSQP-META-014195"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "metadata-002",
+      "ranked_ids": [
+        "CSQP-META-000037"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 0.5,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "metadata-003",
+      "ranked_ids": [
+        "CSQP-META-001286",
+        "CSQP-META-001389",
+        "CSQP-META-001297",
+        "CSQP-META-001333",
+        "CSQP-META-001287",
+        "CSQP-META-001288",
+        "CSQP-META-001413",
+        "CSQP-META-001414",
+        "CSQP-META-001415",
+        "CSQP-META-001416"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 0.5,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "metadata-004",
+      "ranked_ids": [
+        "CSQP-META-000251",
+        "CSQP-META-000249",
+        "CSQP-META-000250",
+        "CSQP-META-008802",
+        "CSQP-META-008804",
+        "CSQP-META-008814",
+        "CSQP-META-008823",
+        "CSQP-META-008825",
+        "CSQP-META-008826",
+        "CSQP-META-008849"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.917319,
+        "ndcg@3": 0.917319,
+        "ndcg@5": 0.917319,
+        "recall@1": 0.5,
+        "recall@10": 0.5,
+        "recall@3": 0.5,
+        "recall@5": 0.5
+      },
+      "query_id": "metadata-005",
+      "ranked_ids": [
+        "CSQP-META-018058",
+        "CSQP-META-018021",
+        "CSQP-META-017970",
+        "CSQP-META-017979",
+        "CSQP-META-017981",
+        "CSQP-META-017983",
+        "CSQP-META-017984",
+        "CSQP-META-017985",
+        "CSQP-META-017986",
+        "CSQP-META-017987"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.86091,
+        "ndcg@3": 0.86091,
+        "ndcg@5": 0.86091,
+        "recall@1": 0.333333,
+        "recall@10": 0.333333,
+        "recall@3": 0.333333,
+        "recall@5": 0.333333
+      },
+      "query_id": "metadata-006",
+      "ranked_ids": [
+        "CSQP-META-040822"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 0.142857,
+        "ndcg@10": 0.564908,
+        "ndcg@3": 0.262077,
+        "ndcg@5": 0.286262,
+        "recall@1": 0.2,
+        "recall@10": 1.0,
+        "recall@3": 0.6,
+        "recall@5": 0.8
+      },
+      "query_id": "metadata-007",
+      "ranked_ids": [
+        "CSQP-META-028176",
+        "CSQP-META-028115",
+        "CSQP-META-028184",
+        "CSQP-META-028447",
+        "CSQP-META-028158",
+        "CSQP-META-028437",
+        "CSQP-META-009439",
+        "CSQP-META-009448",
+        "CSQP-META-009472",
+        "CSQP-META-009495"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.730181,
+        "ndcg@3": 0.673544,
+        "ndcg@5": 0.646743,
+        "recall@1": 0.25,
+        "recall@10": 0.5,
+        "recall@3": 0.25,
+        "recall@5": 0.25
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-017-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-059-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-100-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-032-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-013-RU-OPENING-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-105",
+        "CSQP-SFHC-TEXT-059",
+        "CSQP-SFHC-TEXT-100",
+        "CSQP-SFHC-TEXT-032",
+        "CSQP-SFHC-TEXT-013"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.25,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.483714,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.369567,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 0.0,
+        "recall@5": 0.5
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-126-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-126-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-126-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-017-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-022-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-022-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-017-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-RECORD-FULL-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.63093,
+        "ndcg@3": 0.63093,
+        "ndcg@5": 0.63093,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-126",
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-022"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.766116,
+        "ndcg@3": 0.673544,
+        "ndcg@5": 0.766116,
+        "recall@1": 0.25,
+        "recall@10": 0.5,
+        "recall@3": 0.25,
+        "recall@5": 0.5
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-017-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-100-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-126-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-186-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-126-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-126-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-182-RU-REMITTANCE-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-100",
+        "CSQP-SFHC-TEXT-126",
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-182"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-186-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-186-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-186-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-013-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-059-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-STYLE-REFERENCE-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-105",
+        "CSQP-SFHC-TEXT-013",
+        "CSQP-SFHC-TEXT-059"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-017-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-017-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-017-RU-CLOSING-002",
+        "CSQP-SFHC-TEXT-022-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-017-RU-CLOSING-001",
+        "CSQP-SFHC-TEXT-022-RU-RECORD-FULL-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-022"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-017-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-186-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-100-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-017-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-182-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-186-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-182-RU-STYLE-REFERENCE-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-100",
+        "CSQP-SFHC-TEXT-182"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.974568,
+        "ndcg@3": 0.88387,
+        "ndcg@5": 0.974568,
+        "recall@1": 0.25,
+        "recall@10": 1.0,
+        "recall@3": 0.5,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-151-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-151-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-151-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-151-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.668044,
+        "ndcg@3": 0.380638,
+        "ndcg@5": 0.668044,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 0.5,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-151-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-151-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-151-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-151-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-205-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-205-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-204-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-095-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-205-RU-INSTRUCTION-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151",
+        "CSQP-SFHC-TEXT-205",
+        "CSQP-SFHC-TEXT-204",
+        "CSQP-SFHC-TEXT-095"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.712341,
+        "ndcg@3": 0.612898,
+        "ndcg@5": 0.712341,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 0.5,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-151-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-151-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-151-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-151-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-205-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-205-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-204-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-095-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-205-RU-INSTRUCTION-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151",
+        "CSQP-SFHC-TEXT-205",
+        "CSQP-SFHC-TEXT-204",
+        "CSQP-SFHC-TEXT-095"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-211-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-210-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-158-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-210-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-158-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-210-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-211-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-158-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-210-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-204-RU-REMITTANCE-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-211",
+        "CSQP-SFHC-TEXT-210",
+        "CSQP-SFHC-TEXT-158",
+        "CSQP-SFHC-TEXT-204"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.125,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.299535,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.75,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-112-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-112-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-112-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-112-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-112-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-112-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-112-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-173-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-173-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-173-RU-REMITTANCE-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.63093,
+        "ndcg@3": 0.63093,
+        "ndcg@5": 0.63093,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-112",
+        "CSQP-SFHC-TEXT-173"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.937614,
+        "ndcg@3": 0.817875,
+        "ndcg@5": 0.904704,
+        "recall@1": 0.25,
+        "recall@10": 1.0,
+        "recall@3": 0.5,
+        "recall@5": 0.75
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-173-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-173-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-173-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-173-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-156-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-173-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-210-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-112-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-171-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-112-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-173",
+        "CSQP-SFHC-TEXT-156",
+        "CSQP-SFHC-TEXT-210",
+        "CSQP-SFHC-TEXT-112",
+        "CSQP-SFHC-TEXT-171"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.166667,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.381552,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.6,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-017-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-105-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-105-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-105-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.63093,
+        "ndcg@3": 0.63093,
+        "ndcg@5": 0.63093,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-105"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.602347,
+        "ndcg@3": 0.590789,
+        "ndcg@5": 0.602347,
+        "recall@1": 0.2,
+        "recall@10": 0.6,
+        "recall@3": 0.4,
+        "recall@5": 0.6
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-105-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-105-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-091-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-091-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-105-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-091-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-091-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-126-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-118-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-126-RU-RECORD-FULL-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-105",
+        "CSQP-SFHC-TEXT-091",
+        "CSQP-SFHC-TEXT-126",
+        "CSQP-SFHC-TEXT-118"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.391519,
+        "ndcg@3": 0.341927,
+        "ndcg@5": 0.332104,
+        "recall@1": 0.0,
+        "recall@10": 0.6,
+        "recall@3": 0.2,
+        "recall@5": 0.4
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-186-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-105-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-186-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-063-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-091-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-117-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-091-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-186-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-105-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.63093,
+        "ndcg@3": 0.63093,
+        "ndcg@5": 0.63093,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-105",
+        "CSQP-SFHC-TEXT-063",
+        "CSQP-SFHC-TEXT-091",
+        "CSQP-SFHC-TEXT-117"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.111111,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.157877,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.25,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-120-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-120-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-120-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-120-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-029-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-029-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-120-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-034-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-150-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-029-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.25,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.430677,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.430677,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 0.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-120",
+        "CSQP-SFHC-TEXT-029",
+        "CSQP-SFHC-TEXT-034",
+        "CSQP-SFHC-TEXT-150"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-112-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-112-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-112-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-119-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-119-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-151-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-119-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-151-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-112-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-112-RU-STYLE-REFERENCE-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-112",
+        "CSQP-SFHC-TEXT-119",
+        "CSQP-SFHC-TEXT-151"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.25,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.429673,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.254854,
+        "recall@1": 0.0,
+        "recall@10": 0.75,
+        "recall@3": 0.0,
+        "recall@5": 0.5
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-050-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-050-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-050-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-150-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-150-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-112-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-150-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-112-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-150-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-112-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.63093,
+        "ndcg@3": 0.63093,
+        "ndcg@5": 0.63093,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-050",
+        "CSQP-SFHC-TEXT-150",
+        "CSQP-SFHC-TEXT-112"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-018-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-078-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-165-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-081-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-204-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-032-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-210-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-017-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-013-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-092-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-018",
+        "CSQP-SFHC-TEXT-078",
+        "CSQP-SFHC-TEXT-165",
+        "CSQP-SFHC-TEXT-081",
+        "CSQP-SFHC-TEXT-204",
+        "CSQP-SFHC-TEXT-032",
+        "CSQP-SFHC-TEXT-210",
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-013",
+        "CSQP-SFHC-TEXT-092"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-078-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-078-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-078-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-134-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-078-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-078-RU-OPENING-002",
+        "CSQP-SFHC-TEXT-078-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-134-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-078-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-078-RU-FAMILY-CARE-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-078",
+        "CSQP-SFHC-TEXT-134"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.25,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.119373,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.119373,
+        "recall@1": 0.0,
+        "recall@10": 0.25,
+        "recall@3": 0.0,
+        "recall@5": 0.25
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-078-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-078-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-078-RU-OPENING-002",
+        "CSQP-SFHC-TEXT-094-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-078-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-182-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-078-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-018-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-134-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-165-RU-REMITTANCE-001"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.63093,
+        "ndcg@3": 0.63093,
+        "ndcg@5": 0.63093,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-078",
+        "CSQP-SFHC-TEXT-094",
+        "CSQP-SFHC-TEXT-182",
+        "CSQP-SFHC-TEXT-018",
+        "CSQP-SFHC-TEXT-134",
+        "CSQP-SFHC-TEXT-165"
+      ],
+      "semantic_quality": "test_hash",
+      "target_level": "text_record"
+    }
+  ],
+  "report_version": "1",
+  "semantic_runtime_status": {
+    "configured_enabled": true,
+    "corpus_domain": "full_text_evidence",
+    "corpus_fingerprint": "6a7537c49ba8fc2bd15b54140c7f56e1c7dc54286e12341be01d3a6431840498",
+    "embedding_model": "hash-sha256-char-v1",
+    "embedding_provider": "hash",
+    "error_message": null,
+    "index_exists": true,
+    "index_path": "C:\\Users\\TroY2567\\AppData\\Local\\Temp\\qiaopi-eval-hash-6244943o\\semantic.faiss",
+    "manifest_exists": true,
+    "manifest_path": "C:\\Users\\TroY2567\\AppData\\Local\\Temp\\qiaopi-eval-hash-6244943o\\semantic_manifest.json",
+    "manifest_valid": true,
+    "metadata_exists": true,
+    "metadata_path": "C:\\Users\\TroY2567\\AppData\\Local\\Temp\\qiaopi-eval-hash-6244943o\\semantic_meta.jsonl",
+    "production_semantic_eligible": false,
+    "semantic_enabled": true,
+    "semantic_quality": "test_hash",
+    "vector_count": 1959
+  },
+  "summaries": [
+    {
+      "acceptance_eligible": false,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.285714,
+        "ndcg@10": 0.479519,
+        "ndcg@3": 0.349463,
+        "ndcg@5": 0.441356,
+        "recall@1": 0.071429,
+        "recall@10": 0.585714,
+        "recall@3": 0.207143,
+        "recall@5": 0.485714
+      },
+      "query_count": 7,
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.642857,
+        "ndcg@1": 0.428571,
+        "ndcg@10": 0.69897,
+        "ndcg@3": 0.69897,
+        "ndcg@5": 0.69897,
+        "recall@1": 0.428571,
+        "recall@10": 0.857143,
+        "recall@3": 0.857143,
+        "recall@5": 0.857143
+      },
+      "query_count": 7,
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.325397,
+        "ndcg@1": 0.285714,
+        "ndcg@10": 0.320597,
+        "ndcg@3": 0.222488,
+        "ndcg@5": 0.231616,
+        "recall@1": 0.071429,
+        "recall@10": 0.335714,
+        "recall@3": 0.107143,
+        "recall@5": 0.178571
+      },
+      "query_count": 7,
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.392857,
+        "ndcg@1": 0.285714,
+        "ndcg@10": 0.437372,
+        "ndcg@3": 0.375847,
+        "ndcg@5": 0.437372,
+        "recall@1": 0.285714,
+        "recall@10": 0.571429,
+        "recall@3": 0.428571,
+        "recall@5": 0.571429
+      },
+      "query_count": 7,
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": false,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.267857,
+        "ndcg@1": 0.142857,
+        "ndcg@10": 0.293377,
+        "ndcg@3": 0.138775,
+        "ndcg@5": 0.23428,
+        "recall@1": 0.028571,
+        "recall@10": 0.478571,
+        "recall@3": 0.128571,
+        "recall@5": 0.3
+      },
+      "query_count": 7,
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": false,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.428571,
+        "ndcg@1": 0.285714,
+        "ndcg@10": 0.46598,
+        "ndcg@3": 0.46598,
+        "ndcg@5": 0.46598,
+        "recall@1": 0.285714,
+        "recall@10": 0.571429,
+        "recall@3": 0.571429,
+        "recall@5": 0.571429
+      },
+      "query_count": 7,
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available_query_count": 7,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 0.877551,
+        "ndcg@10": 0.906162,
+        "ndcg@3": 0.862901,
+        "ndcg@5": 0.866356,
+        "recall@1": 0.57619,
+        "recall@10": 0.833333,
+        "recall@3": 0.77619,
+        "recall@5": 0.804762
+      },
+      "query_count": 7,
+      "target_level": "metadata_record"
+    }
+  ]
+}

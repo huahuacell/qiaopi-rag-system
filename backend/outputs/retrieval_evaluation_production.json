@@ -1,0 +1,1731 @@
+{
+  "benchmark_domain_counts": {
+    "full_text_evidence": 7,
+    "metadata_catalog": 7
+  },
+  "benchmark_path": "C:\\Users\\TroY2567\\Desktop\\qiaopi-rag-system\\backend\\data\\evaluation\\retrieval_benchmark.jsonl",
+  "benchmark_query_count": 14,
+  "benchmark_sha256": "b07d0e414aa760155f178c5894146dd9855be774f91a6892aaaf9388f4ee8b77",
+  "benchmark_validation": {
+    "metadata_judgment_count": 16,
+    "record_judgment_count": 7,
+    "unit_judgment_count": 30
+  },
+  "corpus_boundaries": {
+    "full_text_evidence": {
+      "domain": "full_text_evidence",
+      "rag_evidence_allowed": true,
+      "record_count": 213,
+      "retrieval_unit_count": 1959
+    },
+    "metadata_catalog": {
+      "domain": "metadata_catalog",
+      "rag_evidence_allowed": false,
+      "record_count": 50064
+    },
+    "metadata_units_in_full_text_corpus": 0,
+    "orphan_retrieval_units": 0,
+    "unlinked_metadata_in_rag_corpus": 0
+  },
+  "created_at": "2026-06-19T03:36:14.586883+00:00",
+  "hash_test_index_used": false,
+  "improvement": {
+    "acceptance_rule": "Production semantic/hybrid evaluation requires a non-Hash manifest. Hybrid NDCG@10 and MRR@10 must not regress against keyword retrieval at both retrieval-unit and text-record levels.",
+    "comparisons": [
+      {
+        "acceptance_eligible": true,
+        "available": true,
+        "delta_vs_keyword": {
+          "mrr@10": 0.203174,
+          "ndcg@1": 0.061225,
+          "ndcg@10": 0.086817,
+          "ndcg@3": 0.064728,
+          "ndcg@5": 0.155364,
+          "recall@1": 0.028571,
+          "recall@10": 0.121429,
+          "recall@3": 0.1,
+          "recall@5": 0.171429
+        },
+        "method": "semantic",
+        "target_level": "retrieval_unit"
+      },
+      {
+        "acceptance_eligible": true,
+        "available": true,
+        "delta_vs_keyword": {
+          "mrr@10": 0.226191,
+          "ndcg@1": 0.285715,
+          "ndcg@10": 0.205485,
+          "ndcg@3": 0.26701,
+          "ndcg@5": 0.205485,
+          "recall@1": 0.285715,
+          "recall@10": 0.142857,
+          "recall@3": 0.285715,
+          "recall@5": 0.142857
+        },
+        "method": "semantic",
+        "target_level": "text_record"
+      },
+      {
+        "acceptance_eligible": true,
+        "available": true,
+        "delta_vs_keyword": {
+          "mrr@10": 0.198413,
+          "ndcg@1": 0.061225,
+          "ndcg@10": 0.077197,
+          "ndcg@3": 0.079947,
+          "ndcg@5": 0.106041,
+          "recall@1": 0.035714,
+          "recall@10": 0.085715,
+          "recall@3": 0.071428,
+          "recall@5": 0.107143
+        },
+        "method": "hybrid",
+        "target_level": "retrieval_unit"
+      },
+      {
+        "acceptance_eligible": true,
+        "available": true,
+        "delta_vs_keyword": {
+          "mrr@10": 0.207143,
+          "ndcg@1": 0.285715,
+          "ndcg@10": 0.189321,
+          "ndcg@3": 0.195582,
+          "ndcg@5": 0.189321,
+          "recall@1": 0.285715,
+          "recall@10": 0.142857,
+          "recall@3": 0.142858,
+          "recall@5": 0.142857
+        },
+        "method": "hybrid",
+        "target_level": "text_record"
+      }
+    ],
+    "production_semantic_accepted": true
+  },
+  "queries": [
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "metadata-001",
+      "ranked_ids": [
+        "CSQP-META-000001",
+        "CSQP-META-000002",
+        "CSQP-META-014192",
+        "CSQP-META-014246",
+        "CSQP-META-001970",
+        "CSQP-META-000025",
+        "CSQP-META-014194",
+        "CSQP-META-003130",
+        "CSQP-META-014195"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "metadata-002",
+      "ranked_ids": [
+        "CSQP-META-000037"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 0.5,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "metadata-003",
+      "ranked_ids": [
+        "CSQP-META-001286",
+        "CSQP-META-001389",
+        "CSQP-META-001297",
+        "CSQP-META-001333",
+        "CSQP-META-001287",
+        "CSQP-META-001288",
+        "CSQP-META-001413",
+        "CSQP-META-001414",
+        "CSQP-META-001415",
+        "CSQP-META-001416"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 0.5,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "metadata-004",
+      "ranked_ids": [
+        "CSQP-META-000251",
+        "CSQP-META-000249",
+        "CSQP-META-000250",
+        "CSQP-META-008802",
+        "CSQP-META-008804",
+        "CSQP-META-008814",
+        "CSQP-META-008823",
+        "CSQP-META-008825",
+        "CSQP-META-008826",
+        "CSQP-META-008849"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.917319,
+        "ndcg@3": 0.917319,
+        "ndcg@5": 0.917319,
+        "recall@1": 0.5,
+        "recall@10": 0.5,
+        "recall@3": 0.5,
+        "recall@5": 0.5
+      },
+      "query_id": "metadata-005",
+      "ranked_ids": [
+        "CSQP-META-018058",
+        "CSQP-META-018021",
+        "CSQP-META-017970",
+        "CSQP-META-017979",
+        "CSQP-META-017981",
+        "CSQP-META-017983",
+        "CSQP-META-017984",
+        "CSQP-META-017985",
+        "CSQP-META-017986",
+        "CSQP-META-017987"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.86091,
+        "ndcg@3": 0.86091,
+        "ndcg@5": 0.86091,
+        "recall@1": 0.333333,
+        "recall@10": 0.333333,
+        "recall@3": 0.333333,
+        "recall@5": 0.333333
+      },
+      "query_id": "metadata-006",
+      "ranked_ids": [
+        "CSQP-META-040822"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 0.142857,
+        "ndcg@10": 0.564908,
+        "ndcg@3": 0.262077,
+        "ndcg@5": 0.286262,
+        "recall@1": 0.2,
+        "recall@10": 1.0,
+        "recall@3": 0.6,
+        "recall@5": 0.8
+      },
+      "query_id": "metadata-007",
+      "ranked_ids": [
+        "CSQP-META-028176",
+        "CSQP-META-028115",
+        "CSQP-META-028184",
+        "CSQP-META-028447",
+        "CSQP-META-028158",
+        "CSQP-META-028437",
+        "CSQP-META-009439",
+        "CSQP-META-009448",
+        "CSQP-META-009472",
+        "CSQP-META-009495"
+      ],
+      "target_level": "metadata_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.730181,
+        "ndcg@3": 0.673544,
+        "ndcg@5": 0.646743,
+        "recall@1": 0.25,
+        "recall@10": 0.5,
+        "recall@3": 0.25,
+        "recall@5": 0.25
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-017-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-059-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-100-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-032-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-013-RU-OPENING-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-105",
+        "CSQP-SFHC-TEXT-059",
+        "CSQP-SFHC-TEXT-100",
+        "CSQP-SFHC-TEXT-032",
+        "CSQP-SFHC-TEXT-013"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-029-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-029-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-199-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-186-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-199-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-186-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-126-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-199-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-199-RU-OPENING-002",
+        "CSQP-SFHC-TEXT-100-RU-STYLE-REFERENCE-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-029",
+        "CSQP-SFHC-TEXT-199",
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-126",
+        "CSQP-SFHC-TEXT-100"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-186-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-186-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-186-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-009-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-059-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-094-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-186-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-100-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-094-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-141-RU-INSTRUCTION-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-001",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-009",
+        "CSQP-SFHC-TEXT-059",
+        "CSQP-SFHC-TEXT-094",
+        "CSQP-SFHC-TEXT-100",
+        "CSQP-SFHC-TEXT-141"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-186-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-186-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-186-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-013-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-059-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-STYLE-REFERENCE-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-105",
+        "CSQP-SFHC-TEXT-013",
+        "CSQP-SFHC-TEXT-059"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-182-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-186-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-108-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-182-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-179-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-182-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-186-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-182-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-186-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-108-RU-FAMILY-CARE-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-182",
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-108",
+        "CSQP-SFHC-TEXT-179"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-182-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-182-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-182-RU-OPENING-002",
+        "CSQP-SFHC-TEXT-186-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-186-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-182-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-094-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-182-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-186-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-108-RU-BODY-CORE-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-002",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-182",
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-094",
+        "CSQP-SFHC-TEXT-108"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.974568,
+        "ndcg@3": 0.88387,
+        "ndcg@5": 0.974568,
+        "recall@1": 0.25,
+        "recall@10": 1.0,
+        "recall@3": 0.5,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-151-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-151-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-151-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-151-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.681178,
+        "ndcg@3": 0.380638,
+        "ndcg@5": 0.681178,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 0.5,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-151-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-151-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-151-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-151-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-095-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-095-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-095-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-095-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-095-RU-RECORD-FULL-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151",
+        "CSQP-SFHC-TEXT-095"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.712341,
+        "ndcg@3": 0.612898,
+        "ndcg@5": 0.712341,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 0.5,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-151-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-151-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-151-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-151-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-095-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-095-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-095-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-095-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-095-RU-RECORD-FULL-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-003",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-151",
+        "CSQP-SFHC-TEXT-095"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-211-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-210-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-158-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-210-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-158-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-210-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-211-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-158-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-210-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-204-RU-REMITTANCE-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-211",
+        "CSQP-SFHC-TEXT-210",
+        "CSQP-SFHC-TEXT-158",
+        "CSQP-SFHC-TEXT-204"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.2,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.250194,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.250194,
+        "recall@1": 0.0,
+        "recall@10": 0.25,
+        "recall@3": 0.0,
+        "recall@5": 0.25
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-210-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-158-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-158-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-210-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-173-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-210-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-112-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-169-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-167-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-112-RU-BODY-CORE-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.333333,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.5,
+        "ndcg@3": 0.5,
+        "ndcg@5": 0.5,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-210",
+        "CSQP-SFHC-TEXT-158",
+        "CSQP-SFHC-TEXT-173",
+        "CSQP-SFHC-TEXT-112",
+        "CSQP-SFHC-TEXT-169",
+        "CSQP-SFHC-TEXT-167"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.646743,
+        "ndcg@3": 0.673544,
+        "ndcg@5": 0.646743,
+        "recall@1": 0.25,
+        "recall@10": 0.25,
+        "recall@3": 0.25,
+        "recall@5": 0.25
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-173-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-158-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-156-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-158-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-210-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-210-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-143-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-210-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-210-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-158-RU-BODY-CORE-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-004",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-173",
+        "CSQP-SFHC-TEXT-158",
+        "CSQP-SFHC-TEXT-156",
+        "CSQP-SFHC-TEXT-210",
+        "CSQP-SFHC-TEXT-143"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.166667,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.381552,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.6,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-017-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-017-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-017-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-105-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-105-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-105-RU-OPENING-001",
+        "CSQP-SFHC-TEXT-105-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.63093,
+        "ndcg@3": 0.63093,
+        "ndcg@5": 0.63093,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-105"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 0.428571,
+        "ndcg@10": 0.205544,
+        "ndcg@3": 0.232261,
+        "ndcg@5": 0.205544,
+        "recall@1": 0.2,
+        "recall@10": 0.2,
+        "recall@3": 0.2,
+        "recall@5": 0.2
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-105-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-146-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-146-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-181-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-186-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-186-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-146-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-146-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-021-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-146-RU-STYLE-REFERENCE-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-105",
+        "CSQP-SFHC-TEXT-146",
+        "CSQP-SFHC-TEXT-181",
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-021"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.166667,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.073216,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.2,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-186-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-186-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-181-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-063-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-182-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-105-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-146-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-063-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-146-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-117-RU-INSTRUCTION-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.2,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.386853,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.386853,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 0.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-005",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-186",
+        "CSQP-SFHC-TEXT-181",
+        "CSQP-SFHC-TEXT-063",
+        "CSQP-SFHC-TEXT-182",
+        "CSQP-SFHC-TEXT-105",
+        "CSQP-SFHC-TEXT-146",
+        "CSQP-SFHC-TEXT-117"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.111111,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.157877,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.25,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-120-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-120-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-120-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-120-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-029-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-029-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-120-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-034-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-150-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-029-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.25,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.430677,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.430677,
+        "recall@1": 0.0,
+        "recall@10": 1.0,
+        "recall@3": 0.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-120",
+        "CSQP-SFHC-TEXT-029",
+        "CSQP-SFHC-TEXT-034",
+        "CSQP-SFHC-TEXT-150"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.777014,
+        "ndcg@3": 0.541942,
+        "ndcg@5": 0.750326,
+        "recall@1": 0.25,
+        "recall@10": 0.75,
+        "recall@3": 0.25,
+        "recall@5": 0.5
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-150-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-150-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-150-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-150-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-050-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-150-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-051-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-120-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-029-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-151-RU-RECORD-FULL-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-150",
+        "CSQP-SFHC-TEXT-050",
+        "CSQP-SFHC-TEXT-051",
+        "CSQP-SFHC-TEXT-120",
+        "CSQP-SFHC-TEXT-029",
+        "CSQP-SFHC-TEXT-151"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.752316,
+        "ndcg@3": 0.541942,
+        "ndcg@5": 0.727342,
+        "recall@1": 0.25,
+        "recall@10": 0.75,
+        "recall@3": 0.25,
+        "recall@5": 0.5
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-150-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-150-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-050-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-120-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-150-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-029-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-150-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-029-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-120-RU-FAMILY-CARE-001",
+        "CSQP-SFHC-TEXT-050-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-006",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-150",
+        "CSQP-SFHC-TEXT-050",
+        "CSQP-SFHC-TEXT-120",
+        "CSQP-SFHC-TEXT-029"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-018-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-078-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-165-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-081-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-204-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-032-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-210-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-017-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-013-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-092-RU-RAG-SUMMARY-001"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@3": 0.0,
+        "ndcg@5": 0.0,
+        "recall@1": 0.0,
+        "recall@10": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-018",
+        "CSQP-SFHC-TEXT-078",
+        "CSQP-SFHC-TEXT-165",
+        "CSQP-SFHC-TEXT-081",
+        "CSQP-SFHC-TEXT-204",
+        "CSQP-SFHC-TEXT-032",
+        "CSQP-SFHC-TEXT-210",
+        "CSQP-SFHC-TEXT-017",
+        "CSQP-SFHC-TEXT-013",
+        "CSQP-SFHC-TEXT-092"
+      ],
+      "semantic_quality": "disabled",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 0.93797,
+        "ndcg@3": 0.855669,
+        "ndcg@5": 0.821621,
+        "recall@1": 0.25,
+        "recall@10": 1.0,
+        "recall@3": 0.5,
+        "recall@5": 0.5
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-094-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-094-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-114-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-094-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-114-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-094-RU-RECORD-FULL-001",
+        "CSQP-SFHC-TEXT-102-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-068-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-094-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-015-RU-BODY-CORE-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-094",
+        "CSQP-SFHC-TEXT-114",
+        "CSQP-SFHC-TEXT-102",
+        "CSQP-SFHC-TEXT-068",
+        "CSQP-SFHC-TEXT-015"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 0.428571,
+        "ndcg@10": 0.599942,
+        "ndcg@3": 0.288662,
+        "ndcg@5": 0.277176,
+        "recall@1": 0.25,
+        "recall@10": 0.75,
+        "recall@3": 0.25,
+        "recall@5": 0.25
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-094-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-081-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-078-RU-REMITTANCE-001",
+        "CSQP-SFHC-TEXT-081-RU-OPENING-002",
+        "CSQP-SFHC-TEXT-078-RU-OPENING-002",
+        "CSQP-SFHC-TEXT-094-RU-INSTRUCTION-001",
+        "CSQP-SFHC-TEXT-094-RU-BODY-CORE-001",
+        "CSQP-SFHC-TEXT-182-RU-RAG-SUMMARY-001",
+        "CSQP-SFHC-TEXT-114-RU-STYLE-REFERENCE-001",
+        "CSQP-SFHC-TEXT-018-RU-REMITTANCE-001"
+      ],
+      "semantic_quality": "production",
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available": true,
+      "domain": "full_text_evidence",
+      "error_message": null,
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@10": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "recall@1": 1.0,
+        "recall@10": 1.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "fulltext-007",
+      "ranked_ids": [
+        "CSQP-SFHC-TEXT-094",
+        "CSQP-SFHC-TEXT-081",
+        "CSQP-SFHC-TEXT-078",
+        "CSQP-SFHC-TEXT-182",
+        "CSQP-SFHC-TEXT-114",
+        "CSQP-SFHC-TEXT-018"
+      ],
+      "semantic_quality": "production",
+      "target_level": "text_record"
+    }
+  ],
+  "report_version": "1",
+  "semantic_runtime_status": {
+    "configured_enabled": true,
+    "corpus_domain": "full_text_evidence",
+    "corpus_fingerprint": "6a7537c49ba8fc2bd15b54140c7f56e1c7dc54286e12341be01d3a6431840498",
+    "embedding_model": "BAAI/bge-small-zh-v1.5",
+    "embedding_provider": "local",
+    "error_message": null,
+    "index_exists": true,
+    "index_path": "C:\\Users\\TroY2567\\AppData\\Local\\Temp\\qiaopi-eval-local-dwexmexd\\semantic.faiss",
+    "manifest_exists": true,
+    "manifest_path": "C:\\Users\\TroY2567\\AppData\\Local\\Temp\\qiaopi-eval-local-dwexmexd\\semantic_manifest.json",
+    "manifest_valid": true,
+    "metadata_exists": true,
+    "metadata_path": "C:\\Users\\TroY2567\\AppData\\Local\\Temp\\qiaopi-eval-local-dwexmexd\\semantic_meta.jsonl",
+    "production_semantic_eligible": true,
+    "semantic_enabled": true,
+    "semantic_quality": "production",
+    "vector_count": 1959
+  },
+  "summaries": [
+    {
+      "acceptance_eligible": true,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.52381,
+        "ndcg@1": 0.346939,
+        "ndcg@10": 0.397794,
+        "ndcg@3": 0.302435,
+        "ndcg@5": 0.337657,
+        "recall@1": 0.107143,
+        "recall@10": 0.421429,
+        "recall@3": 0.178571,
+        "recall@5": 0.285714
+      },
+      "query_count": 7,
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "hybrid",
+      "metrics": {
+        "mrr@10": 0.6,
+        "ndcg@1": 0.571429,
+        "ndcg@10": 0.626693,
+        "ndcg@3": 0.571429,
+        "ndcg@5": 0.626693,
+        "recall@1": 0.571429,
+        "recall@10": 0.714286,
+        "recall@3": 0.571429,
+        "recall@5": 0.714286
+      },
+      "query_count": 7,
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.325397,
+        "ndcg@1": 0.285714,
+        "ndcg@10": 0.320597,
+        "ndcg@3": 0.222488,
+        "ndcg@5": 0.231616,
+        "recall@1": 0.071429,
+        "recall@10": 0.335714,
+        "recall@3": 0.107143,
+        "recall@5": 0.178571
+      },
+      "query_count": 7,
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "keyword",
+      "metrics": {
+        "mrr@10": 0.392857,
+        "ndcg@1": 0.285714,
+        "ndcg@10": 0.437372,
+        "ndcg@3": 0.375847,
+        "ndcg@5": 0.437372,
+        "recall@1": 0.285714,
+        "recall@10": 0.571429,
+        "recall@3": 0.428571,
+        "recall@5": 0.571429
+      },
+      "query_count": 7,
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.528571,
+        "ndcg@1": 0.346939,
+        "ndcg@10": 0.407414,
+        "ndcg@3": 0.287216,
+        "ndcg@5": 0.38698,
+        "recall@1": 0.1,
+        "recall@10": 0.457143,
+        "recall@3": 0.207143,
+        "recall@5": 0.35
+      },
+      "query_count": 7,
+      "target_level": "retrieval_unit"
+    },
+    {
+      "acceptance_eligible": true,
+      "available_query_count": 7,
+      "domain": "full_text_evidence",
+      "method": "semantic",
+      "metrics": {
+        "mrr@10": 0.619048,
+        "ndcg@1": 0.571429,
+        "ndcg@10": 0.642857,
+        "ndcg@3": 0.642857,
+        "ndcg@5": 0.642857,
+        "recall@1": 0.571429,
+        "recall@10": 0.714286,
+        "recall@3": 0.714286,
+        "recall@5": 0.714286
+      },
+      "query_count": 7,
+      "target_level": "text_record"
+    },
+    {
+      "acceptance_eligible": true,
+      "available_query_count": 7,
+      "domain": "metadata_catalog",
+      "method": "metadata_fts5_bm25",
+      "metrics": {
+        "mrr@10": 1.0,
+        "ndcg@1": 0.877551,
+        "ndcg@10": 0.906162,
+        "ndcg@3": 0.862901,
+        "ndcg@5": 0.866356,
+        "recall@1": 0.57619,
+        "recall@10": 0.833333,
+        "recall@3": 0.77619,
+        "recall@5": 0.804762
+      },
+      "query_count": 7,
+      "target_level": "metadata_record"
+    }
+  ]
+}
