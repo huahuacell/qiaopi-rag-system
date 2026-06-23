@@ -1,8 +1,19 @@
+import {
+  getDisplayLabel,
+  getNodeTypeDisplay,
+  getRelationDisplay,
+  getVisualNodeType
+} from './graphLabelMap.js'
+
 export const NODE_TYPE_LABELS = {
   record: '侨批记录',
+  record_group: '侨批与侨汇',
   metadata_record: '目录元数据',
   person: '人物',
+  kinship: '亲属称谓',
   place: '地点',
+  overseas_place: '海外侨居地',
+  hometown_place: '侨乡家园',
   amount: '金额',
   date: '日期',
   theme: '主题',
@@ -10,24 +21,34 @@ export const NODE_TYPE_LABELS = {
 }
 
 export const EDGE_TYPE_LABELS = {
-  SENT_BY: '寄批人',
-  RECEIVED_BY: '收批人',
-  MENTIONS_PERSON: '涉及人物',
-  MENTIONS_PLACE: '涉及地点',
-  SENT_FROM: '发自',
-  SENT_TO: '寄往',
-  HAS_AMOUNT: '包含金额',
-  HAS_DATE: '形成日期',
-  HAS_THEME: '涉及主题',
+  SENT_BY: '写信人',
+  RECEIVED_BY: '收信人',
+  MENTIONS_PERSON: '提及人物',
+  MENTIONS_PLACE: '提及地点',
+  MENTIONS_LOCATION: '提及地点',
+  SENT_FROM: '寄出地',
+  SENT_TO: '寄达地',
+  HAS_AMOUNT: '涉及金额',
+  HAS_DATE: '发生时间',
+  HAS_THEME: '表达主题',
   SUPPORTED_BY: '证据支持',
-  LINKED_TO_METADATA: '关联目录'
+  LINKED_TO_METADATA: '关联目录',
+  KINSHIP_ADDRESS: '使用称谓',
+  COMMUNICATES_WITH: '写信给',
+  FLOW_ORIGIN: '从此寄出',
+  FLOW_DESTINATION: '寄达此地',
+  REMITTANCE_FLOW: '侨汇流向'
 }
 
 export const NODE_COLORS = {
   record: '#0f4a43',
+  record_group: '#315f59',
   metadata_record: '#a74432',
   person: '#2f514c',
+  kinship: '#a94b35',
   place: '#72856b',
+  overseas_place: '#2f6c68',
+  hometown_place: '#8b7d45',
   amount: '#b17b42',
   date: '#6f7c78',
   theme: '#876448',
@@ -35,24 +56,21 @@ export const NODE_COLORS = {
 }
 
 export function nodeType(node = {}) {
-  return node.type || node.category || node.node_type || ''
+  return node.visualType || getVisualNodeType(node)
 }
 
 export function nodeTypeLabel(node = {}) {
-  return NODE_TYPE_LABELS[nodeType(node)] || nodeType(node) || '未知节点'
+  return NODE_TYPE_LABELS[nodeType(node)] || getNodeTypeDisplay(node)
 }
 
 export function edgeTypeLabel(edge = {}) {
-  const type = edge.type || edge.label || edge.edge_type || ''
-  return EDGE_TYPE_LABELS[type] || type || '关系'
+  const type =
+    edge.displayType || edge.rawType || edge.type || edge.label || edge.edge_type || ''
+  return EDGE_TYPE_LABELS[type] || getRelationDisplay(type)
 }
 
 export function nodeDisplayLabel(node = {}) {
-  const type = nodeType(node)
-  if (type === 'record') return stripPrefix(node.id || node.record_id || node.label)
-  if (type === 'metadata_record') return metadataIdFromNode(node) || node.label
-  if (type === 'evidence') return shorten(node.label || node.properties?.evidence_text, 18)
-  return shorten(node.label || node.normalized_label || node.id, 20)
+  return node.displayLabel || getDisplayLabel(node)
 }
 
 export function recordIdsFromGraph(node = {}, graph = {}) {

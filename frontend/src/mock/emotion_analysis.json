@@ -106,21 +106,21 @@
   ],
   "time_trend": [
     {
-      "period": "1920年代",
+      "period": "1920—1924",
       "record_count": 12,
       "dominant_emotion_key": "reassurance_relief",
       "dominant_emotion_label": "平安欣慰",
       "distribution": { "reassurance_relief": 0.75 }
     },
     {
-      "period": "1930年代",
+      "period": "1930—1934",
       "record_count": 51,
       "dominant_emotion_key": "gratitude_blessing",
       "dominant_emotion_label": "感激祝愿",
       "distribution": { "gratitude_blessing": 0.69 }
     },
     {
-      "period": "1940年代",
+      "period": "1940—1944",
       "record_count": 76,
       "dominant_emotion_key": "gratitude_blessing",
       "dominant_emotion_label": "感激祝愿",

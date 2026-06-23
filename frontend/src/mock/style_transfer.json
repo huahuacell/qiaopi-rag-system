@@ -74,7 +74,7 @@
   ],
   "generation_backend": "deterministic_local",
   "model": "deterministic-mock",
-  "prompt_version": "style-transfer-vernacular-json-v5",
+  "prompt_version": "style-transfer-concise-json-v4",
   "index_version": "demo-index",
   "cache_hit": false,
   "dry_run": false,

@@ -51,7 +51,8 @@ def _period_for_year(year_text: str) -> str | None:
     year = int(year_text)
     if not 1800 <= year <= 2100:
         return None
-    return f"{year // 10 * 10}年代"
+    period_start = year // 5 * 5
+    return f"{period_start}—{period_start + 4}"
 
 
 def _build_empty_payload(torch_available: bool) -> dict[str, Any]:
@@ -217,7 +218,7 @@ def _compute_emotion_analysis() -> dict[str, Any]:
                 item["record_id"],
             ),
         )
-        evidence_examples.extend(candidates[:2])
+        evidence_examples.extend(candidates[:9])
 
     affective_distribution = [
         item for item in label_distribution if item["key"] != "practical_neutral"

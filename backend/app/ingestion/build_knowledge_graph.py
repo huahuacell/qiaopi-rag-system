@@ -6,10 +6,7 @@ from typing import Any
 
 from app.graph.graph_builder import build_knowledge_graph as build_sqlite_knowledge_graph
 from app.graph.graph_repository import SUPPORTED_EDGE_TYPES, SUPPORTED_NODE_TYPES
-from app.settings import QIAOPI_DB_PATH
-
-
-def build_knowledge_graph(db_path: Path = QIAOPI_DB_PATH) -> dict[str, Any]:
+def build_knowledge_graph(db_path: Path | None = None) -> dict[str, Any]:
     return build_sqlite_knowledge_graph(db_path)
 
 

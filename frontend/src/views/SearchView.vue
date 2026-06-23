@@ -207,6 +207,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { hybridSearch, keywordSearch, semanticSearch } from '../api/search'
 import SearchResultCard from '../components/SearchResultCard.vue'
@@ -221,9 +222,10 @@ import {
   resolveSearchExecution
 } from '../utils/searchPresentation'
 
+const route = useRoute()
 const mode = ref('hybrid')
 const lastRequestedMode = ref('hybrid')
-const query = ref('母亲 寄款 查收')
+const query = ref(String(route.query.query || '').trim() || '母亲 寄款 查收')
 const filters = reactive({
   place: '',
   year_normalized: '',

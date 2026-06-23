@@ -72,20 +72,27 @@ Core tables:
 
 ## Reproducible Build-All Pipeline
 
-Run from `backend/`:
+`qiaopi.db` is a generated artifact and is not distributed through Git. For a
+fresh checkout, run from `backend/` before starting Uvicorn:
 
 ```bash
-python -m app.ingestion.build_all --embedding-provider hash
+python -m app.ingestion.build_all --embedding-provider hash --promote
 ```
 
-The default command rebuilds all derived assets from the raw Excel workbooks in
-an isolated directory under `backend/data/builds/`. It does not modify the live
-database or index. The ordered stages are full-text preprocessing, text
-database and FTS5, metadata database and FTS5, text-metadata linking, SQLite
-knowledge graph, semantic index, and acceptance validation.
+The command rebuilds all derived assets from the raw Excel workbooks in an
+isolated directory under `backend/data/builds/`, validates them, then promotes
+the accepted database, manifest, processed files, and semantic index to the
+runtime paths. The ordered stages are full-text preprocessing, text database
+and FTS5, metadata database and FTS5, text-metadata linking, SQLite knowledge
+graph, semantic index, and acceptance validation.
 
-Use `--promote` only after acceptance. Promotion prepares temporary sibling
-files and restores the previous live assets if any replacement fails.
+Promotion prepares temporary sibling files and restores the previous live
+assets if any replacement fails. Omitting `--promote` is supported for CI and
+diagnostic isolated builds.
+
+Uvicorn startup validates the promoted database and manifest read-only. It
+does not create or repair runtime data. Missing, partial, or count-mismatched
+artifacts stop startup with instructions to rerun the complete build command.
 
 Each accepted build writes `qiaopi_build_manifest.json` containing canonical
 per-table counts and SHA-256 checksums, a schema checksum, the embedding
@@ -278,7 +285,7 @@ Response excerpt:
   ],
   "time_trend": [
     {
-      "period": "1930年代",
+      "period": "1930—1934",
       "record_count": 51,
       "dominant_emotion_key": "gratitude_blessing",
       "dominant_emotion_label": "感激祝愿",
@@ -325,8 +332,10 @@ Interpretation rules:
   must not be presented as calibrated statistical probability.
 - `evidence_examples` preserve source `record_id`, original text, and trigger
   terms so the frontend can explain every displayed emotion.
-- `time_trend` excludes missing/invalid years and periods with fewer than two
-  usable full-text records.
+- `time_trend` uses five-year periods, excluding missing/invalid years and
+  periods with fewer than two usable full-text records.
+- `evidence_examples` returns up to nine deterministic examples per emotion
+  label, ordered for review safety, confidence, text length, and record ID.
 - `low_confidence_records` should be queued for review rather than removed.
 
 ## POST /api/search/keyword
@@ -422,7 +431,7 @@ Response:
       ]
     }
   ],
-  "prompt_version": "style-transfer-vernacular-json-v5",
+  "prompt_version": "style-transfer-concise-json-v4",
   "index_version": "rel:30675156c50cd5c8|vec:6a7537c49ba8fc2b|manifest:1"
 }
 ```
@@ -740,6 +749,12 @@ Response:
         "slot_score": 0.91,
         "slot_purity_score": 1.0,
         "quality_score": 1.0,
+        "relationship_type": "child_to_parent",
+        "relationship_profile": "mother",
+        "relationship_label": "亲子（写给母亲）",
+        "relationship_match": "matched",
+        "relationship_score": 1.0,
+        "relationship_expression_score": 1.0,
         "retrieval_sources": ["keyword", "semantic"],
         "prompt_included": true
       }
@@ -806,7 +821,15 @@ available for traceability.
 Retrieval uses keyword + semantic RRF fusion when a valid semantic index is
 available. If semantic retrieval is unavailable, it safely falls back to
 keyword results. Candidates are then reranked by input-intent alignment, slot
-purity, fragment length, punctuation quality, and cross-slot contamination.
+purity, fragment length, punctuation quality, cross-slot contamination, and
+recipient-relationship compatibility. Named salutations may be conservatively
+classified from multiple family-context signals; the response exposes the
+profile, reason-compatible relationship label, source relationship type, and
+match score so the frontend can explain why a spouse or parent example won.
+Each slot also runs a focused keyword branch over only the relevant input
+clauses and slot concepts. Its candidates are merged with the full-context
+hybrid pool before reranking, preventing incidental words elsewhere in a long
+letter from dominating the selected style example.
 
 `prompt_context` format:
 
@@ -968,12 +991,16 @@ Response:
       "generated_end": 21,
       "record_id": "CSQP-SFHC-TEXT-017",
       "unit_id": "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+      "source_unit_type": "body_core",
       "source_field": "body_core",
       "source_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
       "reason": "lexical_overlap",
       "similarity_score": 0.46,
       "mapping_method": "lexical-evidence-map-v1",
-      "needs_review": false
+      "needs_review": false,
+      "retrieval_sources": ["keyword"],
+      "prompt_included": false,
+      "slot_match": false
     }
   ],
   "dry_run": false,
@@ -1079,7 +1106,7 @@ Response:
   "generated_text": "【生成侨批体草稿】...",
   "generation_backend": "qwen",
   "model": "qwen-plus",
-  "prompt_version": "style-transfer-vernacular-json-v5",
+  "prompt_version": "style-transfer-concise-json-v4",
   "index_version": "rel:30675156c50cd5c8|vec:6a7537c49ba8fc2b|manifest:1",
   "cache_hit": false,
   "cache_key": "sha256-cache-key",
@@ -1141,23 +1168,17 @@ Prompt versions are preserved in a registry instead of being overwritten:
 - `style-transfer-json-v1`
 - `style-transfer-concise-json-v2`
 - `style-transfer-concise-json-v3`
-- `style-transfer-concise-json-v4`
-- `style-transfer-vernacular-json-v5` (active)
+- `style-transfer-concise-json-v4` (active)
+- `style-transfer-vernacular-json-v5`
 
-- Write qiaopi-style text from the user's plain Chinese.
-- Use modern Chinese syntax as the foundation, with only a small amount of
-  traditional letter phrasing. The result must not read like a classical
-  Chinese composition.
+- Write concise, natural, readable shallow-classical qiaopi-style text from
+  the user's plain Chinese.
 - Target roughly 55% to 70% of the source length, preferably near 65%,
   without dropping facts.
-- Express each fact or emotion once and avoid stacking formulaic phrases from
-  multiple retrieved examples.
-- Use one salutation, one or two compact body paragraphs, one closing, and
-  exactly one signature.
+- Keep only one set of salutation, greeting, reassurance, blessing, closing,
+  and signature functions.
 - Keep prompt guidance content-neutral: do not include a topic-specific target
   answer or assume particular people, places, objects, scenes, or activities.
-- Do not invent delivery methods, currency labels, honorific identities,
-  historical settings, metaphors, or classical imagery absent from the input.
 - Reference real qiaopi examples without copying long passages verbatim.
 - Preserve user-provided people, places, amounts, and instructions.
 - Do not add or alter amounts, dates, names, places, objects, actions, or
@@ -1245,6 +1266,14 @@ The generation endpoints attach `validation_report` and sentence-level
 deterministic local fallback. For `dry_run=true` or an empty generated result,
 both remain empty/null.
 
+For style transfer, generation evidence references contain only slot examples
+with `prompt_included=true`. Post-generation style mappings therefore describe
+knowledge fragments that were actually present in the model context, not every
+retrieval candidate. A generated sentence may map to at most two distinct
+injected records. Content-to-user-input mappings remain available in the API
+for internal safety analysis, while the formal frontend presents knowledge
+style mappings and leaves factual preservation to `validation_report`.
+
 Generation runtime fields:
 
 - `generation_backend`: `qwen`, `deterministic_local`, or `prompt_preview`.
@@ -1253,6 +1282,9 @@ Generation runtime fields:
 - `prompt_version`: versioned prompt and structured-output contract.
 - `index_version`: relational/vector build fingerprint used for evidence.
 - `cache_hit`: whether generated content came from SQLite cache.
+- Cache identity includes a hash of the final system/user messages, so changes
+  in dynamic RAG context or relationship guidance cannot reuse a stale draft
+  merely because the prompt version and evidence unit IDs stayed unchanged.
 - `degraded_reason`: stable reason such as `scaffold_phase_active`,
   `qwen_disabled`, `qwen_timeout`, or `qwen_invalid_structured_output`.
 - `attempt_count`: Qwen attempts made; zero for local generation and previews.

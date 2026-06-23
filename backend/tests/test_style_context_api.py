@@ -170,3 +170,36 @@ def test_style_context_uses_hybrid_rrf_when_semantic_index_exists(
     ]
     assert examples
     assert any("semantic" in example["retrieval_sources"] for example in examples)
+
+
+def test_style_context_infers_named_spouse_and_avoids_parent_opening():
+    response = client.post(
+        "/api/rag/style-context",
+        json={
+            "query": (
+                "淑兰：我到曼谷已近半年，托可靠船客捎回三十元，"
+                "二十元作家用，十元给孩子添衣。近日夜雨想起你，"
+                "待生意安稳便设法回去。木泉"
+            ),
+            "top_k": 3,
+            "filters": {},
+            "expansion_mode": "balanced",
+        },
+    )
+
+    payload = response.json()
+    assert response.status_code == 200
+    opening = payload["style_slots"]["opening"][0]
+    assert opening["relationship_profile"] == "wife"
+    assert opening["relationship_match"] == "matched"
+    assert opening["relationship_type"] == "spouse_to_spouse"
+    assert not any(
+        term in opening["unit_text"]
+        for term in ("慈亲", "母亲", "膝下")
+    )
+    assert opening["prompt_included"] is True
+    closing = payload["style_slots"]["closing"][0]
+    assert "【署名】" in closing["prompt_text"]
+    assert closing["prompt_text"].startswith("夫")
+    assert "【本次收信关系】" in payload["prompt_context"]
+    assert "夫妻（写给妻子）" in payload["prompt_context"]

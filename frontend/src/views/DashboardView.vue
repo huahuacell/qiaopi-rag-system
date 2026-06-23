@@ -141,6 +141,11 @@
                 <strong>{{ item.value }}</strong>
                 <em>条文本</em>
               </div>
+              <div class="archive-era-unknown" title="年代不详（原始数据未标注年份）">
+                <span>年代不详</span>
+                <strong>{{ unknownYearCount }}</strong>
+                <em>条文本</em>
+              </div>
             </div>
 
             <div ref="timelineChartRef" class="archive-dashboard-chart archive-timeline-chart"></div>
@@ -189,6 +194,11 @@ import {
   demoMode
 } from '../config/runtime'
 import fallbackStats from '../mock/dashboard.json'
+import {
+  formatRelationshipDistribution,
+  originAxisLabelOption,
+  splitYearDistribution
+} from '../utils/dashboardPresentation'
 
 const stats = ref({})
 const distributions = ref({})
@@ -205,10 +215,15 @@ let resizeFrame = 0
 const metadataRecordCount = computed(() => stats.value.metadata_record_count ?? stats.value.total_records ?? 0)
 const textRecordCount = computed(() => stats.value.total_text_records ?? stats.value.text_records ?? 0)
 const originPlaces = computed(() => distributions.value.top_places || stats.value.origin_places || [])
-const relationshipDistribution = computed(
-  () => distributions.value.relationship_distribution || stats.value.kinship_distribution || []
+const relationshipDistribution = computed(() => formatRelationshipDistribution(
+  distributions.value.relationship_distribution || stats.value.kinship_distribution || []
+))
+const rawTimelineDistribution = computed(
+  () => distributions.value.year_distribution || stats.value.timeline || []
 )
-const timelineDistribution = computed(() => distributions.value.year_distribution || stats.value.timeline || [])
+const timelinePresentation = computed(() => splitYearDistribution(rawTimelineDistribution.value))
+const timelineDistribution = computed(() => timelinePresentation.value.years)
+const unknownYearCount = computed(() => timelinePresentation.value.unknownCount)
 
 const totalSampleCount = computed(() => {
   const total = Number(metadataRecordCount.value || 0) + Number(textRecordCount.value || 0)
@@ -282,29 +297,55 @@ function archiveTooltip(unit = '条') {
     formatter(params) {
       const item = Array.isArray(params) ? params[0] : params
       const value = Number(item.value || 0).toLocaleString()
+      const displayLabel = escapeTooltipText(item.name)
+      const rawLabel = escapeTooltipText(item.data?.rawLabel)
+      const rawLabelLine = rawLabel && rawLabel !== displayLabel
+        ? `<div style="font-family:JetBrains Mono, Consolas, monospace;font-size:10px;color:#6F7C78;margin-top:2px;">原始字段：${rawLabel}</div>`
+        : ''
       return `
-        <div style="font-family:JetBrains Mono, Consolas, monospace;font-size:10px;color:#6F7C78;letter-spacing:.08em;margin-bottom:3px;">${item.name}</div>
+        <div style="font-family:'Noto Sans SC',sans-serif;font-size:12px;color:#1F2A28;font-weight:600;margin-bottom:3px;">${displayLabel}</div>
+        ${rawLabelLine}
         <div style="font-family:'Noto Serif SC',serif;font-size:15px;color:#0F4A43;font-weight:600;">${value} ${unit}</div>
       `
     }
   }
 }
 
+function escapeTooltipText(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
 function toBarOption(title, items, color = '#0F4A43') {
+  const isKinship = title === '亲属关系'
+  const isOrigin = title === '来源地'
+  const axisLabelLayout = isOrigin
+    ? originAxisLabelOption()
+    : {
+        interval: 0,
+        rotate: isKinship ? 24 : 0,
+        hideOverlap: true,
+        width: isKinship ? 72 : 90,
+        overflow: 'truncate',
+        formatter: (value) => value.length > 8 ? `${value.slice(0, 8)}…` : value
+      }
   return {
     animation: true,
     animationDuration: 700,
     color: [color],
-    grid: { left: 44, right: 14, top: 14, bottom: 38, containLabel: true },
-    tooltip: archiveTooltip(title === '亲属关系' ? '次' : '条'),
+    grid: { left: 44, right: 14, top: 14, bottom: isKinship || isOrigin ? 58 : 38, containLabel: true },
+    tooltip: archiveTooltip(isKinship ? '次' : '条'),
     xAxis: {
       type: 'category',
       data: items.map((item) => item.label),
       axisTick: { show: false },
       axisLine: { lineStyle: { color: '#DDD6C8' } },
       axisLabel: {
-        interval: 0,
-        rotate: 0,
+        ...axisLabelLayout,
         color: '#6F7C78',
         fontSize: 11,
         fontFamily: '"Noto Sans SC", sans-serif'
@@ -325,7 +366,9 @@ function toBarOption(title, items, color = '#0F4A43') {
         name: title,
         type: 'bar',
         barWidth: 24,
-        data: items.map((item) => item.value),
+        data: items.map((item) => isKinship
+          ? { value: item.value, rawLabel: item.rawLabel }
+          : item.value),
         itemStyle: {
           borderRadius: [2, 2, 0, 0],
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [

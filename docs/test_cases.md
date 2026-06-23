@@ -57,6 +57,22 @@
   `dry_run=false`; the backend safety gate decides whether Qwen is permitted.
 - Verify style slots, structured output, evidence mappings, actual generation
   backend, model, prompt/index versions, cache state, and degradation reason.
+- Submit a named spouse letter containing shared-child and reunion cues. Verify
+  the opening slot selects `spouse_to_spouse`, displays the relationship match,
+  and does not inject a mother-oriented salutation.
+- Verify the evidence panel displays only knowledge fragments with
+  `prompt_included=true`, including generated span, source record/unit, actual
+  retrieval mode, and mapping score. User-input restatements must not appear in
+  the formal evidence list.
+- For an input containing greeting, safety, remittance, care, instruction, and
+  signature functions, verify the evidence panel resolves six distinct
+  injected knowledge units after duplicate sentence mappings are merged.
+- Verify the active badge is `prompt-v4`; v5 remains selectable in the backend
+  prompt registry but is not the active style-transfer version.
+- For a spouse letter, verify the selected closing is relationship-compatible,
+  such as `夫【署名】泐`, `夫【署名】顿`, or another traceable corpus form.
+- Verify a warning in one consistency rule does not turn unrelated person,
+  amount, or place cards red.
 - Edit the generated text, save it, and verify `复制文本` copies the latest
   edited value rather than the original backend response.
 - Click `装入信封` and verify the panel transitions through folding,
@@ -82,6 +98,13 @@
   reproduces `source_text` and `normalized_source_text`.
 - Enter text containing `□`, `�`, `疑为`, or `不清` and verify the review
   warning is visible.
+- Verify entity, relation, and slot cards all expose rule ID, extractor
+  version, original/normalized offsets, confidence, review state, and
+  frontend span-integrity status.
+- Change the input or task after a successful run and verify the previous
+  result is hidden as stale until analysis is executed again.
+- Restore the sample or clear the editor and verify prior results and errors
+  are cleared instead of remaining attached to the new input.
 - Stop the backend and verify the page reports an API error without loading
   mock NLP output.
 

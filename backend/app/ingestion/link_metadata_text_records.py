@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from app.database.connection import get_connection
+from app.database.connection import get_connection, resolve_database_path
 from app.database.repository import (
     count_rows,
     fetch_metadata_link_stats,
@@ -16,25 +16,23 @@ from app.database.repository import (
 )
 from app.database.schema import create_tables
 from app.metadata.metadata_linker import build_metadata_text_links
-from app.settings import QIAOPI_DB_PATH
-
-
-def link_metadata_text_records(db_path: Path = QIAOPI_DB_PATH) -> dict[str, Any]:
-    text_records = fetch_text_records_for_metadata_linking(db_path)
-    metadata_records = fetch_metadata_records_for_linking(db_path)
+def link_metadata_text_records(db_path: Path | None = None) -> dict[str, Any]:
+    resolved_db_path = resolve_database_path(db_path)
+    text_records = fetch_text_records_for_metadata_linking(resolved_db_path)
+    metadata_records = fetch_metadata_records_for_linking(resolved_db_path)
     link_result = build_metadata_text_links(text_records, metadata_records)
 
-    with get_connection(db_path) as connection:
+    with get_connection(resolved_db_path) as connection:
         create_tables(connection)
         reset_metadata_links(connection)
         auto_link_count = insert_metadata_links(connection, link_result["auto_links"])
         candidate_link_count = insert_metadata_link_candidates(connection, link_result["candidate_links"])
         connection.commit()
-        link_stats = fetch_metadata_link_stats(db_path)
+        link_stats = fetch_metadata_link_stats(resolved_db_path)
         full_text_record_count = count_rows(connection, "qiaopi_text_records")
 
     return {
-        "database_path": str(db_path),
+        "database_path": str(resolved_db_path),
         "full_text_record_count": full_text_record_count,
         "auto_link_count": auto_link_count,
         "candidate_link_count": candidate_link_count,

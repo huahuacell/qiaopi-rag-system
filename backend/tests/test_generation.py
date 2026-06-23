@@ -20,7 +20,7 @@ def test_style_transfer_prompt_versions_are_preserved_and_selectable():
         "style-transfer-concise-json-v4",
         "style-transfer-vernacular-json-v5",
     )
-    assert ACTIVE_STYLE_TRANSFER_PROMPT_VERSION == "style-transfer-vernacular-json-v5"
+    assert ACTIVE_STYLE_TRANSFER_PROMPT_VERSION == "style-transfer-concise-json-v4"
 
     prompts = {
         version: build_style_transfer_prompt(
@@ -91,7 +91,7 @@ def test_style_transfer_dry_run_returns_style_slots_and_references():
     assert payload["dry_run"] is True
     assert payload["generation_backend"] == "prompt_preview"
     assert payload["degraded_reason"] == "dry_run_requested"
-    assert payload["prompt_version"] == "style-transfer-vernacular-json-v5"
+    assert payload["prompt_version"] == "style-transfer-concise-json-v4"
     assert payload["style_slots"]
     assert "opening" in payload["style_slots"]
     assert "style_reference" in payload["style_slots"]
@@ -99,16 +99,12 @@ def test_style_transfer_dry_run_returns_style_slots_and_references():
     assert payload["messages"]
     assert payload["evidence_references"]
     combined_prompt = "\n".join(message["content"] for message in payload["messages"])
-    assert "以自然白话为主体" in combined_prompt
-    assert "不得把每个句子都改造成文言句" in combined_prompt
+    assert "简洁、自然、易读的浅近文言" in combined_prompt
+    assert "内容中立、简洁的侨批家书草稿" in combined_prompt
     assert "55%—70%" in combined_prompt
-    assert "同一事实、情感或安慰只表达一次" in combined_prompt
-    assert "不得堆叠套语" in combined_prompt
+    assert "同一功能的称谓、问候、安慰、祝颂和结语各最多保留一套" in combined_prompt
     assert "署名只能出现一次" in combined_prompt
-    assert "一至两个正文段落" in combined_prompt
-    assert "随后删除重复问候" in combined_prompt
-    assert "禁止过拟合" in combined_prompt
-    assert "用户输入才是生成事实的唯一来源" in combined_prompt
-    assert "白话可读性检查" in combined_prompt
-    assert "不得自行增加寄递方式、币种称谓" in combined_prompt
+    assert "用户输入是生成事实的唯一来源" in combined_prompt
+    assert "不使用固定范文套写所有输入" in combined_prompt
+    assert "【改写方法】" in combined_prompt
     assert "【生成草稿】" in combined_prompt

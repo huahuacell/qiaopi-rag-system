@@ -18,13 +18,13 @@
     </el-aside>
 
     <el-container>
-      <el-header class="topbar">
+      <el-header class="topbar" :class="{ 'is-product-view': !showRuntimeStatus }">
         <div class="topbar-heading">
           <div class="topbar-kicker">QIAOPI DIGITAL ARCHIVE</div>
           <div class="topbar-title">{{ currentTitle }}</div>
-          <div class="topbar-meta"><span>API</span>{{ apiBaseUrl }}</div>
+          <div v-if="showRuntimeStatus" class="topbar-meta"><span>API</span>{{ apiBaseUrl }}</div>
         </div>
-        <el-tag :type="demoMode ? 'warning' : 'success'" effect="plain">
+        <el-tag v-if="showRuntimeStatus" :type="demoMode ? 'warning' : 'success'" effect="plain">
           {{ demoMode ? '显式演示模式' : '正式接口模式' }}
         </el-tag>
       </el-header>
@@ -52,10 +52,11 @@ const titles = {
   '/style-transfer': '侨批风格转换',
   '/nlp': '在线 NLP',
   '/knowledge-graph': '知识图谱',
-  '/analysis': '分析工作台'
+  '/analysis': '情感分类'
 }
 
 const isWelcomeRoute = computed(() => route.name === 'welcome')
+const showRuntimeStatus = computed(() => route.path !== '/analysis')
 
 const currentTitle = computed(() => {
   if (route.path.startsWith('/records/')) return '记录详情'

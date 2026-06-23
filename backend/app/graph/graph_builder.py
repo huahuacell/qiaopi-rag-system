@@ -41,9 +41,6 @@ from app.graph.normalizers import (
     normalize_theme_label,
     split_multi_value,
 )
-from app.settings import QIAOPI_DB_PATH
-
-
 DIRECT_FIELD_CONFIDENCE = 0.95
 STRUCTURED_MENTION_CONFIDENCE = 0.90
 INFERRED_CONFIDENCE = 0.75
@@ -67,7 +64,7 @@ OPTIONAL_SOURCE_TABLES: tuple[str, ...] = tuple(
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
-def build_knowledge_graph(db_path: Path = QIAOPI_DB_PATH) -> dict[str, Any]:
+def build_knowledge_graph(db_path: Path | None = None) -> dict[str, Any]:
     with get_connection(db_path) as connection:
         builder = SQLiteKnowledgeGraphBuilder(connection)
         return builder.build()

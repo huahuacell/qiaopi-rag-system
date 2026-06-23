@@ -246,7 +246,7 @@ const navItems = [
   },
   {
     key: 'analysis',
-    label: '分析',
+    label: '分类',
     route: '/analysis',
     image: nav9,
     x: 170,

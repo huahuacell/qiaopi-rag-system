@@ -116,22 +116,34 @@
     <section class="archive-style-card archive-reference-panel">
       <header class="archive-style-card-head">
         <strong>证据依据</strong>
-        <span>用户输入证明事实，知识库片段证明文体</span>
-        <em>双重证据映射</em>
+        <span>仅展示已注入提示词的侨批原文，以及它与生成表达的对应关系</span>
+        <em>RAG 文体溯源</em>
       </header>
       <div class="archive-reference-list" :class="{ empty: !evidenceRows.length }">
         <template v-if="evidenceRows.length">
-          <article v-for="(row, index) in evidenceRows" :key="`${row.source_text}-${index}`">
+          <article v-for="(row, index) in evidenceRows" :key="`${row.unit_id}-${row.target_span}-${index}`">
             <div class="archive-reference-type">
               <i></i>
-              <span>{{ reasonLabel(row.reason) }}</span>
+              <div>
+                <span>{{ reasonLabel(row.reason) }}</span>
+                <small>{{ evidenceTraceLabel(row) }}</small>
+              </div>
             </div>
-            <blockquote>{{ evidenceSourceText(row) }}</blockquote>
-            <p>{{ fieldLabel(row.source_field) }}</p>
-            <em>{{ row.target_span || `REF-${String(index + 1).padStart(3, '0')}` }}</em>
+            <div class="archive-reference-target">
+              <small>{{ row.target_label || '生成表达' }}</small>
+              <em>{{ row.target_span || `REF-${String(index + 1).padStart(3, '0')}` }}</em>
+            </div>
+            <div class="archive-reference-source">
+              <small>知识库侨批原文</small>
+              <blockquote>{{ evidenceSourceText(row) }}</blockquote>
+            </div>
+            <p>
+              <b>{{ fieldLabel(row.source_field) }}</b>
+              <small>{{ row.record_id || row.unit_id }}</small>
+            </p>
           </article>
         </template>
-        <p v-else>暂无证据依据，后端返回 RAG 片段后将在此展示。</p>
+        <p v-else>暂无达到映射阈值的知识库文体依据；事实一致性仍会在下方独立检查。</p>
       </div>
     </section>
 
@@ -144,7 +156,11 @@
         </em>
       </header>
       <div class="archive-consistency-grid">
-        <article v-for="item in validationCards" :key="item.label" :class="{ failed: !item.ok }">
+        <article
+          v-for="item in validationCards"
+          :key="item.label"
+          :class="{ failed: item.status === 'fail', warning: item.status === 'warn' }"
+        >
           <div>
             <i></i>
             <strong>{{ item.label }}</strong>
@@ -154,15 +170,11 @@
       </div>
     </section>
 
-    <aside class="archive-style-demo-note">
-      <span>i</span>
-      <p>如果 Qwen 或后端生成服务尚未启用，系统将展示本地演示结果，并保留风格槽位、证据依据与一致性检查流程。</p>
-    </aside>
   </section>
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { generateStyleTransfer } from '../api/generation'
 import QiaopiEnvelopePanel from '../components/QiaopiEnvelopePanel.vue'
@@ -173,16 +185,14 @@ import {
 } from '../config/runtime'
 import fallbackResult from '../mock/style_transfer.json'
 import { generationState } from '../utils/generationPresentation'
+import {
+  buildStyleTransferValidationCards,
+  normalizeStyleTransferCheck
+} from '../utils/styleTransferPresentation'
 
 const defaultPlainText = '母亲，我在新加坡平安，寄回八元给家里买米和药。请您放心。'
 
 const plainText = ref(defaultPlainText)
-const slots = reactive({
-  recipient: '母亲',
-  origin_place: '新加坡',
-  money: '八元',
-  purpose: '米粮和药费'
-})
 const result = ref(demoMode ? fallbackResult : {})
 const generatedText = ref(demoMode ? fallbackResult.generated_text || '' : '')
 const loading = ref(false)
@@ -230,14 +240,15 @@ const fieldLabels = {
 const reasonLabels = {
   lexical_overlap: '词句重合匹配',
   no_supported_evidence_match: '未找到足够匹配的知识库证据',
-  no_user_input_support: '未找到对应的用户输入事实',
   hybrid_style_support: '混合检索文体依据',
   semantic_style_support: '语义相似文体依据',
   lexical_style_support: '关键词文体依据',
+  hybrid_slot_style_support: '混合检索 · 功能槽位依据',
+  semantic_slot_style_support: '语义检索 · 功能槽位依据',
+  lexical_slot_style_support: '关键词检索 · 功能槽位依据',
   semantic_similarity: '语义相似匹配',
   hybrid_match: '综合检索匹配',
   exact_match: '原文精确匹配',
-  user_input_support: '用户输入事实依据',
   style_reference_text: '综合文体参考',
   evidence_instruction: '嘱托表达证据',
   evidence_closing: '结尾署名证据',
@@ -270,55 +281,35 @@ const promptBadgeLabel = computed(() => {
   const match = String(version).match(/v(\d+)$/i)
   return match ? `prompt-v${match[1]}` : version
 })
-const slotRows = computed(() =>
-  Object.entries(result.value.slots || {}).map(([key, value]) => [slotLabels[key] || key, formatValue(value)])
-)
-
-const styleSlotRows = computed(() =>
-  Object.entries(result.value.style_slots || {}).map(([key, examples]) => [
-    slotLabels[key] || key,
-    examples?.[0]?.unit_text || `${examples?.length || 0} 条样例`
-  ])
-)
-
 const activeStyleSlots = computed(() => new Set(result.value.active_style_slots || []))
 
 const evidenceRows = computed(() => {
-  if (result.value.evidence_mapping?.length) return normalizeEvidence(result.value.evidence_mapping)
-  if (result.value.evidence?.length) return normalizeEvidence(result.value.evidence)
+  const mapped = normalizeEvidence(result.value.evidence_mapping || [])
+    .filter((item) => item.evidence_role === 'style' && item.source_text)
+  if (mapped.length) return mergeEvidenceByKnowledgeUnit(mapped)
+
   return normalizeEvidence(
-    (result.value.evidence_references || []).map((item) => ({
-      target_span: item.unit_type,
-      source_field: item.source_column,
-      source_text: item.unit_text,
-      reason: item.evidence_type || item.unit_type,
-      similarity_score: 1
-    }))
+    (result.value.evidence_references || [])
+      .filter((item) => item.prompt_included)
+      .map((item) => ({
+        target_span: `已注入“${slotLabels[item.unit_type] || item.unit_type}”槽位`,
+        target_label: '注入槽位',
+        record_id: item.record_id,
+        unit_id: item.unit_id,
+        source_field: item.source_column,
+        source_text: item.unit_text,
+        reason: retrievalReason(item.retrieval_sources),
+        evidence_role: 'style',
+        retrieval_sources: item.retrieval_sources,
+        prompt_included: true,
+        similarity_score: item.slot_score || item.final_score || 0
+      }))
   )
 })
 
-const consistencyCheck = computed(() => {
-  if (result.value.consistency_check) return normalizeCheck(result.value.consistency_check)
-  const report = result.value.validation_report
-  if (!report) {
-    return {
-      status: generatedText.value ? 'passed' : 'pending',
-      warnings: [],
-      passed_rules: generatedText.value ? ['recipient_preserved'] : [],
-      failed_rules: []
-    }
-  }
-  return normalizeCheck({
-    status: report.is_consistent ? 'passed' : 'failed',
-    warnings: [
-      ...(report.possible_hallucinations || []),
-      ...(report.missing_required_facts || []),
-      ...(report.unsupported_new_facts || [])
-    ],
-    passed_rules: (report.checks || []).filter((item) => item.status === 'pass').map((item) => item.message),
-    failed_rules: (report.checks || []).filter((item) => item.status === 'fail').map((item) => item.message)
-  })
-})
+const consistencyCheck = computed(() =>
+  normalizeStyleTransferCheck(result.value, Boolean(generatedText.value))
+)
 
 const styleSlotCards = computed(() => {
   const styleSlots = result.value.style_slots || {}
@@ -349,11 +340,17 @@ const styleSlotCards = computed(() => {
           ? '语义检索'
           : '关键词检索'
     const score = Math.round((example.slot_score || example.final_score || 0) * 100)
+    const relationshipMeta =
+      example.relationship_match === 'matched' && example.relationship_label
+        ? `关系匹配：${example.relationship_label}`
+        : example.relationship_match === 'mismatched'
+          ? '关系不匹配，仅作备选'
+          : '关系中性'
     return {
       num,
       name,
       value: example.unit_text,
-      meta: `${sourceLabel} · 槽位评分 ${score}% · ${example.prompt_included ? '已注入提示词' : '仅作备选'}`
+      meta: `${sourceLabel} · ${relationshipMeta} · 槽位评分 ${score}% · ${example.prompt_included ? '已注入提示词' : '仅作备选'}`
     }
   }
   return [
@@ -364,72 +361,87 @@ const styleSlotCards = computed(() => {
   ]
 })
 
-const validationCards = computed(() => {
-  const check = consistencyCheck.value
-  const passed = check.passed_rules || []
-  const failed = check.failed_rules || []
-  const warnings = check.warnings || []
-  const hasProblem = check.status === 'failed' || failed.length > 0
-  return [
-    {
-      label: '人物一致',
-      ok: !hasProblem || passed.some((rule) => /recipient|person|人物|收信人/.test(rule)),
-      detail: findRuleText([...passed, ...warnings], /recipient|person|人物|收信人/) || `${slots.recipient || '人物'}信息已纳入生成检查`
-    },
-    {
-      label: '金额一致',
-      ok: !failed.some((rule) => /money|amount|金额|汇款/.test(rule)),
-      detail: findRuleText([...passed, ...warnings], /money|amount|金额|汇款/) || `${slots.money || '汇款金额'}保持为生成约束`
-    },
-    {
-      label: '地点一致',
-      ok: !failed.some((rule) => /place|origin|地点|来源地/.test(rule)),
-      detail: findRuleText([...passed, ...warnings], /place|origin|地点|来源地/) || `${slots.origin_place || '来源地'}作为语境线索保留`
-    },
-    {
-      label: '生成边界',
-      ok: !hasProblem,
-      detail: failed[0] || warnings[0] || '未添加输入之外的新人物和事件'
-    }
-  ]
-})
+const validationCards = computed(() =>
+  buildStyleTransferValidationCards(consistencyCheck.value)
+)
 
 function normalizeEvidence(rows) {
-  return rows.map((row) => ({
-    target_span: row.target_span,
-    source_field: row.source_field || row.source_column,
-    source_text: row.source_text || row.evidence_text || row.unit_text,
-    reason: row.reason || row.evidence_type || row.unit_type,
-    evidence_role: row.evidence_role || 'style',
-    similarity_score: row.similarity_score
-  }))
+  const referenceMap = new Map(
+    (result.value.evidence_references || []).map((item) => [item.unit_id, item])
+  )
+  const seen = new Set()
+  return rows
+    .map((row) => {
+      const reference = referenceMap.get(row.unit_id) || {}
+      return {
+        target_span: row.target_span,
+        target_label: row.target_label,
+        record_id: row.record_id || reference.record_id,
+        unit_id: row.unit_id || reference.unit_id,
+        source_unit_type: row.source_unit_type || reference.unit_type,
+        source_field: row.source_field || row.source_column || reference.source_column,
+        source_text: row.source_text || row.evidence_text || row.unit_text || reference.unit_text,
+        reason: row.reason || row.evidence_type || row.unit_type,
+        evidence_role: row.evidence_role || 'style',
+        retrieval_sources: row.retrieval_sources || reference.retrieval_sources || [],
+        prompt_included: row.prompt_included ?? reference.prompt_included ?? false,
+        slot_match: row.slot_match ?? false,
+        similarity_score: row.similarity_score ?? reference.slot_score ?? 0
+      }
+    })
+    .filter((row) => {
+      const key = `${row.unit_id}|${row.target_span}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
+
+function mergeEvidenceByKnowledgeUnit(rows) {
+  const grouped = new Map()
+  rows.forEach((row) => {
+    const key = row.unit_id || `${row.record_id}|${row.source_text}`
+    const current = grouped.get(key)
+    if (!current) {
+      grouped.set(key, {
+        ...row,
+        target_span: row.target_span,
+        target_spans: [row.target_span].filter(Boolean)
+      })
+      return
+    }
+    if (row.target_span && !current.target_spans.includes(row.target_span)) {
+      current.target_spans.push(row.target_span)
+      current.target_span = current.target_spans.join(' / ')
+    }
+    current.similarity_score = Math.max(
+      Number(current.similarity_score) || 0,
+      Number(row.similarity_score) || 0
+    )
+    current.slot_match = current.slot_match || row.slot_match
+  })
+  return [...grouped.values()]
 }
 
 function evidenceSourceText(row) {
   if (row.source_text) return row.source_text
-  if (row.reason === 'no_user_input_support') {
-    return '该生成句未与用户输入形成足够匹配，请人工复核是否新增或改变了事实。'
-  }
   return row.target_span || '暂无证据片段'
 }
 
-function normalizeCheck(check) {
-  return {
-    status: check.status || 'pending',
-    warnings: check.warnings || [],
-    passed_rules: check.passed_rules || [],
-    failed_rules: check.failed_rules || []
-  }
+function retrievalReason(sources = []) {
+  if (sources.includes('keyword') && sources.includes('semantic')) return 'hybrid_style_support'
+  if (sources.includes('semantic')) return 'semantic_style_support'
+  return 'lexical_style_support'
 }
 
-function findRuleText(rules, pattern) {
-  return rules.find((rule) => pattern.test(String(rule))) || ''
-}
-
-function formatValue(value) {
-  if (Array.isArray(value)) return value.join('、')
-  if (typeof value === 'object' && value !== null) return JSON.stringify(value)
-  return String(value ?? '')
+function evidenceTraceLabel(row) {
+  const score = Math.round((Number(row.similarity_score) || 0) * 100)
+  const injection = row.prompt_included ? '已注入 Prompt' : '检索候选'
+  const slot = row.source_unit_type
+    ? `${slotLabels[row.source_unit_type] || row.source_unit_type} · `
+    : ''
+  const method = row.slot_match ? '功能匹配' : '词句映射'
+  return `${slot}${injection} · ${method} ${score}%`
 }
 
 function fieldLabel(field) {

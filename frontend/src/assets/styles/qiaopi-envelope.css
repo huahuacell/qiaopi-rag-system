@@ -280,6 +280,7 @@
 }
 
 .qiaopi-result-panel.is-sealed .qiaopi-envelope-sealed {
+  width: min(80%, 500px);
   opacity: 1;
   transform: translateX(-50%) translateY(-12px) scale(1);
 }
@@ -573,6 +574,10 @@
   .qiaopi-envelope-open,
   .qiaopi-envelope-sealed {
     width: min(92%, 420px);
+  }
+
+  .qiaopi-result-panel.is-sealed .qiaopi-envelope-sealed {
+    width: min(96%, 450px);
   }
 
   .qiaopi-folding-letter {

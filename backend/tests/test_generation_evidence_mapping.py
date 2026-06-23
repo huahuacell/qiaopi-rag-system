@@ -59,6 +59,7 @@ def test_style_transfer_maps_user_content_and_knowledge_style_separately():
             {
                 "record_id": "R1",
                 "unit_id": "STYLE-REMITTANCE",
+                "unit_type": "remittance",
                 "source_column": "evidence_remittance",
                 "unit_text": "奉上银捌元，至时查收。",
                 "retrieval_sources": ["keyword", "semantic"],
@@ -75,9 +76,101 @@ def test_style_transfer_maps_user_content_and_knowledge_style_separately():
     assert content_rows[0]["source_text"]
     assert content_rows[0]["needs_review"] is False
     assert style_rows
-    assert style_rows[0]["reason"] == "hybrid_style_support"
+    assert style_rows[0]["reason"] == "hybrid_slot_style_support"
+    assert style_rows[0]["slot_match"] is True
+    assert style_rows[0]["source_unit_type"] == "remittance"
     assert style_rows[0]["record_id"] == "R1"
     assert all(
         row["mapping_method"] == "dual-evidence-map-v2"
         for row in mappings
     )
+
+
+def test_style_mapping_prefers_prompt_injected_knowledge_and_can_return_two_sources():
+    mappings = map_generated_text_to_evidence(
+        "本月寄回三十元，二十元作家用，十元给孩子添衣。",
+        [
+            {
+                "record_id": "R-INJECTED-1",
+                "unit_id": "STYLE-1",
+                "unit_type": "remittance",
+                "source_column": "evidence_remittance",
+                "unit_text": "现在邮上七十五元，作为家用，请查收。",
+                "retrieval_sources": ["keyword", "semantic"],
+                "prompt_included": True,
+            },
+            {
+                "record_id": "R-INJECTED-2",
+                "unit_id": "STYLE-2",
+                "unit_type": "remittance",
+                "source_column": "evidence_remittance",
+                "unit_text": "内中分别作家用，并为儿女添置衣物。",
+                "retrieval_sources": ["semantic"],
+                "prompt_included": True,
+            },
+            {
+                "record_id": "R-NOT-INJECTED",
+                "unit_id": "STYLE-3",
+                "unit_type": "remittance",
+                "source_column": "evidence_remittance",
+                "unit_text": "本月寄回三十元，二十元作家用，十元给孩子添衣。",
+                "retrieval_sources": ["keyword"],
+                "prompt_included": False,
+            },
+        ],
+        input_text="这个月寄回三十元，二十元留作家用，十元给孩子添衣服。",
+    )
+
+    style_rows = [row for row in mappings if row["evidence_role"] == "style"]
+    assert 1 <= len(style_rows) <= 2
+    assert all(row["prompt_included"] for row in style_rows)
+    assert all(row["record_id"] != "R-NOT-INJECTED" for row in style_rows)
+
+
+def test_functional_slot_mapping_explains_multiple_injected_style_units():
+    generated = (
+        "淑兰如晤：\n"
+        "住处已安，身体无恙，勿念。"
+        "本月寄回三十元，二十元作家用，十元给孩子添衣。"
+        "平日切勿过劳，有事可请二叔照应。"
+        "钱信妥收，盼即回音。\n"
+        "夫木泉泐"
+    )
+    references = [
+        ("opening", "沈氏荆妻收知如晤："),
+        ("safety", "余事后陈，两地平安。"),
+        ("remittance", "顺便付去大银捌元，到时查收家用。"),
+        ("family_care", "望诸宜珍摄，切勿过劳。"),
+        ("instruction", "见字祈即赐复为盼。"),
+        ("closing", "夫杨木良泐"),
+    ]
+    mappings = map_generated_text_to_evidence(
+        generated,
+        [
+            {
+                "record_id": f"R-{index}",
+                "unit_id": f"U-{index}",
+                "unit_type": slot,
+                "source_column": f"evidence_{slot}",
+                "unit_text": text,
+                "retrieval_sources": ["keyword"],
+                "prompt_included": True,
+            }
+            for index, (slot, text) in enumerate(references, start=1)
+        ],
+        input_text=generated,
+    )
+
+    mapped_slots = {
+        row["source_unit_type"]
+        for row in mappings
+        if row["evidence_role"] == "style" and row["slot_match"]
+    }
+    assert {
+        "opening",
+        "safety",
+        "remittance",
+        "family_care",
+        "instruction",
+        "closing",
+    }.issubset(mapped_slots)

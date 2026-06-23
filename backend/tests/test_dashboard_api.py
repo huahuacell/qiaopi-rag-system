@@ -73,3 +73,14 @@ def test_emotion_analysis_returns_pytorch_multilabel_evidence():
     assert payload["evidence_examples"]
     assert all(item["record_id"] for item in payload["evidence_examples"])
     assert all(item["text"] for item in payload["evidence_examples"])
+    assert all("—" in item["period"] for item in payload["time_trend"])
+    evidence_count_by_emotion = {
+        emotion_key: sum(
+            item["emotion_key"] == emotion_key
+            for item in payload["evidence_examples"]
+        )
+        for emotion_key in {
+            item["emotion_key"] for item in payload["evidence_examples"]
+        }
+    }
+    assert all(count <= 9 for count in evidence_count_by_emotion.values())

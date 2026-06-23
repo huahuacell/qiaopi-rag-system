@@ -42,7 +42,12 @@ def test_staging_directory_cannot_be_inside_live_asset_directories(tmp_path):
 
 
 def test_build_database_can_target_staging_without_touching_live_database(tmp_path):
-    live_before = _file_sha256(settings.QIAOPI_DB_PATH)
+    live_existed_before = settings.QIAOPI_DB_PATH.exists()
+    live_before = (
+        _file_sha256(settings.QIAOPI_DB_PATH)
+        if live_existed_before
+        else None
+    )
     staged_database = tmp_path / "qiaopi.db"
 
     stats = build_database(
@@ -52,7 +57,9 @@ def test_build_database_can_target_staging_without_touching_live_database(tmp_pa
 
     assert stats["text_record_count"] == 213
     assert staged_database.exists()
-    assert _file_sha256(settings.QIAOPI_DB_PATH) == live_before
+    assert settings.QIAOPI_DB_PATH.exists() is live_existed_before
+    if live_before is not None:
+        assert _file_sha256(settings.QIAOPI_DB_PATH) == live_before
 
 
 def test_relational_signature_ignores_created_at_but_detects_data_changes(tmp_path):
@@ -174,3 +181,24 @@ def test_promotion_rolls_back_all_targets_when_one_replace_fails(tmp_path, monke
 
     assert target_one.read_text(encoding="utf-8") == "old-one"
     assert target_two.read_text(encoding="utf-8") == "old-two"
+
+
+def test_promotion_verifies_and_replaces_all_target_bytes(tmp_path):
+    source_one = tmp_path / "source-one.txt"
+    source_two = tmp_path / "source-two.txt"
+    target_one = tmp_path / "target-one.txt"
+    target_two = tmp_path / "target-two.txt"
+    source_one.write_text("accepted-one", encoding="utf-8")
+    source_two.write_text("accepted-two", encoding="utf-8")
+    target_one.write_text("old-one", encoding="utf-8")
+
+    promoted = promote_artifacts(
+        [
+            (source_one, target_one),
+            (source_two, target_two),
+        ]
+    )
+
+    assert promoted == [str(target_one), str(target_two)]
+    assert target_one.read_bytes() == source_one.read_bytes()
+    assert target_two.read_bytes() == source_two.read_bytes()
