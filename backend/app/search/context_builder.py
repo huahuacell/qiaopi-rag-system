@@ -563,7 +563,7 @@ def _style_prompt_text(fragment: str, slot_type: str) -> str:
     if slot_type == "closing":
         compact_closing = re.sub(r"\s+", "", prompt_text)
         closing_match = re.search(
-            r"(敬上|谨上|谨启|谨禀|叩上|泐|缄|顿|字|草|手书)$",
+            r"(敬上|谨上|谨启|谨禀|叩上|泐|缄|顿|字|草|手书|启)$",
             compact_closing,
         )
         if closing_match:

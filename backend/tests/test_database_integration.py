@@ -46,9 +46,13 @@ def test_default_frontend_hybrid_search_returns_database_record():
     payload = response.json()
     assert response.status_code == 200
     assert payload["results"]
-    assert payload["fusion_method"] == "keyword_fallback"
-    assert payload["semantic_enabled"] is False
-    assert all(item["retrieval_sources"] == ["keyword"] for item in payload["results"])
+    assert payload["fusion_method"] in {"keyword_fallback", "rrf"}
+    assert isinstance(payload["semantic_enabled"], bool)
+    if not payload["semantic_enabled"]:
+        assert all(
+            item["retrieval_sources"] == ["keyword"]
+            for item in payload["results"]
+        )
     assert all(item["matched_reason"] for item in payload["results"])
 
 

@@ -2,7 +2,7 @@
 
 ## Current Baseline
 
-The active API baseline is `2026-06-19-converged`. FastAPI OpenAPI is the
+The active API baseline is `2026-06-23-graphrag`. FastAPI OpenAPI is the
 executable source of truth and `docs/api_contract.md` is its human-readable
 companion.
 

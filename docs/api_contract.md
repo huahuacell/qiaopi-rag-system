@@ -2,7 +2,7 @@
 
 Base URL: `http://localhost:8000`
 
-Contract baseline: `2026-06-19-converged`
+Contract baseline: `2026-06-23-graphrag`
 
 Backend application version: `0.1.0`
 
@@ -598,6 +598,69 @@ Each result includes:
 `test_hash` for an explicitly configured deterministic Hash index, and
 `disabled` when semantic retrieval did not participate. Hash-backed hybrid
 results are useful for tests but are not accepted as real semantic retrieval.
+
+## POST /api/search/graphrag
+
+Purpose: perform evidence-grounded local GraphRAG retrieval without replacing
+the accepted keyword, semantic, or hybrid search paths.
+
+The endpoint:
+
+- reuses the existing `SearchRequest` body;
+- matches query concepts to `person`, `place`, and `theme` nodes;
+- traverses provenance-rich graph edges to full-text `record` nodes;
+- scores candidates using node specificity, edge confidence, edge type, and
+  multi-seed coverage;
+- maps graph-selected records back to existing `qiaopi_retrieval_units`;
+- fuses graph and text rankings with weighted RRF;
+- automatically falls back to the existing hybrid path when no usable graph
+  seed or graph candidate exists.
+
+Request:
+
+```json
+{
+  "query": "新加坡 祖母 寄款",
+  "top_k": 10,
+  "unit_types": [],
+  "filters": {},
+  "expansion_mode": "balanced"
+}
+```
+
+The response preserves the normal search result fields and adds:
+
+```json
+{
+  "fusion_method": "graph_rrf",
+  "graph_enabled": true,
+  "graph_fallback": false,
+  "graph_fallback_reason": null,
+  "graph_candidate_count": 42,
+  "graph_message": "语义索引未参与；图谱候选已与关键词结果进行 RRF 融合。",
+  "graph_seed_nodes": [
+    {
+      "id": "person:祖母",
+      "label": "祖母",
+      "type": "person",
+      "matched_term": "祖母",
+      "match_score": 1.0,
+      "record_count": 23
+    }
+  ]
+}
+```
+
+Graph-participating results additionally expose:
+
+- `graph_score`: query-local graph relevance score, not a probability;
+- `graph_seed_count`: number of distinct matched seed nodes;
+- `graph_paths`: traceable query-node-edge-record paths;
+- `retrieval_sources`: may include `graph` alongside `keyword` and `semantic`.
+
+Only retrieval units from the 213 full-text records can be returned as RAG
+evidence. Metadata-only nodes may remain available in the graph viewer but are
+not promoted into GraphRAG search evidence.
 
 ## POST /api/rag/context
 
@@ -1261,6 +1324,14 @@ Risk levels:
 - `medium`: missing evidence references or non-critical warnings require review.
 - `high`: unsupported new amounts, dates, names, or places were detected.
 
+Style-transfer consistency rules prioritize the opening recipient salutation
+over kinship terms mentioned later in the body. For example, `阿弟：...给母亲
+作家用` is classified as a sibling letter, not a letter addressed to the
+mother. Amount comparison also recognizes unit-omitted allocation clauses in a
+remittance sequence, such as `廿五元，十缴学费，八供母用，余七备购书川资`;
+the contextual `十`, `八`, and `七` are compared as amounts without requiring a
+repeated `元`.
+
 The generation endpoints attach `validation_report` and sentence-level
 `evidence_mapping` whenever `generated_text` is non-empty, including
 deterministic local fallback. For `dry_run=true` or an empty generated result,
@@ -1850,7 +1921,10 @@ Response:
 
 ## POST /api/metadata/search
 
-Uses `qiaopi_metadata_fts` for metadata search. It does not search full-text evidence, RAG retrieval units, or generated text.
+Searches only the 50,064-record metadata catalog. `retrieval_mode` supports
+`keyword`, `semantic`, or `hybrid`; its default remains `keyword` for backward
+compatibility. Metadata semantic vectors use a separate FAISS index and are
+never inserted into full-text RAG retrieval units.
 
 Request:
 
@@ -1864,7 +1938,8 @@ Request:
     "country_or_region": "新加坡",
     "has_remittance": true,
     "has_linked_text": true
-  }
+  },
+  "retrieval_mode": "hybrid"
 }
 ```
 
@@ -1874,6 +1949,11 @@ Response:
 {
   "query": "新加坡 母亲 寄款",
   "top_k": 20,
+  "retrieval_mode": "hybrid",
+  "semantic_enabled": true,
+  "semantic_quality": "production",
+  "fusion_method": "rrf",
+  "error_message": null,
   "results": [
     {
       "metadata_id": "CSQP-META-001389",
@@ -1889,14 +1969,27 @@ Response:
       "has_remittance": 0,
       "has_linked_text": 0,
       "linked_record_id": "",
-      "score": -2.5,
-      "snippet": "新加坡夏碧粧寄广东母亲侨批"
+      "score": 0.0325,
+      "snippet": "新加坡夏碧粧寄广东母亲侨批",
+      "bm25_score": -2.5,
+      "semantic_score": 0.81,
+      "final_score": 0.0325,
+      "retrieval_sources": ["keyword", "semantic"],
+      "matched_reason": "目录元数据关键词与语义排名融合"
     }
   ]
 }
 ```
 
 Supported filters: `year_from`, `year_to`, `country_or_region`, `origin_place`, `destination_place`, `place`, `has_remittance`, `has_linked_text`, `needs_review`, `relationship_type`, and `main_intent`.
+
+## GET /api/metadata/semantic/status
+
+Returns the same safe semantic readiness fields as
+`GET /api/search/semantic/status`, but for the independent
+`metadata_catalog` index. A production-ready response has
+`semantic_enabled=true`, `semantic_quality="production"`,
+`corpus_domain="metadata_catalog"`, and `vector_count=50064`.
 
 ## GET /api/metadata/{metadata_id}
 

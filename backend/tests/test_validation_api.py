@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.validation.fact_extractor import extract_facts
 from main import app
 
 
@@ -174,4 +175,37 @@ def test_spouse_shallow_classical_aliases_keep_relationship_and_amounts_consiste
     assert response.status_code == 200
     checks = {item["name"]: item for item in report["checks"]}
     assert checks["recipient_consistency"]["status"] == "pass"
+    assert checks["amount_consistency"]["status"] == "pass"
+
+
+def test_sibling_salutation_outranks_body_reference_to_mother_and_bare_allocations():
+    input_text = (
+        "阿弟：我寄回二十五元，十元交学费，八元给母亲作家用，"
+        "剩下七元留作买书和路费。平时也要照顾母亲。兄长启明"
+    )
+    generated_text = (
+        "【生成草稿】\n阿弟如晤：兹寄廿五元，十缴学费，八供母用，"
+        "余七备购书川资。平日务须顾母。兄启明缄。"
+    )
+    response = client.post(
+        "/api/validation/consistency-check",
+        json={
+            "task_type": "style-transfer",
+            "input_text": input_text,
+            "generated_text": generated_text,
+            "evidence_references": [],
+        },
+    )
+
+    report = response.json()["validation_report"]
+    checks = {item["name"]: item for item in report["checks"]}
+
+    assert response.status_code == 200
+    assert set(extract_facts(input_text)["amount_values"]) == {"25", "10", "8", "7"}
+    assert set(extract_facts(generated_text)["amount_values"]) == {"25", "10", "8", "7"}
+    assert report["is_consistent"] is True
+    assert report["missing_required_facts"] == []
+    assert report["unsupported_new_facts"] == []
+    assert checks["recipient_consistency"]["status"] == "pass"
+    assert "手足" in checks["recipient_consistency"]["message"]
     assert checks["amount_consistency"]["status"] == "pass"

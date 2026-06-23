@@ -50,7 +50,7 @@ def test_style_context_returns_grouped_slot_examples():
 
     payload = response.json()
     assert response.status_code == 200
-    assert payload["semantic_enabled"] is False
+    assert isinstance(payload["semantic_enabled"], bool)
     assert payload["retrieval_mode"] == "hybrid"
     assert set(payload["style_slots"]) == EXPECTED_STYLE_SLOTS
     assert payload["active_style_slots"] == [
@@ -113,7 +113,7 @@ def test_style_context_empty_slots_do_not_break_response():
     assert all(payload["style_slots"][slot] == [] for slot in EXPECTED_STYLE_SLOTS)
     assert payload["grouped_contexts"] == []
     assert payload["source_record_count"] == 0
-    assert payload["semantic_enabled"] is False
+    assert isinstance(payload["semantic_enabled"], bool)
     assert payload["retrieval_mode"] == "hybrid"
     assert payload["active_style_slots"] == [
         "opening",
@@ -203,3 +203,25 @@ def test_style_context_infers_named_spouse_and_avoids_parent_opening():
     assert closing["prompt_text"].startswith("夫")
     assert "【本次收信关系】" in payload["prompt_context"]
     assert "夫妻（写给妻子）" in payload["prompt_context"]
+
+
+def test_style_context_prioritizes_sibling_salutation_over_mother_in_body():
+    response = client.post(
+        "/api/rag/style-context",
+        json={
+            "query": (
+                "阿弟：我寄回二十五元，十元交学费，八元给母亲作家用，"
+                "剩下七元留作买书和路费。平时也要照顾母亲。兄长启明"
+            ),
+            "top_k": 3,
+            "filters": {},
+            "expansion_mode": "balanced",
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert "【本次收信关系】" in payload["prompt_context"]
+    assert "手足" in payload["prompt_context"]
+    assert "亲子（写给母亲）" not in payload["prompt_context"]

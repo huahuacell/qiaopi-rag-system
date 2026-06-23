@@ -68,10 +68,15 @@ function boxesOverlap(left, right, padding = 5) {
 export function normalizeEmotionDistribution(items) {
   const source = Array.isArray(items) ? items : []
   const total = source.reduce((sum, item) => sum + Number(item?.record_count || 0), 0)
+  const maximumCount = Math.max(
+    0,
+    ...source.map((item) => Number(item?.record_count || 0))
+  )
   if (!total) {
     return source.map((item) => ({
       ...item,
       normalized_ratio: 0,
+      relative_ratio: 0,
       display_percent: 0
     }))
   }
@@ -82,6 +87,7 @@ export function normalizeEmotionDistribution(items) {
     return {
       ...item,
       normalized_ratio: ratio,
+      relative_ratio: maximumCount ? Number(item?.record_count || 0) / maximumCount : 0,
       display_percent: Math.floor(exactPercent),
       remainder: exactPercent - Math.floor(exactPercent),
       original_index: index
@@ -99,6 +105,159 @@ export function normalizeEmotionDistribution(items) {
     })
 
   return normalized.map(({ remainder, original_index, ...item }) => item)
+}
+
+const REMITTANCE_AMOUNT_BUCKETS = [
+  { key: 'up-to-5', label: '5元及以下', minimum: 0, maximum: 5 },
+  { key: '6-to-10', label: '6—10元', minimum: 5, maximum: 10 },
+  { key: '11-to-30', label: '11—30元', minimum: 10, maximum: 30 },
+  { key: '31-to-100', label: '31—100元', minimum: 30, maximum: 100 },
+  { key: 'over-100', label: '100元以上', minimum: 100, maximum: Infinity }
+]
+
+const NATIONAL_THEME_RULES = [
+  {
+    key: 'national-crisis',
+    label: '国难与民生',
+    terms: ['国难时期', '国难', '抗战', '抗日', '救亡', '救国']
+  },
+  {
+    key: 'diaspora-policy',
+    label: '侨汇与国家',
+    terms: ['祖国领事', '华侨寄银', '华侨汇款', '侨汇']
+  },
+  {
+    key: 'homeland-return',
+    label: '乡国归思',
+    terms: ['回归祖国', '报效祖国']
+  }
+]
+
+function parseRemittanceMentions(record) {
+  const source = record?.raw_fields?.remittance_mentions_json
+  if (Array.isArray(source)) return source
+  if (!source) return []
+
+  try {
+    const parsed = JSON.parse(source)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function primaryRemittance(record) {
+  const mentions = parseRemittanceMentions(record)
+  const mention =
+    mentions.find((item) => Boolean(item?.is_primary_candidate)) ||
+    mentions[0] ||
+    null
+  const amountNumber = finiteNumber(
+    mention?.amount_number ?? record?.raw_fields?.remittance_amount_number,
+    NaN
+  )
+
+  if (!Number.isFinite(amountNumber) || amountNumber <= 0) return null
+  return {
+    amountNumber,
+    currency: String(
+      mention?.currency || record?.raw_fields?.currency || '未标注币种'
+    ).trim() || '未标注币种'
+  }
+}
+
+export function buildRemittanceAmountSummary(records) {
+  const source = Array.isArray(records) ? records : []
+  const remittances = source.map(primaryRemittance).filter(Boolean)
+  const maximumBucketCount = Math.max(
+    0,
+    ...REMITTANCE_AMOUNT_BUCKETS.map((bucket) =>
+      remittances.filter(
+        (item) =>
+          item.amountNumber > bucket.minimum &&
+          item.amountNumber <= bucket.maximum
+      ).length
+    )
+  )
+  const buckets = REMITTANCE_AMOUNT_BUCKETS.map((bucket) => {
+    const count = remittances.filter(
+      (item) =>
+        item.amountNumber > bucket.minimum &&
+        item.amountNumber <= bucket.maximum
+    ).length
+    return {
+      key: bucket.key,
+      label: bucket.label,
+      count,
+      ratio: remittances.length ? count / remittances.length : 0,
+      relativeRatio: maximumBucketCount ? count / maximumBucketCount : 0
+    }
+  })
+  const currencies = new Map()
+
+  remittances.forEach((item) => {
+    currencies.set(item.currency, (currencies.get(item.currency) || 0) + 1)
+  })
+
+  return {
+    totalRecords: source.length,
+    amountRecordCount: remittances.length,
+    coverageRatio: source.length ? remittances.length / source.length : 0,
+    buckets,
+    currencies: [...currencies.entries()]
+      .map(([label, count]) => ({
+        label,
+        count,
+        ratio: remittances.length ? count / remittances.length : 0
+      }))
+      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, 'zh-CN'))
+  }
+}
+
+function contextualSnippet(text, term, radius = 62) {
+  const source = String(text || '').replace(/\s+/g, ' ').trim()
+  const index = source.indexOf(term)
+  if (index < 0) return ''
+  const start = Math.max(0, index - radius)
+  const end = Math.min(source.length, index + term.length + radius)
+  return `${start > 0 ? '…' : ''}${source.slice(start, end)}${end < source.length ? '…' : ''}`
+}
+
+export function selectNationalThemeRecords(records, limit = 4) {
+  return (Array.isArray(records) ? records : [])
+    .map((record) => {
+      if (Number(record?.has_full_text) !== 1) return null
+      const text = String(record?.body_core || record?.body_clean || '')
+      if (!text) return null
+
+      const rule = NATIONAL_THEME_RULES.find((item) =>
+        item.terms.some((term) => text.includes(term))
+      )
+      if (!rule) return null
+
+      const rawMatchedTerms = rule.terms.filter((term) => text.includes(term))
+      const matchedTerms = rawMatchedTerms.filter(
+        (term) =>
+          !rawMatchedTerms.some(
+            (otherTerm) => otherTerm !== term && otherTerm.includes(term)
+          )
+      )
+      return {
+        recordId: String(record.record_id || ''),
+        year: String(record.year_normalized || ''),
+        title: String(record.title_reference || record.title || record.record_id || ''),
+        themeKey: rule.key,
+        themeLabel: rule.label,
+        matchedTerms,
+        snippet: contextualSnippet(text, matchedTerms[0])
+      }
+    })
+    .filter(Boolean)
+    .sort((left, right) => (
+      Number(left.year || Infinity) - Number(right.year || Infinity) ||
+      left.recordId.localeCompare(right.recordId)
+    ))
+    .slice(0, Math.max(0, Number(limit) || 0))
 }
 
 const CORPUS_STOP_TERMS = new Set([

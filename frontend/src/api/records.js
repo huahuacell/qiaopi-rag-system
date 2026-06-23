@@ -15,7 +15,7 @@ export async function fetchRecordEvidence(recordId) {
   return response.data
 }
 
-export async function fetchFullTextCorpus(totalRecords, concurrency = 12) {
+export async function fetchRecordCorpus(totalRecords, concurrency = 12) {
   const count = Math.max(0, Number(totalRecords) || 0)
   const workerCount = Math.min(Math.max(1, Number(concurrency) || 1), count || 1)
   const recordIds = Array.from(
@@ -32,9 +32,7 @@ export async function fetchFullTextCorpus(totalRecords, concurrency = 12) {
 
       try {
         const record = await fetchRecordDetail(recordId)
-        if (Number(record?.has_full_text) === 1 && (record?.body_core || record?.body_clean)) {
-          records.push(record)
-        }
+        records.push(record)
       } catch {
         // Keep the corpus usable when an individual record is unavailable.
       }
@@ -44,5 +42,14 @@ export async function fetchFullTextCorpus(totalRecords, concurrency = 12) {
   await Promise.all(Array.from({ length: workerCount }, worker))
   return records.sort((left, right) =>
     String(left.record_id || '').localeCompare(String(right.record_id || ''))
+  )
+}
+
+export async function fetchFullTextCorpus(totalRecords, concurrency = 12) {
+  const records = await fetchRecordCorpus(totalRecords, concurrency)
+  return records.filter(
+    (record) =>
+      Number(record?.has_full_text) === 1 &&
+      Boolean(record?.body_core || record?.body_clean)
   )
 }

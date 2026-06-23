@@ -97,6 +97,7 @@ QWEN_ENABLED = _bool_from_env(_env("QWEN_ENABLED"), False)
 SCAFFOLD_PHASE_COMPLETE = _bool_from_env(_env("SCAFFOLD_PHASE_COMPLETE"), False)
 
 SEMANTIC_SEARCH_ENABLED = _bool_from_env(_env("SEMANTIC_SEARCH_ENABLED"), False)
+GRAPH_RAG_ENABLED = _bool_from_env(_env("GRAPH_RAG_ENABLED"), True)
 EMBEDDING_PROVIDER = _env("EMBEDDING_PROVIDER", "local")
 EMBEDDING_MODEL = _env("EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5")
 EMBEDDING_DIM = _int_from_env(_env("EMBEDDING_DIM"), 0)
@@ -116,6 +117,18 @@ SEMANTIC_FAISS_METADATA_PATH = _path_from_env(
 SEMANTIC_FAISS_MANIFEST_PATH = _path_from_env(
     _env("FAISS_MANIFEST_PATH"),
     INDEX_DIR / "qiaopi_retrieval_units_manifest.json",
+)
+METADATA_SEMANTIC_FAISS_INDEX_PATH = _path_from_env(
+    _env("METADATA_FAISS_INDEX_PATH"),
+    INDEX_DIR / "qiaopi_metadata_records.faiss",
+)
+METADATA_SEMANTIC_FAISS_METADATA_PATH = _path_from_env(
+    _env("METADATA_FAISS_METADATA_PATH"),
+    INDEX_DIR / "qiaopi_metadata_records_meta.jsonl",
+)
+METADATA_SEMANTIC_FAISS_MANIFEST_PATH = _path_from_env(
+    _env("METADATA_FAISS_MANIFEST_PATH"),
+    INDEX_DIR / "qiaopi_metadata_records_manifest.json",
 )
 QWEN_EMBEDDING_API_KEY = _env("QWEN_EMBEDDING_API_KEY") or QWEN_API_KEY
 QWEN_EMBEDDING_BASE_URL = _env("QWEN_EMBEDDING_BASE_URL")

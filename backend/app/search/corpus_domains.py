@@ -23,6 +23,26 @@ SEMANTIC_INDEX_TEXT_FIELDS: tuple[str, ...] = (
     "retrieval_keywords",
 )
 
+METADATA_SEMANTIC_INDEX_TEXT_FIELDS: tuple[str, ...] = (
+    "title_clean",
+    "sender_raw",
+    "recipient_raw",
+    "sender_name_clean",
+    "recipient_name_clean",
+    "date_text",
+    "date_standard",
+    "year_normalized",
+    "origin_place",
+    "destination_place",
+    "place_mentions",
+    "country_or_region",
+    "remittance_raw",
+    "kinship_terms",
+    "relationship_type",
+    "theme_tags",
+    "main_intent",
+)
+
 
 def text(value: Any) -> str:
     return "" if value is None else str(value).strip()
@@ -33,12 +53,41 @@ def semantic_index_text(row: Mapping[str, Any]) -> str:
     return "\n".join(part for part in parts if part)
 
 
+def metadata_semantic_index_text(row: Mapping[str, Any]) -> str:
+    parts = [
+        text(row.get(field_name))
+        for field_name in METADATA_SEMANTIC_INDEX_TEXT_FIELDS
+    ]
+    return "\n".join(part for part in parts if part)
+
+
 def semantic_corpus_fingerprint(rows: Iterable[Mapping[str, Any]]) -> str:
     digest = hashlib.sha256()
     for row in sorted(rows, key=lambda item: text(item.get("unit_id"))):
         payload = {
             "unit_id": text(row.get("unit_id")),
             "text": semantic_index_text(row),
+        }
+        digest.update(
+            json.dumps(
+                payload,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def metadata_semantic_corpus_fingerprint(
+    rows: Iterable[Mapping[str, Any]],
+) -> str:
+    digest = hashlib.sha256()
+    for row in sorted(rows, key=lambda item: text(item.get("metadata_id"))):
+        payload = {
+            "metadata_id": text(row.get("metadata_id")),
+            "text": metadata_semantic_index_text(row),
         }
         digest.update(
             json.dumps(

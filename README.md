@@ -3,21 +3,23 @@
 Local Vue 3 + FastAPI application for Qiaopi archive browsing, retrieval,
 evidence tracing, graph exploration, and evidence-grounded generation work.
 
-Current contract baseline: `2026-06-19-converged`
+Current contract baseline: `2026-06-23-graphrag`
 
 ## Current Capabilities
 
 - SQLite dashboard over 213 full-text records and 50,064 metadata records.
 - FTS5/BM25 retrieval over 1,959 retrieval units.
-- Optional vector semantic retrieval and RRF hybrid fusion.
-- Metadata catalog search and full-text linkage APIs.
+- Production local vector semantic retrieval and RRF hybrid fusion.
+- Evidence-grounded local GraphRAG over the SQLite knowledge graph.
+- Metadata keyword, semantic, and hybrid catalog search with separate vectors.
 - Record detail, amount, entity, place, evidence, and retrieval-unit APIs.
 - SQLite knowledge-graph build and query APIs.
 - RAG/style context, prompt preview, optional Qwen generation, and rule-based
   consistency reports.
 
-Semantic retrieval is disabled unless its runtime flag and index are available.
-Hybrid retrieval reports `keyword_fallback` when semantic retrieval did not
+Semantic retrieval requires its runtime flag and validated index artifacts.
+Full-text and metadata vectors remain separate. Hybrid and GraphRAG retrieval
+report explicit fallback states when a configured retrieval source did not
 participate. The official frontend currently sends generation requests with
 `dry_run=true`, so it does not trigger live Qwen calls.
 
@@ -69,7 +71,8 @@ python -m app.ingestion.preprocess_qiaopi_wide_table
 python -m app.ingestion.build_database
 python -m app.ingestion.build_metadata_database
 python -m app.ingestion.link_metadata_text_records
-python -m app.ingestion.build_semantic_index --provider hash
+python -m app.ingestion.build_semantic_index --provider local
+python -m app.ingestion.build_metadata_semantic_index --provider local
 python -m app.ingestion.build_knowledge_graph
 ```
 

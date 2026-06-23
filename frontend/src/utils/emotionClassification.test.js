@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  buildRemittanceAmountSummary,
   buildCorpusKeywordCloud,
   buildEmotionKeywordCloud,
   layoutCorpusKeywordCloud,
@@ -9,6 +10,7 @@ import {
   selectCooccurrenceEvidenceExamples,
   selectEmotionEvidenceExamples,
   selectKeywordEvidenceExamples,
+  selectNationalThemeRecords,
   selectValenceEvidenceExamples,
   selectTypicalEmotionEvidence
 } from './emotionClassification.js'
@@ -168,4 +170,62 @@ test('normalizeEmotionDistribution produces display percentages totaling 100', (
     Math.abs(normalized.reduce((sum, item) => sum + item.normalized_ratio, 0) - 1) <
       Number.EPSILON * 10
   )
+  assert.equal(normalized[0].relative_ratio, 1)
+  assert.equal(normalized[1].relative_ratio, 139 / 202)
+})
+
+test('buildRemittanceAmountSummary uses one primary amount per record', () => {
+  const summary = buildRemittanceAmountSummary([
+    {
+      raw_fields: {
+        remittance_mentions_json: JSON.stringify([
+          { amount_number: 8, currency: '大洋', is_primary_candidate: true },
+          { amount_number: 2, currency: '元', is_primary_candidate: false }
+        ])
+      }
+    },
+    {
+      raw_fields: {
+        remittance_amount_number: '35',
+        currency: '港币'
+      }
+    },
+    {
+      raw_fields: {
+        remittance_mentions_json: 'invalid'
+      }
+    }
+  ])
+
+  assert.equal(summary.amountRecordCount, 2)
+  assert.equal(summary.buckets.find((item) => item.key === '6-to-10').count, 1)
+  assert.equal(summary.buckets.find((item) => item.key === '31-to-100').count, 1)
+  assert.deepEqual(summary.currencies.map((item) => item.label), ['大洋', '港币'])
+})
+
+test('selectNationalThemeRecords only returns full text with explicit national themes', () => {
+  const selected = selectNationalThemeRecords([
+    {
+      record_id: 'R1',
+      has_full_text: 1,
+      year_normalized: '1938',
+      title_reference: '国难时期家书',
+      body_core: '际当国难时期，米食各物高贵，家中务须节俭。'
+    },
+    {
+      record_id: 'R2',
+      has_full_text: 1,
+      body_core: '中华民国二十七年，兹寄银十元。'
+    },
+    {
+      record_id: 'R3',
+      has_full_text: 0,
+      body_clean: '回归祖国'
+    }
+  ])
+
+  assert.equal(selected.length, 1)
+  assert.equal(selected[0].recordId, 'R1')
+  assert.equal(selected[0].themeLabel, '国难与民生')
+  assert.match(selected[0].snippet, /国难时期/)
 })

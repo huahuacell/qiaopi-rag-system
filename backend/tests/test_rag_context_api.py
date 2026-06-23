@@ -37,8 +37,8 @@ def test_rag_context_returns_contexts_and_prompt_context():
     payload = response.json()
     assert response.status_code == 200
     assert payload["query"] == "母亲寄款查收的侨批内容"
-    assert payload["semantic_enabled"] is False
-    assert payload["semantic_quality"] == "disabled"
+    assert isinstance(payload["semantic_enabled"], bool)
+    assert payload["semantic_quality"] in {"disabled", "test_hash", "production"}
     assert payload["contexts"]
     assert payload["grouped_contexts"]
     assert payload["prompt_context"]

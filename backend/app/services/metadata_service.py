@@ -12,6 +12,10 @@ from app.database.repository import (
     search_metadata_records,
 )
 from app.schemas import MetadataSearchRequest
+from app.search.metadata_semantic_retriever import (
+    search_metadata_hybrid,
+    search_metadata_semantic,
+)
 
 
 def _raw_json(value: Any) -> dict[str, Any]:
@@ -39,14 +43,60 @@ def get_metadata_distributions() -> dict[str, Any]:
 
 
 def search_metadata(request: MetadataSearchRequest) -> dict[str, Any]:
-    return {
-        "query": request.query,
-        "top_k": request.top_k,
-        "results": search_metadata_records(
+    if request.retrieval_mode == "semantic":
+        retrieval = search_metadata_semantic(
             query=request.query,
             top_k=request.top_k,
             filters=request.filters,
-        ),
+        )
+        return {
+            "query": request.query,
+            "top_k": request.top_k,
+            "retrieval_mode": "semantic",
+            "semantic_enabled": retrieval["semantic_enabled"],
+            "semantic_quality": retrieval["semantic_quality"],
+            "fusion_method": None,
+            "error_message": retrieval["error_message"],
+            "results": retrieval["results"],
+        }
+    if request.retrieval_mode == "hybrid":
+        retrieval = search_metadata_hybrid(
+            query=request.query,
+            top_k=request.top_k,
+            filters=request.filters,
+        )
+        return {
+            "query": request.query,
+            "top_k": request.top_k,
+            "retrieval_mode": "hybrid",
+            "semantic_enabled": retrieval["semantic_enabled"],
+            "semantic_quality": retrieval["semantic_quality"],
+            "fusion_method": retrieval["fusion_method"],
+            "error_message": retrieval["error_message"],
+            "results": retrieval["results"],
+        }
+    results = []
+    for row in search_metadata_records(
+        query=request.query,
+        top_k=request.top_k,
+        filters=request.filters,
+    ):
+        prepared = dict(row)
+        prepared["bm25_score"] = float(row.get("score") or 0.0)
+        prepared["semantic_score"] = 0.0
+        prepared["final_score"] = float(row.get("score") or 0.0)
+        prepared["retrieval_sources"] = ["keyword"]
+        prepared["matched_reason"] = "目录元数据 FTS5 / BM25 命中"
+        results.append(prepared)
+    return {
+        "query": request.query,
+        "top_k": request.top_k,
+        "retrieval_mode": "keyword",
+        "semantic_enabled": False,
+        "semantic_quality": "disabled",
+        "fusion_method": None,
+        "error_message": None,
+        "results": results,
     }
 
 

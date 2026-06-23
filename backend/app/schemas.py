@@ -222,6 +222,7 @@ class MetadataSearchRequest(BaseModel):
     query: str = ""
     top_k: int = Field(default=20, ge=1, le=100)
     filters: Dict[str, Any] = Field(default_factory=dict)
+    retrieval_mode: Literal["keyword", "semantic", "hybrid"] = "keyword"
 
 
 class MetadataSearchResult(BaseModel):
@@ -240,11 +241,21 @@ class MetadataSearchResult(BaseModel):
     linked_record_id: str
     score: float
     snippet: str
+    bm25_score: float = 0.0
+    semantic_score: float = 0.0
+    final_score: float = 0.0
+    retrieval_sources: List[str] = Field(default_factory=list)
+    matched_reason: str = ""
 
 
 class MetadataSearchResponse(BaseModel):
     query: str
     top_k: int
+    retrieval_mode: Literal["keyword", "semantic", "hybrid"] = "keyword"
+    semantic_enabled: bool = False
+    semantic_quality: Literal["disabled", "test_hash", "production"] = "disabled"
+    fusion_method: Optional[str] = None
+    error_message: Optional[str] = None
     results: List[MetadataSearchResult]
 
 
@@ -320,6 +331,32 @@ class SearchResult(BaseModel):
     weak_hit_count: int
     evidence_type: str
     source_column: str
+    graph_score: float = 0.0
+    graph_seed_count: int = 0
+    graph_paths: List["GraphPath"] = Field(default_factory=list)
+
+
+class GraphSeedNode(BaseModel):
+    id: str
+    label: str
+    type: str
+    matched_term: str
+    match_score: float
+    record_count: int
+
+
+class GraphPath(BaseModel):
+    seed_node_id: str
+    seed_label: str
+    seed_type: str
+    matched_term: str
+    edge_type: str
+    edge_label: str
+    record_id: str
+    confidence: float
+    evidence_text: str = ""
+    path_text: str
+    score: float
 
 
 class GroupedMatchedUnit(BaseModel):
@@ -372,6 +409,15 @@ class SearchResponse(BaseModel):
 class HybridSearchResponse(SearchResponse):
     fusion_method: str
     error_message: Optional[str] = None
+
+
+class GraphRagSearchResponse(HybridSearchResponse):
+    graph_enabled: bool
+    graph_fallback: bool
+    graph_fallback_reason: Optional[str] = None
+    graph_seed_nodes: List[GraphSeedNode] = Field(default_factory=list)
+    graph_candidate_count: int = 0
+    graph_message: str = ""
 
 
 class SemanticSearchRequest(BaseModel):

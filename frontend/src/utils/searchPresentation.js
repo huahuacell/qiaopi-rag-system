@@ -1,7 +1,8 @@
 const MODE_LABELS = {
   keyword: '关键词检索',
   semantic: '语义检索',
-  hybrid: '混合检索'
+  hybrid: '混合检索',
+  graphrag: 'GraphRAG 检索'
 }
 
 function finiteNumber(value) {
@@ -117,6 +118,44 @@ export function resolveSearchExecution(requestedMode, response = {}, options = {
     }
   }
 
+  if (requestedMode === 'graphrag') {
+    if (response.graph_enabled === true && fusionMethod === 'graph_rrf') {
+      const testOnly = semanticQuality === 'test_hash'
+      const sources = ['SQLite 知识图谱', 'FTS5 / BM25']
+      if (semanticEnabled) sources.push('向量余弦相似度')
+      sources.push('GraphRAG RRF 融合')
+      return {
+        ...common,
+        effectiveMode: 'graphrag',
+        effectiveLabel: testOnly ? 'GraphRAG（测试向量）' : 'GraphRAG 检索',
+        tone: testOnly ? 'warning' : 'success',
+        degraded: testOnly,
+        sources,
+        explanation:
+          response.graph_message ||
+          '图谱关系候选已回填到全文证据单元，并与原有检索结果融合。'
+      }
+    }
+
+    const baseUsesSemantic = semanticEnabled && fusionMethod === 'rrf'
+    return {
+      ...common,
+      effectiveMode: baseUsesSemantic ? 'hybrid' : 'keyword',
+      effectiveLabel: baseUsesSemantic
+        ? '混合检索（GraphRAG 降级）'
+        : '关键词检索（GraphRAG 降级）',
+      tone: 'warning',
+      degraded: true,
+      sources: baseUsesSemantic
+        ? ['FTS5 / BM25', '向量余弦相似度', 'RRF 排名融合']
+        : ['FTS5 / BM25'],
+      explanation:
+        response.graph_fallback_reason ||
+        response.graph_message ||
+        '图谱未参与，本次已回退到现有检索链路。'
+    }
+  }
+
   return {
     ...common,
     effectiveMode: requestedMode,
@@ -133,6 +172,7 @@ export function buildScoreContributions(result = {}, execution = {}) {
   const rows = []
   const bm25 = finiteNumber(result.bm25_score)
   const semantic = finiteNumber(result.semantic_score)
+  const graph = finiteNumber(result.graph_score)
   const finalScore = finiteNumber(result.final_score)
 
   if ((sources.has('keyword') || execution.effectiveMode === 'keyword') && bm25 !== null) {
@@ -157,7 +197,23 @@ export function buildScoreContributions(result = {}, execution = {}) {
     })
   }
 
-  if (execution.fusionMethod === 'rrf' && finalScore !== null) {
+  if (sources.has('graph') && graph !== null && graph !== 0) {
+    rows.push({
+      key: 'graph',
+      label: '图谱关联分',
+      value: formatScore(graph),
+      meaning: '综合实体命中、边置信度、节点稀有度和多节点覆盖率；同一查询内越大越相关。'
+    })
+  }
+
+  if (execution.fusionMethod === 'graph_rrf' && finalScore !== null) {
+    rows.push({
+      key: 'graph-rrf',
+      label: 'GraphRAG 融合值',
+      value: formatScore(finalScore),
+      meaning: '由文本检索名次和图谱检索名次共同贡献；不是概率。'
+    })
+  } else if (execution.fusionMethod === 'rrf' && finalScore !== null) {
     rows.push({
       key: 'rrf',
       label: 'RRF 融合值',
@@ -184,8 +240,9 @@ export function buildScoreContributions(result = {}, execution = {}) {
 }
 
 export function buildDemoSearchResponse(baseResponse, requestedMode, query) {
-  const semanticEnabled = requestedMode !== 'keyword'
+  const semanticEnabled = !['keyword', 'graphrag'].includes(requestedMode)
   const fusionMethod = requestedMode === 'hybrid' ? 'rrf' : null
+  const graphEnabled = requestedMode === 'graphrag'
 
   return {
     ...baseResponse,
@@ -193,13 +250,22 @@ export function buildDemoSearchResponse(baseResponse, requestedMode, query) {
     demo_mode: true,
     semantic_enabled: semanticEnabled,
     semantic_quality: semanticEnabled ? 'test_hash' : 'disabled',
-    fusion_method: fusionMethod,
+    fusion_method: graphEnabled ? 'graph_rrf' : fusionMethod,
+    graph_enabled: graphEnabled,
+    graph_fallback: false,
+    graph_candidate_count: graphEnabled ? (baseResponse.results || []).length : 0,
+    graph_seed_nodes: graphEnabled
+      ? [{ id: 'person:母亲', label: '母亲', type: 'person', matched_term: '母亲' }]
+      : [],
+    graph_message: graphEnabled ? '显式演示数据中的图谱融合示例。' : '',
     error_message: null,
     results: (baseResponse.results || []).map((result, index) => {
       const demoScore = finiteNumber(result.score) ?? Math.max(0.1, 0.9 - index * 0.08)
       const sources =
         requestedMode === 'hybrid'
           ? ['keyword', 'semantic']
+          : requestedMode === 'graphrag'
+            ? ['keyword', 'graph']
           : requestedMode === 'semantic'
             ? ['semantic']
             : ['keyword']
@@ -218,8 +284,19 @@ export function buildDemoSearchResponse(baseResponse, requestedMode, query) {
         evidence_type: result.evidence_type || 'demo',
         bm25_score: sources.includes('keyword') ? -demoScore : 0,
         semantic_score: sources.includes('semantic') ? demoScore : 0,
+        graph_score: sources.includes('graph') ? demoScore : 0,
+        graph_seed_count: sources.includes('graph') ? 1 : 0,
+        graph_paths: sources.includes('graph')
+          ? [{
+              seed_node_id: 'person:母亲',
+              edge_type: 'RECEIVED_BY',
+              path_text: `查询词“母亲” → 母亲 → 收信人为 → ${result.record_id}`
+            }]
+          : [],
         final_score:
-          requestedMode === 'hybrid' ? 1 / (60 + index + 1) * 2 : demoScore,
+          ['hybrid', 'graphrag'].includes(requestedMode)
+            ? 1 / (60 + index + 1) * 2
+            : demoScore,
         retrieval_sources: sources
       }
     })

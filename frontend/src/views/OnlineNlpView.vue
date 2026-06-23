@@ -26,7 +26,7 @@
         <h1>从侨批原文中抽取人物、地点与汇款线索</h1>
         <p>
           在线与离线建库共享同一套规范化规则。每个实体、关系和生成槽位均保留原文证据、
-          双重半开区间偏移、规则版本、置信度与人工复核状态。
+          双重半开区间偏移、规则版本、置信度与抽取器版本。
         </p>
       </div>
       <aside class="archive-nlp-header-mark">
@@ -124,8 +124,8 @@
         </article>
         <article>
           <span>结果状态</span>
-          <strong :class="{ warning: result.review_required }">
-            {{ result.review_required ? '需要人工复核' : '规则检查通过' }}
+          <strong :class="{ warning: spanIntegrityFailures }">
+            {{ spanIntegrityFailures ? '存在偏移异常' : '分析完成' }}
           </strong>
         </article>
       </section>
@@ -139,16 +139,6 @@
           <b aria-hidden="true">{{ card.index }}</b>
         </article>
       </section>
-
-      <div v-if="result.review_required" class="archive-nlp-review-banner" role="status">
-        <div>
-          <span>复</span>
-          <strong>该结果需要人工复核</strong>
-        </div>
-        <ul>
-          <li v-for="reason in result.review_reasons" :key="reason">{{ reason }}</li>
-        </ul>
-      </div>
 
       <div v-if="spanIntegrityFailures" class="archive-nlp-notice error" role="alert">
         <span>!</span>
@@ -202,7 +192,7 @@
           <article
             v-for="entity in result.entities"
             :key="entity.entity_id"
-            :class="{ review: entity.needs_review, invalid: !isSpanValid(entity) }"
+            :class="{ invalid: !isSpanValid(entity) }"
           >
             <header>
               <span>{{ entityTypeLabel(entity.entity_type) }}</span>
@@ -223,9 +213,6 @@
               <div><dt>抽取器</dt><dd>{{ entity.extractor_version }}</dd></div>
             </dl>
             <footer>
-              <span :class="{ warning: entity.needs_review }">
-                {{ entity.needs_review ? '需要人工复核' : '复核状态：通过' }}
-              </span>
               <em :class="{ invalid: !isSpanValid(entity) }">
                 {{ isSpanValid(entity) ? '偏移一致' : '偏移异常' }}
               </em>
@@ -252,7 +239,7 @@
           <article
             v-for="relation in result.relations"
             :key="relation.relation_id"
-            :class="{ review: relation.needs_review, invalid: !isSpanValid(relation) }"
+            :class="{ invalid: !isSpanValid(relation) }"
           >
             <div class="archive-nlp-relation-main">
               <span>{{ relationTypeLabel(relation.relation_type) }}</span>
@@ -271,9 +258,6 @@
               <p><span>抽取器</span><code>{{ relation.extractor_version }}</code></p>
             </div>
             <footer>
-              <span :class="{ warning: relation.needs_review }">
-                {{ relation.needs_review ? '需要人工复核' : '复核状态：通过' }}
-              </span>
               <em :class="{ invalid: !isSpanValid(relation) }">
                 {{ isSpanValid(relation) ? '偏移一致' : '偏移异常' }}
               </em>
@@ -300,7 +284,7 @@
           <article
             v-for="slot in result.slots"
             :key="slot.slot_id"
-            :class="{ review: slot.needs_review, invalid: !isSpanValid(slot) }"
+            :class="{ invalid: !isSpanValid(slot) }"
           >
             <header>
               <span>{{ slotLabel(slot.slot_name) }}</span>
@@ -315,9 +299,6 @@
               <div><dt>抽取器</dt><dd>{{ slot.extractor_version }}</dd></div>
             </dl>
             <footer>
-              <span :class="{ warning: slot.needs_review }">
-                {{ slot.needs_review ? '需要人工复核' : '复核状态：通过' }}
-              </span>
               <em :class="{ invalid: !isSpanValid(slot) }">
                 {{ isSpanValid(slot) ? '偏移一致' : '偏移异常' }}
               </em>
@@ -407,16 +388,10 @@ const summaryCards = computed(() => [
   },
   {
     index: '04',
-    label: '人工复核',
-    value: result.review_required
-      ? result.summary.review_item_count || '需要'
-      : '无需',
-    note: result.review_required
-      ? result.summary.review_item_count
-        ? '存在低置信抽取项'
-        : '存在文本级复核原因'
-      : '全部抽取项通过',
-    warning: result.review_required
+    label: '偏移校验',
+    value: spanIntegrityFailures.value ? `${spanIntegrityFailures.value} 异常` : '通过',
+    note: spanIntegrityFailures.value ? '证据片段与文本位置不一致' : '证据片段与文本位置一致',
+    warning: Boolean(spanIntegrityFailures.value)
   }
 ])
 

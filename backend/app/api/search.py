@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.schemas import (
+    GraphRagSearchResponse,
     HybridSearchResponse,
     SearchRequest,
     SearchResponse,
@@ -10,6 +11,7 @@ from app.schemas import (
 )
 from app.services.search_service import (
     run_advanced_search,
+    run_graph_rag_search,
     run_hybrid_search,
     run_keyword_search,
     run_semantic_search,
@@ -43,3 +45,8 @@ def semantic_search_status() -> SemanticStatusResponse:
 @router.post("/hybrid", response_model=HybridSearchResponse)
 def hybrid_search(request: SearchRequest) -> HybridSearchResponse:
     return HybridSearchResponse(**run_hybrid_search(request))
+
+
+@router.post("/graphrag", response_model=GraphRagSearchResponse)
+def graph_rag_search(request: SearchRequest) -> GraphRagSearchResponse:
+    return GraphRagSearchResponse(**run_graph_rag_search(request))

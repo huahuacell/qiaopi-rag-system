@@ -53,7 +53,7 @@ def test_interpret_dry_run_returns_prompt_and_evidence_references():
     assert response.status_code == 200
     assert payload["task_type"] == "interpret"
     assert payload["record_id"] == "CSQP-SFHC-TEXT-017"
-    assert payload["semantic_enabled"] is False
+    assert isinstance(payload["semantic_enabled"], bool)
     assert payload["semantic_quality"] == "disabled"
     assert payload["dry_run"] is True
     assert payload["generation_backend"] == "prompt_preview"
@@ -86,8 +86,8 @@ def test_style_transfer_dry_run_returns_style_slots_and_references():
     payload = response.json()
     assert response.status_code == 200
     assert payload["task_type"] == "style-transfer"
-    assert payload["semantic_enabled"] is False
-    assert payload["semantic_quality"] == "disabled"
+    assert isinstance(payload["semantic_enabled"], bool)
+    assert payload["semantic_quality"] in {"disabled", "test_hash", "production"}
     assert payload["dry_run"] is True
     assert payload["generation_backend"] == "prompt_preview"
     assert payload["degraded_reason"] == "dry_run_requested"

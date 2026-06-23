@@ -158,7 +158,7 @@ def test_advanced_search_supports_main_intent_filter():
     assert all(result["matched_reason"] for result in payload["results"])
 
 
-def test_hybrid_search_reports_semantic_disabled():
+def test_hybrid_search_reports_actual_semantic_runtime_state():
     response = client.post(
         "/api/search/hybrid",
         json={
@@ -172,8 +172,17 @@ def test_hybrid_search_reports_semantic_disabled():
 
     payload = response.json()
     assert response.status_code == 200
-    assert payload["semantic_enabled"] is False
     assert payload["results"]
+    if payload["semantic_enabled"]:
+        assert payload["semantic_quality"] in {"test_hash", "production"}
+        assert payload["fusion_method"] == "rrf"
+        assert any(
+            "semantic" in result["retrieval_sources"]
+            for result in payload["results"]
+        )
+    else:
+        assert payload["semantic_quality"] == "disabled"
+        assert payload["fusion_method"] == "keyword_fallback"
 
 
 def test_strict_expansion_mode_omits_medium_and_weak_terms_from_expanded_query():

@@ -64,6 +64,7 @@
             </div>
             <p class="analysis-card-intro">
               占比按各情感标签的信件覆盖量归一化计算，全部标签合计为 100%。
+              条形长度以当前最高项为满格，用于比较相对强弱，不代表 100%。
             </p>
             <div class="analysis-emotion-rank-list is-interactive">
               <button
@@ -84,7 +85,7 @@
                     <b
                       :class="`is-${item.valence}`"
                       :style="{
-                        '--emotion-width': `${Math.max(3, item.normalized_ratio * 100)}%`,
+                        '--emotion-width': `${Math.max(3, item.relative_ratio * 100)}%`,
                         '--emotion-delay': `${index * 80}ms`
                       }"
                     ></b>
@@ -267,6 +268,101 @@
           </span>
         </div>
       </article>
+
+      <section
+        class="analysis-qiaopi-feature-grid"
+        :class="{ 'has-national-board': nationalThemeRecords.length }"
+        aria-label="银信合一与家国相连专题"
+      >
+        <article class="analysis-card analysis-remittance-distribution-card">
+          <div class="analysis-card-marker"></div>
+          <div class="analysis-card-seal" aria-hidden="true">银</div>
+          <div class="analysis-card-header">
+            <h2>银信合一 · 汇款数额分布</h2>
+            <span class="analysis-badge">
+              {{ formatNumber(remittanceSummary.amountRecordCount) }} 封有明确金额
+            </span>
+          </div>
+          <p class="analysis-card-intro">
+            每封侨批仅取结构化主汇款金额，按原文名义数额分组；不同历史币种不作汇率或购买力换算。
+          </p>
+
+          <div v-if="remittanceSummary.amountRecordCount" class="analysis-remittance-layout">
+            <div
+              class="analysis-remittance-overview"
+              :style="{
+                '--amount-coverage': `${remittanceSummary.coverageRatio * 100}%`
+              }"
+            >
+              <small>金额覆盖率</small>
+              <strong>{{ formatPercent(remittanceSummary.coverageRatio, 1) }}</strong>
+              <span>
+                {{ formatNumber(remittanceSummary.amountRecordCount) }} /
+                {{ formatNumber(remittanceSummary.totalRecords) }} 封
+              </span>
+            </div>
+
+            <div class="analysis-remittance-bars">
+              <div v-for="item in remittanceSummary.buckets" :key="item.key">
+                <header>
+                  <strong>{{ item.label }}</strong>
+                  <span>{{ formatNumber(item.count) }} 封 · {{ formatPercent(item.ratio, 1) }}</span>
+                </header>
+                <i>
+                  <b :style="{ '--remittance-width': `${item.relativeRatio * 100}%` }"></b>
+                </i>
+              </div>
+            </div>
+          </div>
+          <p v-else class="analysis-empty-copy">暂无可用于统计的结构化汇款金额。</p>
+
+          <div v-if="remittanceSummary.currencies.length" class="analysis-currency-strip">
+            <strong>原文币种</strong>
+            <span
+              v-for="item in remittanceSummary.currencies.slice(0, 6)"
+              :key="item.label"
+            >
+              {{ item.label }} {{ item.count }}
+            </span>
+          </div>
+        </article>
+
+        <article
+          v-if="nationalThemeRecords.length"
+          class="analysis-card analysis-national-theme-card"
+        >
+          <div class="analysis-card-marker"></div>
+          <div class="analysis-national-seal" aria-hidden="true">家国</div>
+          <div class="analysis-card-header">
+            <h2>家国相连 · 国家主题侨批</h2>
+            <span class="analysis-badge analysis-badge-red">
+              {{ formatNumber(nationalThemeRecords.length) }} 封正文命中
+            </span>
+          </div>
+          <p class="analysis-card-intro">
+            仅展示正文明确出现乡国归思、国难民生或侨汇政策表达的侨批，点击可查看完整记录。
+          </p>
+
+          <div class="analysis-national-records">
+            <RouterLink
+              v-for="item in nationalThemeRecords"
+              :key="item.recordId"
+              :to="`/records/${item.recordId}`"
+            >
+              <header>
+                <span>{{ item.year || '年代未详' }}</span>
+                <strong>{{ item.themeLabel }}</strong>
+                <em>{{ item.matchedTerms.join('、') }}</em>
+              </header>
+              <blockquote>{{ item.snippet }}</blockquote>
+              <footer>
+                <span>{{ item.recordId }}</span>
+                <b>查看原批 ›</b>
+              </footer>
+            </RouterLink>
+          </div>
+        </article>
+      </section>
     </div>
   </section>
 </template>
@@ -275,17 +371,19 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 
 import { fetchEmotionAnalysis } from '../api/analysis'
-import { fetchFullTextCorpus } from '../api/records'
+import { fetchRecordCorpus } from '../api/records'
 import postmarkImage from '../assets/nav/2.png'
 import { demoMode } from '../config/runtime'
 import fallbackEmotionAnalysis from '../mock/emotion_analysis.json'
 import {
+  buildRemittanceAmountSummary,
   buildCorpusKeywordCloud,
   layoutCorpusKeywordCloud,
   normalizeEmotionDistribution,
   selectCooccurrenceEvidenceExamples,
   selectEmotionEvidenceExamples,
   selectKeywordEvidenceExamples,
+  selectNationalThemeRecords,
   selectValenceEvidenceExamples
 } from '../utils/emotionClassification'
 import {
@@ -303,6 +401,7 @@ const selectedCooccurrence = ref(null)
 const selectedKeyword = ref('')
 const selectionType = ref('')
 const loading = ref(false)
+const allRecords = ref([])
 const corpusRecords = ref([])
 const keywordLoading = ref(false)
 const analysisEntered = ref(false)
@@ -385,6 +484,12 @@ const corpusKeywordCloud = computed(() =>
 )
 const wordCloudLayout = computed(() =>
   layoutCorpusKeywordCloud(corpusKeywordCloud.value)
+)
+const remittanceSummary = computed(() =>
+  buildRemittanceAmountSummary(allRecords.value)
+)
+const nationalThemeRecords = computed(() =>
+  selectNationalThemeRecords(allRecords.value, 4)
 )
 
 const emotionSignals = computed(() => [
@@ -537,12 +642,19 @@ async function loadCorpusKeywords() {
   wordCloudEntered.value = false
 
   try {
-    const records = await fetchFullTextCorpus(emotionAnalysis.value.total_records)
-    if (!records.length) {
+    const records = await fetchRecordCorpus(emotionAnalysis.value.total_records)
+    const fullTextRecords = records.filter(
+      (record) =>
+        Number(record?.has_full_text) === 1 &&
+        Boolean(record?.body_core || record?.body_clean)
+    )
+    if (!fullTextRecords.length) {
       throw new Error('未读取到可用全文')
     }
-    corpusRecords.value = records
+    allRecords.value = records
+    corpusRecords.value = fullTextRecords
   } catch {
+    allRecords.value = []
     corpusRecords.value = demoMode ? fallbackCorpusFromEvidence() : []
   } finally {
     keywordLoading.value = false

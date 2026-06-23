@@ -65,6 +65,18 @@ The runtime provider, model, dimension, ordered retrieval-unit corpus, and
 corpus fingerprint must agree with the promoted semantic manifest. A mismatch
 causes the backend to refuse loading the index.
 
+The 50,064-record metadata catalog uses an independent semantic index so
+catalog-only records cannot leak into full-text RAG evidence. After the main
+build, create or refresh it with:
+
+```powershell
+python -m app.ingestion.build_metadata_semantic_index --provider local
+```
+
+Set `SEMANTIC_SEARCH_ENABLED=true` only when both the configured provider and
+the required index artifacts are ready. Metadata semantic search remains an
+archive-discovery feature and never supplies generation evidence by itself.
+
 ## Acceptance Manifest
 
 The manifest records:
