@@ -145,7 +145,7 @@
     <section class="archive-plain-section">
       <header class="archive-plain-section-title">
         <i aria-hidden="true"></i>
-        <strong>结构化摘要</strong>
+        <strong>侨批摘要</strong>
         <span>STRUCT-SUMMARY</span>
       </header>
       <div class="archive-summary-card-grid">
@@ -216,7 +216,7 @@
 
     <aside class="archive-plain-note">
       <span>i</span>
-      <p>如果 Qwen 或后端释读服务尚未启用，系统将展示本地演示结果，并保留白话释读、证据映射与一致性检查流程。</p>
+      <p>在线模型不可用时，系统会明确标注“本地降级模式”，并保留白话释读、证据映射与一致性检查流程。</p>
     </aside>
   </section>
 </template>
@@ -233,6 +233,7 @@ import {
 } from '../config/runtime'
 import fallbackResult from '../mock/plain_interpretation.json'
 import { generationState } from '../utils/generationPresentation'
+import { buildInterpretationSummary } from '../utils/interpretationSummary'
 import {
   recordBodyText,
   shouldReplaceOriginalText
@@ -241,6 +242,7 @@ import {
 const recordId = ref('CSQP-SFHC-TEXT-001')
 const originalText = ref('')
 const result = ref(demoMode ? fallbackResult : {})
+const recordDetail = ref({})
 const loading = ref(false)
 const error = ref('')
 const recordLookupMessage = ref('')
@@ -277,13 +279,6 @@ const generationRuntime = computed(() => generationState(result.value))
 const slotRows = computed(() =>
   Object.entries(result.value.slots || {}).map(([key, value]) => [slotLabels[key] || key, formatValue(value)])
 )
-
-const summaryRows = computed(() => {
-  if (result.value.summary?.length) return result.value.summary
-  if (result.value.validation_report?.summary) return [result.value.validation_report.summary]
-  if (result.value.error_message) return ['后端已返回提示信息，可查看证据上下文和错误提示。']
-  return []
-})
 
 const evidenceRows = computed(() => {
   if (result.value.evidence?.length) return normalizeEvidence(result.value.evidence)
@@ -327,28 +322,13 @@ const consistencyCheck = computed(() => {
 
 const slotMap = computed(() => new Map(slotRows.value))
 
-const summaryCards = computed(() => [
-  {
-    num: '01',
-    label: '人物关系',
-    value: joinAvailable([slotMap.value.get('寄信人'), slotMap.value.get('收信人')]) || findSummary(/人|母|亲|寄信|收信/) || '待提取'
-  },
-  {
-    num: '02',
-    label: '地点信息',
-    value: joinAvailable([slotMap.value.get('来源地'), slotMap.value.get('目的地')]) || findSummary(/地|新加坡|潮州|家乡/) || '待提取'
-  },
-  {
-    num: '03',
-    label: '金额信息',
-    value: slotMap.value.get('汇款') || findSummary(/元|银|钱|汇款/) || '待提取'
-  },
-  {
-    num: '04',
-    label: '主题信息',
-    value: joinAvailable([slotMap.value.get('用途'), ...summaryRows.value.slice(0, 2)]) || '平安问候、汇款托带、家人关怀'
-  }
-])
+const summaryCards = computed(() =>
+  buildInterpretationSummary({
+    result: result.value,
+    record: recordDetail.value,
+    sourceText: originalText.value
+  })
+)
 
 const validationCards = computed(() => {
   const check = consistencyCheck.value
@@ -401,14 +381,6 @@ function normalizeCheck(check) {
   }
 }
 
-function joinAvailable(items) {
-  return items.filter(Boolean).join('、')
-}
-
-function findSummary(pattern) {
-  return summaryRows.value.find((item) => pattern.test(String(item))) || ''
-}
-
 function findRuleText(rules, pattern) {
   return rules.find((rule) => pattern.test(String(rule))) || ''
 }
@@ -444,6 +416,7 @@ function clearContent() {
   originalTextManuallyEdited.value = false
   lastAutoFilledText.value = ''
   result.value = {}
+  recordDetail.value = {}
   error.value = ''
   recordLookupMessage.value = ''
   recordLookupWarning.value = false
@@ -468,6 +441,7 @@ async function loadRecordText(value) {
   try {
     const detail = await fetchRecordDetail(normalizedRecordId)
     if (sequence !== recordLookupSequence) return
+    recordDetail.value = detail || {}
     const bodyText = recordBodyText(detail)
     if (!bodyText) {
       recordLookupMessage.value = '已找到档案，但该记录没有可回填的正文。'
@@ -493,6 +467,7 @@ async function loadRecordText(value) {
     }
   } catch (requestError) {
     if (sequence !== recordLookupSequence) return
+    recordDetail.value = {}
     const status = requestError?.response?.status
     recordLookupMessage.value =
       status === 404

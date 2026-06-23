@@ -97,3 +97,7 @@ backend/outputs/*.jsonl
 # =========================
 *.log
 logs/
+backend/data/builds/
+backend/data/processed/
+**/qiaopi.db
+*.db

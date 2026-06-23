@@ -1,0 +1,274 @@
+{
+  "record_id": "CSQP-SFHC-TEXT-063",
+  "nodes": [
+    {
+      "id": "record:CSQP-SFHC-TEXT-063",
+      "label": "戊（1938）七月初十日，暹海泉寄饶隆南溪乡赵宅慈亲大人",
+      "type": "record",
+      "category": "record",
+      "normalized_label": "CSQP-SFHC-TEXT-063",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "source_table": "qiaopi_text_records",
+      "source_id": "CSQP-SFHC-TEXT-063",
+      "properties": {
+        "title_reference": "戊（1938）七月初十日，暹海泉寄饶隆南溪乡赵宅慈亲大人",
+        "sender": "遥儿海泉",
+        "recipient": "饶隆南溪乡赵宅慈亲大人",
+        "date_text": "戊七月初十日",
+        "date_standard": "1938.7.10",
+        "year_normalized": "1938",
+        "theme_tags": "family_affection;remittance;instruction"
+      }
+    },
+    {
+      "id": "metadata:CSQP-META-014284",
+      "label": "泰国赵海泉寄广东饶平母亲侨批",
+      "type": "metadata_record",
+      "category": "metadata_record",
+      "normalized_label": "CSQP-META-014284",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "source_table": "qiaopi_metadata_records",
+      "source_id": "CSQP-META-014284",
+      "properties": {
+        "metadata_id": "CSQP-META-014284",
+        "title_clean": "泰国赵海泉寄广东饶平母亲侨批",
+        "sender_raw": "儿海泉",
+        "recipient_raw": "家慈亲",
+        "date_text": "[1938年]",
+        "date_standard": "1938",
+        "linked_record_id": "CSQP-SFHC-TEXT-063"
+      }
+    },
+    {
+      "id": "person:遥儿海泉",
+      "label": "遥儿海泉",
+      "type": "person",
+      "category": "person",
+      "normalized_label": "遥儿海泉",
+      "record_id": "",
+      "source_table": "qiaopi_text_records",
+      "source_id": "CSQP-SFHC-TEXT-063:sender",
+      "properties": {}
+    },
+    {
+      "id": "person:母亲",
+      "label": "母亲",
+      "type": "person",
+      "category": "person",
+      "normalized_label": "母亲",
+      "record_id": "",
+      "source_table": "qiaopi_entity_mentions",
+      "source_id": "CSQP-SFHC-TEXT-063-ENT-0831",
+      "properties": {
+        "kinship_type": "mother"
+      }
+    },
+    {
+      "id": "place:泰国",
+      "label": "泰国",
+      "type": "place",
+      "category": "place",
+      "normalized_label": "泰国",
+      "record_id": "",
+      "source_table": "qiaopi_text_records",
+      "source_id": "CSQP-SFHC-TEXT-063:origin_place",
+      "properties": {}
+    },
+    {
+      "id": "place:广东饶平",
+      "label": "广东饶平",
+      "type": "place",
+      "category": "place",
+      "normalized_label": "广东饶平",
+      "record_id": "",
+      "source_table": "qiaopi_place_mentions",
+      "source_id": "CSQP-SFHC-TEXT-063-PLC-001",
+      "properties": {}
+    },
+    {
+      "id": "amount:CSQP-SFHC-TEXT-063:demo",
+      "label": "中央法币陆元",
+      "type": "amount",
+      "category": "amount",
+      "normalized_label": "CSQP-SFHC-TEXT-063|6|国币|中央法币陆元",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "source_table": "qiaopi_amount_mentions",
+      "source_id": "CSQP-SFHC-TEXT-063-AMT-001",
+      "properties": {
+        "amount_number": 6,
+        "currency": "国币"
+      }
+    },
+    {
+      "id": "date:1938.7.10",
+      "label": "1938.7.10",
+      "type": "date",
+      "category": "date",
+      "normalized_label": "1938.7.10",
+      "record_id": "",
+      "source_table": "qiaopi_text_records",
+      "source_id": "CSQP-SFHC-TEXT-063:date",
+      "properties": {
+        "raw_date_text": "戊七月初十日"
+      }
+    },
+    {
+      "id": "evidence:CSQP-SFHC-TEXT-063:CSQP-SFHC-TEXT-063-EVID-0335",
+      "label": "敬禀者，兹逢船透【往】汕，顺付（附）去中央法币陆元，到照检收，以助家庭生活费。",
+      "type": "evidence",
+      "category": "evidence",
+      "normalized_label": "CSQP-SFHC-TEXT-063-EVID-0335",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "source_table": "qiaopi_evidence_spans",
+      "source_id": "CSQP-SFHC-TEXT-063-EVID-0335",
+      "properties": {
+        "evidence_type": "remittance",
+        "source_column": "body_clean",
+        "evidence_text": "敬禀者，兹逢船透【往】汕，顺付（附）去中央法币陆元，到照检收，以助家庭生活费。"
+      }
+    },
+    {
+      "id": "evidence:CSQP-SFHC-TEXT-063:CSQP-SFHC-TEXT-063-EVID-0337",
+      "label": "现失业漂流中度人生，痛苦挣扎，应为内子诸事务宜督示。",
+      "type": "evidence",
+      "category": "evidence",
+      "normalized_label": "CSQP-SFHC-TEXT-063-EVID-0337",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "source_table": "qiaopi_evidence_spans",
+      "source_id": "CSQP-SFHC-TEXT-063-EVID-0337",
+      "properties": {
+        "evidence_type": "instruction",
+        "source_column": "body_clean",
+        "evidence_text": "现失业漂流中度人生，痛苦挣扎，应为内子诸事务宜督示，不可被她所欲胡行，纲常越守，诚感事也。"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge:demo:sent-by",
+      "source": "record:CSQP-SFHC-TEXT-063",
+      "target": "person:遥儿海泉",
+      "type": "SENT_BY",
+      "label": "SENT_BY",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "evidence_text": "",
+      "source_table": "qiaopi_text_records",
+      "source_id": "CSQP-SFHC-TEXT-063:sender",
+      "weight": 1,
+      "confidence": 0.95,
+      "properties": {}
+    },
+    {
+      "id": "edge:demo:received-by",
+      "source": "record:CSQP-SFHC-TEXT-063",
+      "target": "person:母亲",
+      "type": "RECEIVED_BY",
+      "label": "RECEIVED_BY",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "evidence_text": "饶隆南溪乡赵宅慈亲大人",
+      "source_table": "qiaopi_text_records",
+      "source_id": "CSQP-SFHC-TEXT-063:recipient",
+      "weight": 1,
+      "confidence": 0.95,
+      "properties": {}
+    },
+    {
+      "id": "edge:demo:sent-from",
+      "source": "record:CSQP-SFHC-TEXT-063",
+      "target": "place:泰国",
+      "type": "SENT_FROM",
+      "label": "SENT_FROM",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "evidence_text": "",
+      "source_table": "qiaopi_text_records",
+      "source_id": "CSQP-SFHC-TEXT-063:origin_place",
+      "weight": 1,
+      "confidence": 0.75,
+      "properties": {}
+    },
+    {
+      "id": "edge:demo:sent-to",
+      "source": "record:CSQP-SFHC-TEXT-063",
+      "target": "place:广东饶平",
+      "type": "SENT_TO",
+      "label": "SENT_TO",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "evidence_text": "饶隆",
+      "source_table": "qiaopi_place_mentions",
+      "source_id": "CSQP-SFHC-TEXT-063-PLC-001",
+      "weight": 1,
+      "confidence": 0.9,
+      "properties": {}
+    },
+    {
+      "id": "edge:demo:amount",
+      "source": "record:CSQP-SFHC-TEXT-063",
+      "target": "amount:CSQP-SFHC-TEXT-063:demo",
+      "type": "HAS_AMOUNT",
+      "label": "HAS_AMOUNT",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "evidence_text": "批款：中央法币陆元",
+      "source_table": "qiaopi_amount_mentions",
+      "source_id": "CSQP-SFHC-TEXT-063-AMT-001",
+      "weight": 1,
+      "confidence": 0.9,
+      "properties": {}
+    },
+    {
+      "id": "edge:demo:date",
+      "source": "record:CSQP-SFHC-TEXT-063",
+      "target": "date:1938.7.10",
+      "type": "HAS_DATE",
+      "label": "HAS_DATE",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "evidence_text": "",
+      "source_table": "qiaopi_text_records",
+      "source_id": "CSQP-SFHC-TEXT-063:date",
+      "weight": 1,
+      "confidence": 0.85,
+      "properties": {}
+    },
+    {
+      "id": "edge:demo:metadata",
+      "source": "record:CSQP-SFHC-TEXT-063",
+      "target": "metadata:CSQP-META-014284",
+      "type": "LINKED_TO_METADATA",
+      "label": "LINKED_TO_METADATA",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "evidence_text": "",
+      "source_table": "qiaopi_text_metadata_links",
+      "source_id": "LINK-CSQP-SFHC-TEXT-063-CSQP-META-014284",
+      "weight": 1,
+      "confidence": 0.92,
+      "properties": {}
+    },
+    {
+      "id": "edge:demo:evidence-remittance",
+      "source": "record:CSQP-SFHC-TEXT-063",
+      "target": "evidence:CSQP-SFHC-TEXT-063:CSQP-SFHC-TEXT-063-EVID-0335",
+      "type": "SUPPORTED_BY",
+      "label": "SUPPORTED_BY",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "evidence_text": "敬禀者，兹逢船透【往】汕，顺付（附）去中央法币陆元，到照检收，以助家庭生活费。",
+      "source_table": "qiaopi_evidence_spans",
+      "source_id": "CSQP-SFHC-TEXT-063-EVID-0335",
+      "weight": 1,
+      "confidence": 0.9,
+      "properties": {}
+    },
+    {
+      "id": "edge:demo:evidence-instruction",
+      "source": "record:CSQP-SFHC-TEXT-063",
+      "target": "evidence:CSQP-SFHC-TEXT-063:CSQP-SFHC-TEXT-063-EVID-0337",
+      "type": "SUPPORTED_BY",
+      "label": "SUPPORTED_BY",
+      "record_id": "CSQP-SFHC-TEXT-063",
+      "evidence_text": "现失业漂流中度人生，痛苦挣扎，应为内子诸事务宜督示，不可被她所欲胡行，纲常越守，诚感事也。",
+      "source_table": "qiaopi_evidence_spans",
+      "source_id": "CSQP-SFHC-TEXT-063-EVID-0337",
+      "weight": 1,
+      "confidence": 0.9,
+      "properties": {}
+    }
+  ]
+}

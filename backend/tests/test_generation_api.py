@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.database.connection import get_connection
 from app.llm.qwen_client import QwenStructuredResult
+from app.services.generation_service import _cache_identity
 from main import app
 
 
@@ -132,7 +133,7 @@ def test_generation_enabled_with_api_key_does_not_return_disabled(monkeypatch):
     assert payload["dry_run"] is False
     assert payload["generated_text"]
     assert payload["generation_backend"] == "qwen"
-    assert payload["prompt_version"] == "style-transfer-json-v2"
+    assert payload["prompt_version"] == "style-transfer-concise-json-v4"
     assert payload["index_version"]
     assert payload["cache_hit"] is False
     assert payload["degraded_reason"] is None
@@ -210,6 +211,32 @@ def test_generation_cache_prevents_duplicate_mock_qwen_call(monkeypatch):
     assert second["cache_hit"] is True
     assert first["cache_key"] == second["cache_key"]
     assert calls["count"] == 1
+
+
+def test_generation_cache_key_changes_when_final_prompt_context_changes():
+    common = {
+        "task_type": "style-transfer",
+        "input_text": "测试输入",
+        "record_id": None,
+        "filters": {},
+        "top_k": 3,
+        "expansion_mode": "balanced",
+        "evidence_references": [],
+        "generation_backend": "qwen",
+        "model": "qwen-plus",
+        "prompt_version": "style-transfer-concise-json-v4",
+        "index_version": "test-index",
+    }
+    first_key, _ = _cache_identity(
+        **common,
+        messages=[{"role": "user", "content": "关系：夫妻"}],
+    )
+    second_key, _ = _cache_identity(
+        **common,
+        messages=[{"role": "user", "content": "关系：亲子"}],
+    )
+
+    assert first_key != second_key
 
 
 def test_generation_call_log_records_backend_and_cache_state():

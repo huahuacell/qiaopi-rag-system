@@ -2,7 +2,7 @@
 
 ## 0:00–1:00 Project and Contract
 
-Open the README and explain the `2026-06-19-converged` API baseline. State that
+Open the README and explain the `2026-06-22-emotion-analysis` API baseline. State that
 OpenAPI, the contract document, clients, and tests now describe one interface.
 
 ## 1:00–2:00 Backend API
@@ -44,7 +44,10 @@ labelled deterministic fallback and does not make a live Qwen call.
 
 Open `/style-transfer`. Submit a short family letter and show retrieved style
 slots, structured output, evidence mappings, and runtime state. Repeat the
-request to demonstrate a cache hit.
+request to demonstrate a cache hit. Edit one generated sentence, copy the
+latest version, then use `装入信封` to demonstrate folding, insertion, sealing,
+and `拆开重看`. Additional inputs are in
+`docs/style_transfer_examples.md`.
 
 ## 8:30–9:10 Online NLP
 
@@ -53,7 +56,15 @@ relation extraction, task slots, original/normalized offsets, rule versions,
 confidence, and review markers. Explain that online and offline preprocessing
 share `qiaopi-text-normalizer-1.0.0`.
 
-## 9:10–9:45 Knowledge Graph
+## 9:10–9:35 Emotion Analysis
+
+Open `/analysis`. Show the seven multi-label emotion categories, the
+positive/neutral/negative/mixed distribution, co-occurrence combinations,
+decade profile, and traceable original-text evidence. Point out the PyTorch
+model version and explain that this is an interpretable phase-1 baseline, not a
+fully supervised gold-standard classifier.
+
+## 9:35–9:55 Knowledge Graph
 
 Open `/knowledge-graph`. Load `CSQP-SFHC-TEXT-063`, click an evidence node and
 then the linked metadata node. Show source table/source ID, original evidence,
@@ -63,7 +74,7 @@ quality counters are zero.
 Clarify that `kg-viewer/` is now a Frontend Developer-owned diagnostic sandbox;
 the formal product workflow is the main `frontend/` route.
 
-## 9:45–10:00 Runtime Boundary
+## 9:55–10:00 Runtime Boundary
 
 Show the top-right runtime badge. `VITE_DEMO_MODE=false` is the production
 default and never silently loads Mock JSON. `VITE_DEMO_MODE=true` is reserved

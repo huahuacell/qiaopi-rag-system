@@ -72,20 +72,27 @@ Core tables:
 
 ## Reproducible Build-All Pipeline
 
-Run from `backend/`:
+`qiaopi.db` is a generated artifact and is not distributed through Git. For a
+fresh checkout, run from `backend/` before starting Uvicorn:
 
 ```bash
-python -m app.ingestion.build_all --embedding-provider hash
+python -m app.ingestion.build_all --embedding-provider hash --promote
 ```
 
-The default command rebuilds all derived assets from the raw Excel workbooks in
-an isolated directory under `backend/data/builds/`. It does not modify the live
-database or index. The ordered stages are full-text preprocessing, text
-database and FTS5, metadata database and FTS5, text-metadata linking, SQLite
-knowledge graph, semantic index, and acceptance validation.
+The command rebuilds all derived assets from the raw Excel workbooks in an
+isolated directory under `backend/data/builds/`, validates them, then promotes
+the accepted database, manifest, processed files, and semantic index to the
+runtime paths. The ordered stages are full-text preprocessing, text database
+and FTS5, metadata database and FTS5, text-metadata linking, SQLite knowledge
+graph, semantic index, and acceptance validation.
 
-Use `--promote` only after acceptance. Promotion prepares temporary sibling
-files and restores the previous live assets if any replacement fails.
+Promotion prepares temporary sibling files and restores the previous live
+assets if any replacement fails. Omitting `--promote` is supported for CI and
+diagnostic isolated builds.
+
+Uvicorn startup validates the promoted database and manifest read-only. It
+does not create or repair runtime data. Missing, partial, or count-mismatched
+artifacts stop startup with instructions to rerun the complete build command.
 
 Each accepted build writes `qiaopi_build_manifest.json` containing canonical
 per-table counts and SHA-256 checksums, a schema checksum, the embedding
@@ -221,6 +228,116 @@ Each distribution item uses:
 - `label`: bucket name.
 - `value`: row count.
 
+## GET /api/analysis/emotions
+
+Purpose: run corpus-level, sentence-segmented, multi-label emotion analysis over
+the available full-text qiaopi records. The current phase-1 classifier uses
+interpretable qiaopi-domain features and a deterministic PyTorch sigmoid head.
+It does not claim to be a fully supervised gold-standard model.
+
+The endpoint is independent from dashboard, search, graph, and generation
+routes. Results are cached against the SQLite file fingerprint and recomputed
+after the database changes. If PyTorch is unavailable, the endpoint returns the
+same mathematical scoring path with
+`model.engine = "python_compatible_fallback"` instead of failing application
+startup.
+
+Response excerpt:
+
+```json
+{
+  "total_records": 213,
+  "analyzed_records": 202,
+  "analyzed_segments": 1625,
+  "multi_label_records": 181,
+  "mixed_valence_records": 45,
+  "low_confidence_records": 7,
+  "dominant_emotion_key": "gratitude_blessing",
+  "dominant_emotion_label": "感激祝愿",
+  "label_distribution": [
+    {
+      "key": "reassurance_relief",
+      "label": "平安欣慰",
+      "record_count": 110,
+      "segment_count": 154,
+      "ratio": 0.5446,
+      "average_confidence": 0.7188,
+      "valence": "positive"
+    }
+  ],
+  "valence_distribution": [
+    {
+      "key": "mixed",
+      "label": "复合情感",
+      "record_count": 45,
+      "ratio": 0.2228
+    }
+  ],
+  "cooccurrence": [
+    {
+      "left_key": "care_instruction",
+      "left_label": "关爱嘱托",
+      "right_key": "worry_pressure",
+      "right_label": "忧虑压力",
+      "record_count": 18,
+      "ratio": 0.0891
+    }
+  ],
+  "time_trend": [
+    {
+      "period": "1930—1934",
+      "record_count": 51,
+      "dominant_emotion_key": "gratitude_blessing",
+      "dominant_emotion_label": "感激祝愿",
+      "distribution": {
+        "gratitude_blessing": 0.69
+      }
+    }
+  ],
+  "evidence_examples": [
+    {
+      "record_id": "CSQP-SFHC-TEXT-008",
+      "year": "1928",
+      "emotion_key": "worry_pressure",
+      "emotion_label": "忧虑压力",
+      "text": "现刻行情甚苦，财利实在难得。",
+      "trigger_terms": ["甚苦", "难得"],
+      "confidence": 0.8,
+      "valence": "negative",
+      "needs_review": false
+    }
+  ],
+  "model": {
+    "engine": "pytorch",
+    "model_version": "qiaopi-emotion-pytorch-v1.0.0",
+    "torch_available": true,
+    "device": "cpu",
+    "classifier_type": "可解释领域特征 + PyTorch 多标签 Sigmoid 分类头",
+    "label_count": 7,
+    "threshold": 0.52,
+    "calibrated": false,
+    "methodology": "句段级多标签分类，随后聚合到信件和馆藏层级。",
+    "limitations": "当前小样本阶段的置信度只用于排序与复核。"
+  },
+  "warnings": [
+    "一封侨批可同时包含多种情感，因此各情感占比之和可能超过 100%。"
+  ]
+}
+```
+
+Interpretation rules:
+
+- `ratio` is record coverage, not a mutually exclusive class probability.
+- `confidence` is a deterministic ranking and review score in this phase; it
+  must not be presented as calibrated statistical probability.
+- `evidence_examples` preserve source `record_id`, original text, and trigger
+  terms so the frontend can explain every displayed emotion.
+- `time_trend` uses five-year periods, excluding missing/invalid years and
+  periods with fewer than two usable full-text records.
+- `evidence_examples` returns up to nine deterministic examples per emotion
+  label, ordered for review safety, confidence, text length, and record ID.
+- `low_confidence_records` should be queued for review rather than removed.
+
 ## POST /api/search/keyword
 
 Search pipeline:
@@ -314,7 +431,7 @@ Response:
       ]
     }
   ],
-  "prompt_version": "style-transfer-json-v2",
+  "prompt_version": "style-transfer-concise-json-v4",
   "index_version": "rel:30675156c50cd5c8|vec:6a7537c49ba8fc2b|manifest:1"
 }
 ```
@@ -589,7 +706,7 @@ Current limitations:
 
 ## POST /api/rag/style-context
 
-Purpose: prepare qiaopi style examples for future plain Chinese to qiaopi-style generation. This endpoint returns grouped slot examples only; it does not generate a final qiaopi-style letter.
+Purpose: prepare qiaopi style examples for future plain Chinese to qiaopi-style generation. It detects relevant slots, runs slot-constrained hybrid retrieval, reranks snippets by intent alignment, purity, length, and text quality, and builds a bounded prompt context. It does not generate a final qiaopi-style letter.
 
 Request:
 
@@ -610,8 +727,10 @@ Response:
   "normalized_query": "母亲您好 我在新加坡平安 寄八元回家 请弟弟好好读书 母亲 平安 寄款 读书 新加坡 慈亲 大人 膝下 安好 无恙 勿念 汇款 批款 查收 勤学 学业 务望",
   "expanded_query": "母亲您好 我在新加坡平安 寄八元回家 请弟弟好好读书 母亲 平安 寄款 读书 新加坡 慈亲 大人 膝下 安好 无恙 勿念 汇款 批款 查收 勤学 学业 务望 萱堂 家母 批款 寄上 汇上 勤读 学业 星洲 叻坡 石叻 阿母 阿妈 付去 兹托 带去 奉上 书馆 课程 成绩 温习 南洋 严慈 安康 批局 教训",
   "expansion_mode": "balanced",
-  "semantic_enabled": false,
-  "semantic_quality": "disabled",
+  "semantic_enabled": true,
+  "semantic_quality": "production",
+  "retrieval_mode": "hybrid",
+  "active_style_slots": ["opening", "safety", "remittance", "instruction", "closing", "style_reference"],
   "style_slots": {
     "opening": [
       {
@@ -620,10 +739,24 @@ Response:
         "unit_type": "opening",
         "title_reference": "题名文本",
         "unit_text": "慈亲大人膝下：",
+        "prompt_text": "慈亲大人膝下：",
+        "raw_unit_text": "慈亲大人膝下：",
         "source_column": "evidence_opening",
         "evidence_type": "opening",
-        "matched_reason": "命中开头称谓；原始查询命中“慈亲/膝下”",
-        "final_score": 2.14
+        "matched_reason": "命中开头称谓；槽位纯度与片段质量重排",
+        "final_score": 2.14,
+        "semantic_score": 0.82,
+        "slot_score": 0.91,
+        "slot_purity_score": 1.0,
+        "quality_score": 1.0,
+        "relationship_type": "child_to_parent",
+        "relationship_profile": "mother",
+        "relationship_label": "亲子（写给母亲）",
+        "relationship_match": "matched",
+        "relationship_score": 1.0,
+        "relationship_expression_score": 1.0,
+        "retrieval_sources": ["keyword", "semantic"],
+        "prompt_included": true
       }
     ],
     "safety": [],
@@ -660,7 +793,9 @@ Response:
       ]
     }
   ],
-  "prompt_context": "【用户白话输入】\n母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。\n\n【开头称谓样例】\n1. 慈亲大人膝下：\n来源：CSQP-SFHC-TEXT-017\n\n【报平安样例】\n暂无可用样例。",
+  "prompt_context": "【事实来源（唯一）】\n母亲您好，我在新加坡平安，寄八元回家，请弟弟好好读书。\n\n【文体参考使用规则】\n以下知识库片段只用于借鉴称谓、句式和收束方式，不得复制其中的人物、金额、地点或事件。\n\n【开头称谓样例】\n慈亲大人膝下：\n来源：CSQP-SFHC-TEXT-017 / CSQP-SFHC-TEXT-017-RU-OPENING-001",
+  "prompt_included_count": 5,
+  "prompt_character_count": 509,
   "source_record_count": 1
 }
 ```
@@ -675,15 +810,26 @@ Response:
 - `closing`
 - `style_reference`
 
-Each slot returns up to `top_k` examples. A slot with no matching result returns an empty list.
+Only slots detected from the current input are retrieved, except `opening`,
+`closing`, and `style_reference`, which remain structural fallbacks. Each active
+slot returns up to `top_k` display candidates, but at most one candidate per
+slot is injected into the prompt. Prompt injection is capped at 900 characters.
+`prompt_text` masks or trims example-specific amounts, dates, names, and
+surrounding facts; `unit_text`, `raw_unit_text`, record IDs, and unit IDs remain
+available for traceability.
 
-Rule-based style hints are deterministic:
-
-- If the query contains `母亲`, `妈妈`, or `阿嬷`, opening retrieval is helped by terms such as `慈亲`, `母亲`, `大人`, and `膝下`.
-- If the query contains `平安` or `安好`, safety retrieval is prioritized.
-- If the query contains `寄`, `钱`, `元`, or `汇款`, remittance retrieval is prioritized.
-- If the query contains `读书`, `学习`, or `勤奋`, instruction retrieval is prioritized.
-- If the query contains `保重` or `身体`, family-care retrieval is prioritized.
+Retrieval uses keyword + semantic RRF fusion when a valid semantic index is
+available. If semantic retrieval is unavailable, it safely falls back to
+keyword results. Candidates are then reranked by input-intent alignment, slot
+purity, fragment length, punctuation quality, cross-slot contamination, and
+recipient-relationship compatibility. Named salutations may be conservatively
+classified from multiple family-context signals; the response exposes the
+profile, reason-compatible relationship label, source relationship type, and
+match score so the frontend can explain why a spouse or parent example won.
+Each slot also runs a focused keyword branch over only the relevant input
+clauses and slot concepts. Its candidates are merged with the full-context
+hybrid pool before reranking, preventing incidental words elsewhere in a long
+letter from dominating the selected style example.
 
 `prompt_context` format:
 
@@ -845,12 +991,16 @@ Response:
       "generated_end": 21,
       "record_id": "CSQP-SFHC-TEXT-017",
       "unit_id": "CSQP-SFHC-TEXT-017-RU-BODY-CORE-001",
+      "source_unit_type": "body_core",
       "source_field": "body_core",
       "source_text": "兹寄批局，带去洋银肆元，至照查收，以安家计。",
       "reason": "lexical_overlap",
       "similarity_score": 0.46,
       "mapping_method": "lexical-evidence-map-v1",
-      "needs_review": false
+      "needs_review": false,
+      "retrieval_sources": ["keyword"],
+      "prompt_included": false,
+      "slot_match": false
     }
   ],
   "dry_run": false,
@@ -913,9 +1063,15 @@ Request:
 
 Behavior:
 
-- Uses `/api/rag/style-context` logic to retrieve examples for `opening`, `safety`, `remittance`, `family_care`, `instruction`, `closing`, and `style_reference`.
+- Uses `/api/rag/style-context` to detect relevant slots and run slot-constrained
+  keyword + semantic retrieval with safe keyword fallback.
+- Injects only the best qualifying candidate per active slot; extra candidates
+  remain available for display and traceability.
 - The same scaffold gate, retry, structured-output, cache, call-log, evidence
   mapping, and deterministic fallback rules used by `/interpret` apply here.
+- Style-transfer evidence mapping separates user-input content support from
+  knowledge-base style support. One generated sentence may therefore have
+  multiple evidence rows.
 
 Response:
 
@@ -950,7 +1106,7 @@ Response:
   "generated_text": "【生成侨批体草稿】...",
   "generation_backend": "qwen",
   "model": "qwen-plus",
-  "prompt_version": "style-transfer-json-v2",
+  "prompt_version": "style-transfer-concise-json-v4",
   "index_version": "rel:30675156c50cd5c8|vec:6a7537c49ba8fc2b|manifest:1",
   "cache_hit": false,
   "cache_key": "sha256-cache-key",
@@ -1007,12 +1163,29 @@ Response:
 
 Style transfer prompt requirements:
 
-- Write qiaopi-style text from the user's plain Chinese.
+Prompt versions are preserved in a registry instead of being overwritten:
+
+- `style-transfer-json-v1`
+- `style-transfer-concise-json-v2`
+- `style-transfer-concise-json-v3`
+- `style-transfer-concise-json-v4` (active)
+- `style-transfer-vernacular-json-v5`
+
+- Write concise, natural, readable shallow-classical qiaopi-style text from
+  the user's plain Chinese.
+- Target roughly 55% to 70% of the source length, preferably near 65%,
+  without dropping facts.
+- Keep only one set of salutation, greeting, reassurance, blessing, closing,
+  and signature functions.
+- Keep prompt guidance content-neutral: do not include a topic-specific target
+  answer or assume particular people, places, objects, scenes, or activities.
 - Reference real qiaopi examples without copying long passages verbatim.
 - Preserve user-provided people, places, amounts, and instructions.
-- Do not add amounts, dates, or names absent from user input.
+- Do not add or alter amounts, dates, names, places, objects, actions, or
+  relationships absent from user input.
 - Output generated draft, style-basis explanation, and reference evidence list.
-- Clearly mark the output as generated content, not historical source text.
+- Prefix `generated_text` with the short label `【生成草稿】`; keep longer
+  provenance explanations outside the letter body.
 
 ## POST /api/validation/consistency-check
 
@@ -1093,6 +1266,14 @@ The generation endpoints attach `validation_report` and sentence-level
 deterministic local fallback. For `dry_run=true` or an empty generated result,
 both remain empty/null.
 
+For style transfer, generation evidence references contain only slot examples
+with `prompt_included=true`. Post-generation style mappings therefore describe
+knowledge fragments that were actually present in the model context, not every
+retrieval candidate. A generated sentence may map to at most two distinct
+injected records. Content-to-user-input mappings remain available in the API
+for internal safety analysis, while the formal frontend presents knowledge
+style mappings and leaves factual preservation to `validation_report`.
+
 Generation runtime fields:
 
 - `generation_backend`: `qwen`, `deterministic_local`, or `prompt_preview`.
@@ -1101,6 +1282,9 @@ Generation runtime fields:
 - `prompt_version`: versioned prompt and structured-output contract.
 - `index_version`: relational/vector build fingerprint used for evidence.
 - `cache_hit`: whether generated content came from SQLite cache.
+- Cache identity includes a hash of the final system/user messages, so changes
+  in dynamic RAG context or relationship guidance cannot reuse a stale draft
+  merely because the prompt version and evidence unit IDs stayed unchanged.
 - `degraded_reason`: stable reason such as `scaffold_phase_active`,
   `qwen_disabled`, `qwen_timeout`, or `qwen_invalid_structured_output`.
 - `attempt_count`: Qwen attempts made; zero for local generation and previews.

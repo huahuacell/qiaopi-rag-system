@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from app.database.connection import get_connection
+from app.database.connection import get_connection, resolve_database_path
 from app.database.repository import (
     count_rows,
     insert_amount_mentions,
@@ -20,7 +20,6 @@ from app.ingestion.build_retrieval_units import build_retrieval_units
 from app.search.fts_index import rebuild_fts_index, search_fts
 from app.settings import (
     QIAOPI_AMOUNT_MENTIONS_CSV,
-    QIAOPI_DB_PATH,
     QIAOPI_ENTITY_MENTIONS_CSV,
     QIAOPI_EVIDENCE_SPANS_CSV,
     QIAOPI_PLACE_MENTIONS_CSV,
@@ -99,10 +98,11 @@ def _sample_units(connection) -> list[dict[str, Any]]:
 
 
 def build_database(
-    db_path: Path = QIAOPI_DB_PATH,
+    db_path: Path | None = None,
     *,
     processed_dir: Path | None = None,
 ) -> dict[str, Any]:
+    resolved_db_path = resolve_database_path(db_path)
     inputs = read_processed_inputs(processed_dir)
     wide_table = inputs["wide_table"]
     amount_mentions = inputs["amount_mentions"]
@@ -111,7 +111,7 @@ def build_database(
     evidence_spans = inputs["evidence_spans"]
     retrieval_units = build_retrieval_units(wide_table, evidence_spans)
 
-    with get_connection(db_path) as connection:
+    with get_connection(resolved_db_path) as connection:
         reset_database(connection)
         inserted_text_records = insert_text_records(
             connection,
@@ -141,7 +141,7 @@ def build_database(
         fts_sample_results = search_fts(connection, "母亲 寄款 查收", top_k=5)
 
         stats: dict[str, Any] = {
-            "database_path": str(db_path),
+            "database_path": str(resolved_db_path),
             "text_record_count": inserted_text_records,
             "amount_mention_count": inserted_amount_mentions,
             "entity_mention_count": inserted_entity_mentions,

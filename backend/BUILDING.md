@@ -1,13 +1,19 @@
 # Reproducible Data Build
 
-The complete derived-data pipeline is:
+`qiaopi.db` and semantic-index files are generated runtime artifacts and are
+not stored in Git. A fresh checkout must complete data construction before the
+backend or frontend is started.
+
+From `backend/`, run the complete installation build:
 
 ```powershell
 cd backend
-python -m app.ingestion.build_all --embedding-provider hash
+python -m app.ingestion.build_all `
+  --embedding-provider hash `
+  --promote
 ```
 
-By default this command:
+This command:
 
 1. creates a unique directory under `backend/data/builds/`;
 2. preprocesses the 213-record raw workbook;
@@ -18,7 +24,31 @@ By default this command:
 7. builds the retrieval-unit vector index;
 8. runs database, relationship, vector, and retrieval-regression acceptance;
 9. writes `qiaopi_build_manifest.json`;
-10. leaves all live assets untouched.
+10. promotes the accepted database, manifest, processed files, and semantic
+    index to their runtime paths with rollback on promotion failure.
+
+Only after this command reports `"status": "accepted"` and
+`"promoted": true`, start the API:
+
+```powershell
+python -m uvicorn main:app `
+  --host 127.0.0.1 `
+  --port 8000 `
+  --reload
+```
+
+Startup performs a read-only acceptance check. It never creates a missing
+database, builds tables, or repairs a partial graph. If the accepted database
+or manifest is missing/incomplete, startup stops and prints the exact
+`build_all --promote` command to run. This prevents a partially initialized
+SQLite file from appearing to be a valid installation.
+
+For CI or diagnostics, omit `--promote`. The accepted build remains isolated
+and all live runtime assets stay untouched:
+
+```powershell
+python -m app.ingestion.build_all --embedding-provider hash
+```
 
 The command never calls a remote embedding API. Supported providers are:
 
@@ -73,9 +103,9 @@ The second build must match:
 Minor floating-point score differences and vector-file byte differences do not
 fail this comparison.
 
-## Promotion
+## Rebuilding an Existing Installation
 
-After inspecting an accepted staging manifest:
+Stop the backend first on Windows, then rebuild and promote:
 
 ```powershell
 python -m app.ingestion.build_all --embedding-provider hash --promote
@@ -84,9 +114,6 @@ python -m app.ingestion.build_all --embedding-provider hash --promote
 Promotion happens only after acceptance passes. Staged files are copied to
 temporary siblings first. Existing live files are moved to backups, and all
 targets are rolled back if any replacement fails.
-
-Stop the backend before promotion on Windows so SQLite and index files are not
-held open.
 
 ## Diagnostic Reuse
 

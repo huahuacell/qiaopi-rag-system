@@ -3,8 +3,8 @@
     <header class="qp-home-nav">
       <div class="qp-home-nav-inner">
         <router-link class="qp-home-brand" to="/">
-          <span class="qp-home-seal" aria-hidden="true">
-            <span>批</span>
+          <span class="qp-home-seal has-image" aria-hidden="true">
+            <img :src="brandLogo" alt="" />
           </span>
           <span class="qp-home-brand-copy">
             <strong>侨批 RAG 智能档案工作台</strong>
@@ -340,6 +340,7 @@
 </template>
 
 <script setup>
+import brandLogo from '../assets/nav/1.png'
 import { demoMode } from '../config/runtime'
 
 const heroMetrics = [
@@ -464,7 +465,7 @@ const footerLinks = [
     links: [
       { text: '数据看板', to: '/dashboard' },
       { text: '记录详情', to: '/records/CSQP-SFHC-TEXT-001' },
-      { text: '分析工作台', to: '/analysis' },
+      { text: '情感分类', to: '/analysis' },
       { text: '系统首页', to: '/' }
     ]
   }

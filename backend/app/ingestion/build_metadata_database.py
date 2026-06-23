@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from app.database.connection import get_connection
+from app.database.connection import get_connection, resolve_database_path
 from app.database.repository import (
     count_rows,
     fetch_metadata_distributions,
@@ -15,9 +15,6 @@ from app.database.repository import (
 )
 from app.database.schema import create_tables
 from app.metadata.metadata_parser import parse_metadata_excel, resolve_metadata_excel_path
-from app.settings import QIAOPI_DB_PATH
-
-
 def _print_distribution_sample(title: str, rows: list[dict[str, Any]], limit: int = 8) -> None:
     print(f"{title}:")
     if not rows:
@@ -30,23 +27,27 @@ def _print_distribution_sample(title: str, rows: list[dict[str, Any]], limit: in
 def build_metadata_database(
     *,
     source_path: Path | None = None,
-    db_path: Path = QIAOPI_DB_PATH,
+    db_path: Path | None = None,
 ) -> dict[str, Any]:
+    resolved_db_path = resolve_database_path(db_path)
     resolved_source_path = resolve_metadata_excel_path(source_path)
     metadata_rows = parse_metadata_excel(resolved_source_path)
 
-    with get_connection(db_path) as connection:
+    with get_connection(resolved_db_path) as connection:
         create_tables(connection)
         reset_metadata_catalog_tables(connection)
         metadata_record_count = insert_metadata_records(connection, metadata_rows)
         fts_row_count = rebuild_metadata_fts_index(connection)
         connection.commit()
-        stats = fetch_metadata_stats(db_path)
-        distributions = fetch_metadata_distributions(limit=8, db_path=db_path)
+        stats = fetch_metadata_stats(resolved_db_path)
+        distributions = fetch_metadata_distributions(
+            limit=8,
+            db_path=resolved_db_path,
+        )
         table_count = count_rows(connection, "qiaopi_metadata_records")
 
     return {
-        "database_path": str(db_path),
+        "database_path": str(resolved_db_path),
         "source_path": str(resolved_source_path),
         "metadata_record_count": metadata_record_count,
         "table_metadata_record_count": table_count,

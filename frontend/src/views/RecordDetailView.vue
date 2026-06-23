@@ -126,7 +126,10 @@
               <span>{{ item.label }}</span>
               <strong>{{ item.title }}</strong>
               <p>{{ item.description }}</p>
-              <em>查看线索 →</em>
+              <router-link v-if="item.to" :to="item.to" class="archive-related-link">
+                前往检索 →
+              </router-link>
+              <small v-else class="archive-related-status">线索待检索确认</small>
             </article>
           </div>
         </section>
@@ -199,6 +202,7 @@ import {
   demoMode
 } from '../config/runtime'
 import fallbackRecord from '../mock/record_detail.json'
+import { buildRelatedArchiveItems } from '../utils/recordDetailPresentation'
 
 const route = useRoute()
 const router = useRouter()
@@ -374,23 +378,7 @@ const traceBlocks = computed(() => [
   }
 ])
 
-const relatedArchives = computed(() => [
-  {
-    label: '同来源地',
-    title: `${getMeta('origin_place') || '来源地'}相关侨批`,
-    description: '沿同一侨居地继续查看跨地域书信线索。'
-  },
-  {
-    label: '同亲属关系',
-    title: `${getMeta('kinship') || getMeta('relationship_type') || '亲属'}相关家书`,
-    description: '比较亲属称谓、问候对象与家庭责任表达。'
-  },
-  {
-    label: '同主题',
-    title: `${getMeta('main_intent') || '汇款与平安问候'}`,
-    description: '追踪相近主题下的证据片段与释读方式。'
-  }
-])
+const relatedArchives = computed(() => buildRelatedArchiveItems(detail.value))
 
 function getMeta(key) {
   const metadata = detail.value.metadata || {}

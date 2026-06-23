@@ -1,9 +1,39 @@
 from fastapi.testclient import TestClient
 
 from main import app
+from app.llm.prompts import build_style_transfer_prompt
+from app.llm.style_transfer_prompts import (
+    ACTIVE_STYLE_TRANSFER_PROMPT_VERSION,
+    available_style_transfer_prompt_versions,
+)
 
 
 client = TestClient(app)
+
+
+def test_style_transfer_prompt_versions_are_preserved_and_selectable():
+    versions = available_style_transfer_prompt_versions()
+    assert versions == (
+        "style-transfer-json-v1",
+        "style-transfer-concise-json-v2",
+        "style-transfer-concise-json-v3",
+        "style-transfer-concise-json-v4",
+        "style-transfer-vernacular-json-v5",
+    )
+    assert ACTIVE_STYLE_TRANSFER_PROMPT_VERSION == "style-transfer-concise-json-v4"
+
+    prompts = {
+        version: build_style_transfer_prompt(
+            plain_text="测试输入",
+            prompt_context="测试上下文",
+            evidence_references=[],
+            version=version,
+        )
+        for version in versions
+    }
+    assert all(messages[0]["role"] == "system" for messages in prompts.values())
+    assert "请严格输出以下 JSON 结构" in prompts["style-transfer-json-v1"][1]["content"]
+    assert prompts["style-transfer-json-v1"] != prompts["style-transfer-vernacular-json-v5"]
 
 
 def test_interpret_dry_run_returns_prompt_and_evidence_references():
@@ -61,10 +91,20 @@ def test_style_transfer_dry_run_returns_style_slots_and_references():
     assert payload["dry_run"] is True
     assert payload["generation_backend"] == "prompt_preview"
     assert payload["degraded_reason"] == "dry_run_requested"
-    assert payload["prompt_version"] == "style-transfer-json-v2"
+    assert payload["prompt_version"] == "style-transfer-concise-json-v4"
     assert payload["style_slots"]
     assert "opening" in payload["style_slots"]
     assert "style_reference" in payload["style_slots"]
     assert payload["prompt_context"]
     assert payload["messages"]
     assert payload["evidence_references"]
+    combined_prompt = "\n".join(message["content"] for message in payload["messages"])
+    assert "简洁、自然、易读的浅近文言" in combined_prompt
+    assert "内容中立、简洁的侨批家书草稿" in combined_prompt
+    assert "55%—70%" in combined_prompt
+    assert "同一功能的称谓、问候、安慰、祝颂和结语各最多保留一套" in combined_prompt
+    assert "署名只能出现一次" in combined_prompt
+    assert "用户输入是生成事实的唯一来源" in combined_prompt
+    assert "不使用固定范文套写所有输入" in combined_prompt
+    assert "【改写方法】" in combined_prompt
+    assert "【生成草稿】" in combined_prompt

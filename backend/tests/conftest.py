@@ -22,8 +22,21 @@ def pytest_configure(config):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def rebuild_sqlite_database():
-    build_database()
+def rebuild_sqlite_database(tmp_path_factory):
+    import app.database.connection as database_connection
+    import app.services.analysis_service as analysis_service
+
+    test_db_path = tmp_path_factory.mktemp("qiaopi-test-db") / "qiaopi-test.db"
+    original_connection_path = database_connection.QIAOPI_DB_PATH
+    original_analysis_path = analysis_service.QIAOPI_DB_PATH
+    database_connection.QIAOPI_DB_PATH = test_db_path
+    analysis_service.QIAOPI_DB_PATH = test_db_path
+    try:
+        build_database(test_db_path)
+        yield test_db_path
+    finally:
+        database_connection.QIAOPI_DB_PATH = original_connection_path
+        analysis_service.QIAOPI_DB_PATH = original_analysis_path
 
 
 @pytest.fixture(scope="session")
