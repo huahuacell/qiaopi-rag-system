@@ -36,6 +36,15 @@
         <p>{{ matchReason }}</p>
       </section>
 
+      <section v-if="graphPaths.length" class="archive-graph-paths">
+        <h3>图谱关联路径</h3>
+        <div>
+          <span v-for="path in graphPaths" :key="`${path.seed_node_id}-${path.edge_type}`">
+            {{ path.path_text }}
+          </span>
+        </div>
+      </section>
+
       <section class="archive-score-contributions">
         <h3>排序贡献</h3>
         <div v-if="scoreContributions.length" class="score-contribution-list">
@@ -88,6 +97,7 @@ const props = defineProps({
 const scoreContributions = computed(() =>
   buildScoreContributions(props.result, props.execution)
 )
+const graphPaths = computed(() => (props.result.graph_paths || []).slice(0, 3))
 
 const evidenceItems = computed(() => {
   if (props.result.evidence?.length) return props.result.evidence

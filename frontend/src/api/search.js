@@ -20,3 +20,10 @@ export async function hybridSearch(payload) {
   })
   return response.data
 }
+
+export async function graphRagSearch(payload) {
+  const response = await request.post('/api/search/graphrag', payload, {
+    timeout: SEMANTIC_SEARCH_TIMEOUT_MS
+  })
+  return response.data
+}

@@ -3,7 +3,14 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from app.search.advanced_retriever import retrieve_advanced
-from app.search.result_aggregator import group_results_by_record
+from app.search.result_aggregator import (
+    deduplicate_results_by_record,
+    group_results_by_record,
+)
+from app.search.semantic_relevance import (
+    row_matches_semantic_guard,
+    semantic_guard_terms,
+)
 from app.search.semantic_retriever import semantic_search
 
 
@@ -66,6 +73,7 @@ def retrieve_hybrid(
             keyword_result,
             error_message=semantic_result.get("error_message"),
         )
+    guard_terms = semantic_guard_terms(query)
 
     combined: dict[str, dict[str, Any]] = {}
     rrf_scores: dict[str, float] = {}
@@ -114,7 +122,8 @@ def retrieve_hybrid(
         prepared_row.setdefault("strong_hit_count", 0)
         prepared_row.setdefault("medium_hit_count", 0)
         prepared_row.setdefault("weak_hit_count", 0)
-        fused_rows.append(prepared_row)
+        if row_matches_semantic_guard(prepared_row, guard_terms, query=query):
+            fused_rows.append(prepared_row)
 
     fused_rows = sorted(
         fused_rows,
@@ -124,13 +133,14 @@ def retrieve_hybrid(
             -_float(item.get("keyword_final_score")),
             str(item.get("unit_id", "")),
         ),
-    )[:top_k]
+    )
+    selected_rows = deduplicate_results_by_record(fused_rows, top_k=top_k)
 
     return {
         "expansion": keyword_result["expansion"],
         "expansion_mode": keyword_result["expansion_mode"],
-        "results": fused_rows,
-        "grouped_by_record": group_results_by_record(fused_rows),
+        "results": selected_rows,
+        "grouped_by_record": group_results_by_record(selected_rows),
         "semantic_enabled": True,
         "semantic_quality": semantic_result.get(
             "semantic_quality",

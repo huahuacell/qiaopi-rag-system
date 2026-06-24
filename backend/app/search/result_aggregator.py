@@ -55,3 +55,29 @@ def group_results_by_record(
         groups.values(),
         key=lambda item: (-float(item["best_score"]), item["record_id"]),
     )
+
+
+def deduplicate_results_by_record(
+    rows: Iterable[Mapping[str, Any]],
+    *,
+    top_k: int | None = None,
+) -> list[dict[str, Any]]:
+    """Keep only the highest-ranked retrieval unit for each full-text record.
+
+    Search ranking still happens at retrieval-unit level, but the product list
+    should not show two nearly identical cards for the same qiaopi record. The
+    input order is treated as the ranking order, so the first row for a record
+    is preserved.
+    """
+
+    deduplicated: OrderedDict[str, dict[str, Any]] = OrderedDict()
+    for row in rows:
+        record_id = str(row.get("record_id") or "").strip()
+        unit_id = str(row.get("unit_id") or "").strip()
+        key = record_id or unit_id
+        if not key or key in deduplicated:
+            continue
+        deduplicated[key] = dict(row)
+        if top_k is not None and len(deduplicated) >= top_k:
+            break
+    return list(deduplicated.values())

@@ -6,8 +6,9 @@ evidence; they are not generated from the current ranking output.
 
 The benchmark contains two independent domains:
 
-- `metadata_catalog`: 50,064 catalog records evaluated at `metadata_id` level.
-  These records support archive browsing only and are never RAG evidence.
+- `metadata_catalog`: 50,064 catalog records evaluated at `metadata_id` level
+  across keyword, semantic, and hybrid retrieval. These records support archive
+  browsing only and are never RAG evidence.
 - `full_text_evidence`: 213 full-text records and 1,959 retrieval units,
   evaluated independently at `record_id` and `unit_id` level.
 

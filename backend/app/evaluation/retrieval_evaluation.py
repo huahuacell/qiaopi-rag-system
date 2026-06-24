@@ -20,6 +20,11 @@ from app.search.corpus_domains import (
 )
 from app.search.hybrid_retriever import retrieve_hybrid
 from app.search.keyword_retriever import retrieve_keyword
+from app.search.metadata_semantic_retriever import (
+    metadata_semantic_status,
+    search_metadata_hybrid,
+    search_metadata_semantic,
+)
 from app.search.semantic_retriever import semantic_search, semantic_status
 
 
@@ -29,6 +34,7 @@ DEFAULT_BENCHMARK_PATH = (
 DEFAULT_REPORT_PATH = settings.OUTPUT_DIR / "retrieval_evaluation.json"
 DEFAULT_CUTOFFS: tuple[int, ...] = (1, 3, 5, 10)
 FULL_TEXT_METHODS: tuple[str, ...] = ("keyword", "semantic", "hybrid")
+METADATA_METHODS: tuple[str, ...] = ("keyword", "semantic", "hybrid")
 EXPECTED_METADATA_RECORD_COUNT = 50064
 EXPECTED_TEXT_RECORD_COUNT = 213
 EXPECTED_RETRIEVAL_UNIT_COUNT = 1959
@@ -323,23 +329,50 @@ def _record_ranking(results: Iterable[Mapping[str, Any]]) -> list[str]:
     return ranked
 
 
-def _evaluate_metadata_case(case: Mapping[str, Any], top_k: int) -> dict[str, Any]:
-    results = search_metadata_records(
-        query=str(case["query"]),
-        top_k=top_k,
-        filters=case.get("filters") or {},
-    )
+def _evaluate_metadata_case(
+    case: Mapping[str, Any],
+    method: str,
+    top_k: int,
+) -> dict[str, Any]:
+    common = {
+        "query": str(case["query"]),
+        "top_k": top_k,
+        "filters": case.get("filters") or {},
+    }
+    if method == "semantic":
+        retrieval = search_metadata_semantic(**common)
+        results = retrieval["results"]
+        available = bool(retrieval["semantic_enabled"])
+        quality = retrieval["semantic_quality"]
+        error_message = retrieval["error_message"]
+    elif method == "hybrid":
+        retrieval = search_metadata_hybrid(**common)
+        results = retrieval["results"]
+        available = bool(retrieval["semantic_enabled"])
+        quality = retrieval["semantic_quality"]
+        error_message = retrieval["error_message"]
+    else:
+        results = search_metadata_records(**common)
+        available = True
+        quality = "disabled"
+        error_message = None
     ranked_ids = [str(result["metadata_id"]) for result in results]
     judgments = case["relevance"]["metadata_records"]
     return {
         "query_id": case["query_id"],
         "domain": METADATA_CATALOG_DOMAIN,
-        "method": "metadata_fts5_bm25",
+        "method": (
+            "metadata_fts5_bm25"
+            if method == "keyword"
+            else f"metadata_{method}"
+        ),
         "target_level": "metadata_record",
         "ranked_ids": ranked_ids,
         "metrics": metric_bundle(ranked_ids, judgments),
-        "available": True,
-        "acceptance_eligible": True,
+        "available": available,
+        "semantic_quality": quality,
+        "acceptance_eligible": method == "keyword" or quality == "production",
+        "error_message": error_message,
     }
 
 
@@ -581,7 +614,10 @@ def evaluate_retrieval(
     with _temporary_hash_index(build_hash_test_index):
         for case in cases:
             if case["domain"] == METADATA_CATALOG_DOMAIN:
-                entries.append(_evaluate_metadata_case(case, top_k))
+                for method in METADATA_METHODS:
+                    entries.append(
+                        _evaluate_metadata_case(case, method, top_k)
+                    )
                 continue
             for method in FULL_TEXT_METHODS:
                 entries.extend(
@@ -592,6 +628,7 @@ def evaluate_retrieval(
                     )
                 )
         semantic_runtime_status = semantic_status()
+        metadata_semantic_runtime_status = metadata_semantic_status()
 
     summaries = _aggregate(entries)
     report = {
@@ -607,6 +644,7 @@ def evaluate_retrieval(
         "benchmark_validation": benchmark_validation,
         "corpus_boundaries": corpus_boundaries,
         "semantic_runtime_status": semantic_runtime_status,
+        "metadata_semantic_runtime_status": metadata_semantic_runtime_status,
         "hash_test_index_used": build_hash_test_index,
         "summaries": summaries,
         "improvement": _improvement_report(summaries),

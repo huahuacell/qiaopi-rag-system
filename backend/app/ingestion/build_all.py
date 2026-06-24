@@ -21,6 +21,9 @@ from app.database.repository import count_rows
 from app.ingestion.build_database import build_database
 from app.ingestion.build_knowledge_graph import build_knowledge_graph
 from app.ingestion.build_metadata_database import build_metadata_database
+from app.ingestion.build_metadata_semantic_index import (
+    build_metadata_semantic_index,
+)
 from app.ingestion.build_semantic_index import (
     DEFAULT_REGRESSION_QUERIES,
     build_semantic_index,
@@ -83,6 +86,9 @@ class BuildPaths:
     semantic_index_path: Path
     semantic_metadata_path: Path
     semantic_manifest_path: Path
+    metadata_semantic_index_path: Path
+    metadata_semantic_metadata_path: Path
+    metadata_semantic_manifest_path: Path
     build_manifest_path: Path
 
 
@@ -139,6 +145,15 @@ def _prepare_build_paths(staging_dir: Path | None) -> BuildPaths:
         semantic_index_path=index_dir / settings.SEMANTIC_FAISS_INDEX_PATH.name,
         semantic_metadata_path=index_dir / settings.SEMANTIC_FAISS_METADATA_PATH.name,
         semantic_manifest_path=index_dir / SEMANTIC_MANIFEST_NAME,
+        metadata_semantic_index_path=(
+            index_dir / settings.METADATA_SEMANTIC_FAISS_INDEX_PATH.name
+        ),
+        metadata_semantic_metadata_path=(
+            index_dir / settings.METADATA_SEMANTIC_FAISS_METADATA_PATH.name
+        ),
+        metadata_semantic_manifest_path=(
+            index_dir / settings.METADATA_SEMANTIC_FAISS_MANIFEST_PATH.name
+        ),
         build_manifest_path=root / BUILD_MANIFEST_NAME,
     )
 
@@ -418,8 +433,47 @@ def _validate_vector(
         "embedding_provider": semantic_stats["embedding_provider"],
         "embedding_model": semantic_stats["embedding_model"],
         "embedding_dimension": int(semantic_stats["embedding_dimension"]),
+        "semantic_quality": semantic_stats["semantic_quality"],
+        "production_semantic_eligible": bool(
+            semantic_stats["production_semantic_eligible"]
+        ),
         "corpus_fingerprint": semantic_stats["corpus_fingerprint"],
         "retrieval_regression": regressions,
+        "byte_checksum_enforced": False,
+    }
+
+
+def _validate_metadata_vector(
+    *,
+    metadata_semantic_stats: Mapping[str, Any],
+    metadata_record_count: int,
+) -> dict[str, Any]:
+    failures: list[str] = []
+    if int(metadata_semantic_stats["metadata_record_count"]) != metadata_record_count:
+        failures.append("metadata vector count does not match metadata record count")
+    if int(metadata_semantic_stats["embedding_dimension"]) <= 0:
+        failures.append("metadata embedding dimension is not positive")
+    if not str(metadata_semantic_stats["embedding_model"]).strip():
+        failures.append("metadata embedding model identifier is empty")
+    if str(metadata_semantic_stats.get("corpus_domain")) != "metadata_catalog":
+        failures.append("metadata semantic corpus domain is invalid")
+    if len(str(metadata_semantic_stats["corpus_fingerprint"])) != 64:
+        failures.append("metadata corpus fingerprint is invalid")
+    if failures:
+        raise BuildAllError(
+            "Metadata vector acceptance failed: " + "; ".join(failures)
+        )
+    return {
+        "vector_count": int(metadata_semantic_stats["metadata_record_count"]),
+        "embedding_provider": metadata_semantic_stats["embedding_provider"],
+        "embedding_model": metadata_semantic_stats["embedding_model"],
+        "embedding_dimension": int(metadata_semantic_stats["embedding_dimension"]),
+        "semantic_quality": metadata_semantic_stats["semantic_quality"],
+        "production_semantic_eligible": bool(
+            metadata_semantic_stats["production_semantic_eligible"]
+        ),
+        "corpus_domain": metadata_semantic_stats["corpus_domain"],
+        "corpus_fingerprint": metadata_semantic_stats["corpus_fingerprint"],
         "byte_checksum_enforced": False,
     }
 
@@ -442,6 +496,8 @@ def compare_acceptance_manifests(
     baseline_relational = baseline["relational"]
     current_vector = current["vector"]
     baseline_vector = baseline["vector"]
+    current_metadata_vector = current.get("metadata_vector")
+    baseline_metadata_vector = baseline.get("metadata_vector")
     differences: dict[str, Any] = {}
     current_inputs = current.get("inputs", {})
     baseline_inputs = baseline.get("inputs", {})
@@ -489,6 +545,22 @@ def compare_acceptance_manifests(
             "baseline": baseline_regression,
             "current": current_regression,
         }
+    if current_metadata_vector is not None or baseline_metadata_vector is not None:
+        current_metadata = current_metadata_vector or {}
+        baseline_metadata = baseline_metadata_vector or {}
+        for key in (
+            "embedding_provider",
+            "embedding_model",
+            "embedding_dimension",
+            "corpus_domain",
+            "corpus_fingerprint",
+            "vector_count",
+        ):
+            if current_metadata.get(key) != baseline_metadata.get(key):
+                differences[f"metadata_vector.{key}"] = {
+                    "baseline": baseline_metadata.get(key),
+                    "current": current_metadata.get(key),
+                }
     return {
         "matches": not differences,
         "differences": differences,
@@ -519,6 +591,18 @@ def _promotion_artifacts(paths: BuildPaths) -> list[tuple[Path, Path]]:
             (
                 paths.semantic_manifest_path,
                 settings.SEMANTIC_FAISS_MANIFEST_PATH,
+            ),
+            (
+                paths.metadata_semantic_index_path,
+                settings.METADATA_SEMANTIC_FAISS_INDEX_PATH,
+            ),
+            (
+                paths.metadata_semantic_metadata_path,
+                settings.METADATA_SEMANTIC_FAISS_METADATA_PATH,
+            ),
+            (
+                paths.metadata_semantic_manifest_path,
+                settings.METADATA_SEMANTIC_FAISS_MANIFEST_PATH,
             ),
             (
                 paths.build_manifest_path,
@@ -634,6 +718,13 @@ def build_all(
         manifest_path=paths.semantic_manifest_path,
         regression_queries=DEFAULT_REGRESSION_QUERIES,
     )
+    metadata_semantic_stats = build_metadata_semantic_index(
+        provider_name=embedding_provider,
+        db_path=paths.database_path,
+        index_path=paths.metadata_semantic_index_path,
+        metadata_path=paths.metadata_semantic_metadata_path,
+        manifest_path=paths.metadata_semantic_manifest_path,
+    )
 
     database_acceptance = _validate_database(
         db_path=paths.database_path,
@@ -647,6 +738,10 @@ def build_all(
     vector = _validate_vector(
         semantic_stats=semantic_stats,
         retrieval_unit_count=database_acceptance["counts"]["qiaopi_retrieval_units"],
+    )
+    metadata_vector = _validate_metadata_vector(
+        metadata_semantic_stats=metadata_semantic_stats,
+        metadata_record_count=database_acceptance["counts"]["qiaopi_metadata_records"],
     )
     manifest: dict[str, Any] = {
         "manifest_version": PIPELINE_VERSION,
@@ -680,15 +775,26 @@ def build_all(
             "metadata_linking": dict(link_stats),
             "knowledge_graph": dict(graph_stats),
             "semantic_index": dict(semantic_stats),
+            "metadata_semantic_index": dict(metadata_semantic_stats),
         },
         "database_acceptance": database_acceptance,
         "relational": relational,
         "vector": vector,
+        "metadata_vector": metadata_vector,
         "artifacts": {
             "database": f"processed/{paths.database_path.name}",
             "semantic_index": f"index/{paths.semantic_index_path.name}",
             "semantic_metadata": f"index/{paths.semantic_metadata_path.name}",
             "semantic_manifest": f"index/{paths.semantic_manifest_path.name}",
+            "metadata_semantic_index": (
+                f"index/{paths.metadata_semantic_index_path.name}"
+            ),
+            "metadata_semantic_metadata": (
+                f"index/{paths.metadata_semantic_metadata_path.name}"
+            ),
+            "metadata_semantic_manifest": (
+                f"index/{paths.metadata_semantic_manifest_path.name}"
+            ),
             "vector_byte_checksum_enforced": False,
         },
     }
@@ -724,6 +830,9 @@ def build_all(
         "promoted_paths": promoted_paths,
         "relational_combined_sha256": relational["combined_sha256"],
         "vector_corpus_fingerprint": vector["corpus_fingerprint"],
+        "metadata_vector_corpus_fingerprint": metadata_vector[
+            "corpus_fingerprint"
+        ],
         "counts": database_acceptance["counts"],
     }
 

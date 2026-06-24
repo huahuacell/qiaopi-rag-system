@@ -1,7 +1,49 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { buildRelatedArchiveItems } from './recordDetailPresentation.js'
+import {
+  buildRecordMetadataRows,
+  buildRelatedArchiveItems,
+  formatRecordMetadataValue
+} from './recordDetailPresentation.js'
+
+test('record metadata uses Chinese labels and localizes controlled values', () => {
+  const rows = buildRecordMetadataRows(
+    {
+      title_reference: '新加坡寄往潮州的家书',
+      sender: '陈生',
+      recipient: '母亲',
+      main_intent: 'remittance',
+      relationship_type: 'son_to_parent',
+      theme_tags: 'theme_remittance；theme_family_affection',
+      text_quality_level: 'high',
+      has_full_text: 1,
+      raw_fields: { main_intent: 'remittance' }
+    },
+    'CSQP-SFHC-TEXT-017'
+  )
+
+  assert.deepEqual(
+    rows.map(({ label, value }) => [label, value]),
+    [
+      ['记录编号', 'CSQP-SFHC-TEXT-017'],
+      ['题名', '新加坡寄往潮州的家书'],
+      ['寄信人', '陈生'],
+      ['收信人', '母亲'],
+      ['人物关系', '儿子致父母'],
+      ['是否有全文', '是'],
+      ['主要内容', '汇款'],
+      ['主题标签', '汇款、亲情'],
+      ['文本质量', '高']
+    ]
+  )
+  assert.ok(rows.every((row) => !row.label.includes('_')))
+})
+
+test('metadata value formatter handles arrays and boolean fields', () => {
+  assert.equal(formatRecordMetadataValue('theme_tags', ['theme_remittance', 'theme_greeting']), '汇款、问候')
+  assert.equal(formatRecordMetadataValue('has_remittance', 0), '否')
+})
 
 test('related archive clues link to search with record-specific keywords', () => {
   const items = buildRelatedArchiveItems({

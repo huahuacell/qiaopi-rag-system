@@ -17,6 +17,11 @@ from app.search.corpus_domains import (
     semantic_corpus_fingerprint,
     semantic_quality,
 )
+from app.search.result_aggregator import deduplicate_results_by_record
+from app.search.semantic_relevance import (
+    row_matches_semantic_guard,
+    semantic_guard_terms,
+)
 
 
 MISSING_INDEX_MESSAGE = (
@@ -364,7 +369,13 @@ def semantic_search(
         }
 
     requested_unit_types = {unit_type for unit_type in (unit_types or []) if unit_type}
-    candidate_limit = min(len(bundle.metadata), max(top_k * 10, top_k, 50))
+    guard_terms = semantic_guard_terms(query)
+    candidate_multiplier = 40 if guard_terms else 10
+    candidate_floor = 200 if guard_terms else 50
+    candidate_limit = min(
+        len(bundle.metadata),
+        max(top_k * candidate_multiplier, top_k, candidate_floor),
+    )
     ranked = _search_scores(bundle, query_vector, candidate_limit)
     results: list[dict[str, Any]] = []
     for vector_id, score in ranked:
@@ -373,9 +384,13 @@ def semantic_search(
             continue
         if not _matches_filters(row, filters):
             continue
-        results.append(_semantic_result(row, score, query))
-        if len(results) >= top_k:
+        result = _semantic_result(row, score, query)
+        if not row_matches_semantic_guard(result, guard_terms, query=query):
+            continue
+        results.append(result)
+        if len(deduplicate_results_by_record(results, top_k=top_k)) >= top_k:
             break
+    results = deduplicate_results_by_record(results, top_k=top_k)
 
     return {
         "semantic_enabled": True,

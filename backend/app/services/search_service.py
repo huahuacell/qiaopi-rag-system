@@ -4,6 +4,7 @@ import re
 from typing import Any, Mapping
 
 from app.schemas import SearchRequest, SemanticSearchRequest
+from app.graphrag.graph_retriever import retrieve_graph_rag
 from app.search.advanced_retriever import retrieve_advanced
 from app.search.hybrid_retriever import retrieve_hybrid
 from app.search.keyword_retriever import retrieve_keyword
@@ -60,6 +61,9 @@ def _unit_result(row: Mapping[str, Any], query: str) -> dict[str, Any]:
         "weak_hit_count": int(row.get("weak_hit_count") or 0),
         "evidence_type": row.get("evidence_type", ""),
         "source_column": row.get("source_column", ""),
+        "graph_score": float(row.get("graph_score") or 0.0),
+        "graph_seed_count": int(row.get("graph_seed_count") or 0),
+        "graph_paths": list(row.get("graph_paths") or []),
     }
 
 
@@ -93,6 +97,14 @@ def _response(
         "grouped_by_record": retrieval_result["grouped_by_record"],
         "fusion_method": retrieval_result.get("fusion_method"),
         "error_message": retrieval_result.get("error_message"),
+        "graph_enabled": bool(retrieval_result.get("graph_enabled", False)),
+        "graph_fallback": bool(retrieval_result.get("graph_fallback", False)),
+        "graph_fallback_reason": retrieval_result.get("graph_fallback_reason"),
+        "graph_seed_nodes": list(retrieval_result.get("graph_seed_nodes") or []),
+        "graph_candidate_count": int(
+            retrieval_result.get("graph_candidate_count") or 0
+        ),
+        "graph_message": str(retrieval_result.get("graph_message") or ""),
     }
 
 
@@ -120,6 +132,21 @@ def run_advanced_search(request: SearchRequest) -> dict[str, Any]:
 
 def run_hybrid_search(request: SearchRequest) -> dict[str, Any]:
     retrieval_result = retrieve_hybrid(
+        query=request.query,
+        top_k=request.top_k,
+        unit_types=request.unit_types,
+        filters=request.filters,
+        expansion_mode=request.expansion_mode,
+    )
+    return _response(
+        request,
+        retrieval_result,
+        semantic_enabled=bool(retrieval_result.get("semantic_enabled", False)),
+    )
+
+
+def run_graph_rag_search(request: SearchRequest) -> dict[str, Any]:
+    retrieval_result = retrieve_graph_rag(
         query=request.query,
         top_k=request.top_k,
         unit_types=request.unit_types,

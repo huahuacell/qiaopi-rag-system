@@ -9,7 +9,7 @@ WeightedTerms = dict[str, tuple[str, ...]]
 
 EXPANSION_DICTIONARY: dict[str, WeightedTerms] = {
     "母亲": {
-        "strong": ("慈亲", "萱堂", "家母"),
+        "strong": ("慈亲", "家慈", "萱堂", "家母"),
         "medium": ("大人", "膝下", "阿母", "阿妈"),
         "weak": ("严慈",),
     },

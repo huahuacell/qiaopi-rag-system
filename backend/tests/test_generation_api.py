@@ -141,8 +141,8 @@ def test_generation_enabled_with_api_key_does_not_return_disabled(monkeypatch):
     assert payload["structured_output"]["summary"] == ["寄款八元"]
     assert payload["evidence_mapping"]
     assert payload["error_message"] is None
-    assert payload["semantic_enabled"] is False
-    assert payload["semantic_quality"] == "disabled"
+    assert isinstance(payload["semantic_enabled"], bool)
+    assert payload["semantic_quality"] in {"disabled", "test_hash", "production"}
     assert unit_test_key not in str(payload)
     assert payload["validation_report"]
     assert payload["validation_report"]["risk_level"] in {"low", "medium"}

@@ -8,6 +8,7 @@ from app.schemas import (
     MetadataSearchRequest,
     MetadataSearchResponse,
     MetadataStatsResponse,
+    SemanticStatusResponse,
 )
 from app.services.metadata_service import (
     get_metadata_detail,
@@ -17,6 +18,7 @@ from app.services.metadata_service import (
     get_metadata_stats,
     search_metadata,
 )
+from app.search.metadata_semantic_retriever import metadata_semantic_status
 
 
 router = APIRouter(prefix="/api/metadata", tags=["metadata"])
@@ -39,6 +41,11 @@ def metadata_distributions() -> MetadataDistributionsResponse:
 @router.post("/search", response_model=MetadataSearchResponse)
 def metadata_search(request: MetadataSearchRequest) -> MetadataSearchResponse:
     return MetadataSearchResponse(**search_metadata(request))
+
+
+@router.get("/semantic/status", response_model=SemanticStatusResponse)
+def metadata_semantic_search_status() -> SemanticStatusResponse:
+    return SemanticStatusResponse(**metadata_semantic_status())
 
 
 @router.get("/links/stats", response_model=MetadataLinkStatsResponse)

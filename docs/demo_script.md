@@ -1,81 +1,137 @@
-# 10-Minute Demo Script
+# 侨批 RAG 智能档案工作台：10 分钟演讲稿
 
-## 0:00–1:00 Project and Contract
+> 建议语速：每分钟 220—250 字。方括号内容是操作提示，不需要念出。
+>
+> 五个演示例子均保留为占位符，替换时尽量使用同一人物、地点或主题，让演示形成连续故事。
 
-Open the README and explain the `2026-06-22-emotion-analysis` API baseline. State that
-OpenAPI, the contract document, clients, and tests now describe one interface.
+## 0:00—0:50 开场：我们解决的不是“聊天”，而是“可信地读档案”
 
-## 1:00–2:00 Backend API
+各位老师、同学，大家好。我们展示的项目是“侨批 RAG 智能档案工作台”。
 
-Open `http://localhost:8000/docs`. Show search, metadata, record, RAG,
-generation, validation, and graph endpoint groups.
+侨批既是家书，也是汇款凭证和迁徙史料。它包含人物关系、地点流动、金额往来和家庭情感，但原文常有繁体、旧式称谓、方言表达和 OCR 噪声。面对五万多条目录记录和两百多条全文记录，单靠逐条翻阅效率很低；而如果直接把原文交给通用大模型，又容易出现来源不清和事实漂移。
 
-Mention that `/api/generation/plain-interpretation` and
-`/api/records/{record_id}/similar` are not current endpoints.
+因此，我们要解决的核心问题不是“让 AI 说得像”，而是让系统的每一步都有依据：找到什么、为什么找到、引用哪段原文、生成内容是否越过证据边界，都能够被检查。
 
-## 2:00–3:00 Dashboard
+## 0:50—1:35 系统思路：目录负责发现，全文负责举证
 
-Open `/dashboard`. Show SQLite-backed metadata/text counts and distributions.
+[打开首页或系统架构图。]
 
-## 3:00–4:30 Search
+系统围绕“查批、读批、析批、溯源、生批”五类任务展开。前端使用 Vue 3，后端使用 FastAPI；底层以 SQLite 保存目录、全文、实体、证据和知识图谱，并分别为目录与全文建立 FTS5 关键词索引和 BGE/FAISS 语义索引。
 
-Open `/search` and run keyword and hybrid searches. If semantic retrieval is
-disabled, point out the controlled `keyword_fallback` state instead of
-presenting it as true semantic fusion.
+这里最重要的设计是数据边界：五万多条目录记录用于扩大档案发现范围，但只有已经关联的全文原文才能作为 RAG 证据。换句话说，目录告诉我们“可能有这封批”，全文才允许系统说“原文确实这样写”。这条边界贯穿后面的五个例子。
 
-Show the “actual execution mode” panel. Explain that BM25, cosine similarity,
-and RRF are displayed as separate ranking contributions rather than converted
-to percentages.
+## 1:35—2:45 例子一：从大规模目录中发现线索
 
-## 4:30–5:30 Record Detail
+[进入“检索工作台”，选择“目录元数据”。]
 
-Open `/records/CSQP-SFHC-TEXT-002`. Show `body_clean`, metadata, entities, and
-evidence from SQLite.
+第一个例子展示档案发现。
 
-## 5:30–7:00 Plain Interpretation
+【例子一待补充】
 
-Open `/plain-interpretation` with `CSQP-SFHC-TEXT-017`. Explain that the page now
-calls `/api/generation/interpret`. Show the actual generation backend, model,
-Prompt/index versions, cache state, degradation reason, evidence mapping, and
-consistency report. During scaffold mode the backend uses an explicitly
-labelled deterministic fallback and does not make a live Qwen call.
+- 查询输入：`__________`
+- 建议包含：人物、寄出地、收件地、年代或主题中的两项
+- 重点展示：目录关键词、语义或混合检索结果；题名与寄收批人；全文关联状态
 
-## 7:00–8:30 Style Transfer
+系统不是只做字面匹配。关键词检索适合姓名、地名等明确字段，语义检索用于发现表达不同但含义接近的记录，混合模式再通过 RRF 融合两路排名。页面分别展示实际参与的排序来源，不把 BM25、余弦相似度和融合分数混写成“准确率”。
 
-Open `/style-transfer`. Submit a short family letter and show retrieved style
-slots, structured output, evidence mappings, and runtime state. Repeat the
-request to demonstrate a cache hit. Edit one generated sentence, copy the
-latest version, then use `装入信封` to demonstrate folding, insertion, sealing,
-and `拆开重看`. Additional inputs are in
-`docs/style_transfer_examples.md`.
+这个例子说明，我们已经能从大规模目录中快速缩小范围。但发现线索还不等于获得证据。接下来，我们把视角从“可能相关的目录”推进到“可以逐字核验的全文”。
 
-## 8:30–9:10 Online NLP
+## 2:45—3:55 例子二：在全文中同时处理精确词与近义表达
 
-Open `/nlp`. Submit the sample letter and show normalized text, entity and
-relation extraction, task slots, original/normalized offsets, rule versions,
-confidence, and review markers. Explain that online and offline preprocessing
-share `qiaopi-text-normalizer-1.0.0`.
+[切换到“全文证据”，选择“混合检索”。]
 
-## 9:10–9:35 Emotion Analysis
+【例子二待补充】
 
-Open `/analysis`. Show the seven multi-label emotion categories, the
-positive/neutral/negative/mixed distribution, co-occurrence combinations,
-decade profile, and traceable original-text evidence. Point out the PyTorch
-model version and explain that this is an interpretable phase-1 baseline, not a
-fully supervised gold-standard classifier.
+- 查询输入：`__________`
+- 建议选择：原文不一定出现查询原词，但语义相近的主题
+- 重点展示：命中检索单元、BM25/语义/RRF 来源、记录聚合、原文详情跳转
 
-## 9:35–9:55 Knowledge Graph
+全文不是整封信粗略匹配，而是被拆分为一千九百多个可引用的检索单元，例如汇款、问安、嘱托和家庭关怀。BM25 擅长抓住精确词面，BGE 向量负责跨表达召回，RRF 根据名次完成融合，避免直接相加不同量纲的分数。
 
-Open `/knowledge-graph`. Load `CSQP-SFHC-TEXT-063`, click an evidence node and
-then the linked metadata node. Show source table/source ID, original evidence,
-metadata details, and the record-detail links. Point out that all structural
-quality counters are zero.
+[点击一条结果进入记录详情。]
 
-Clarify that `kg-viewer/` is now a Frontend Developer-owned diagnostic sandbox;
-the formal product workflow is the main `frontend/` route.
+从结果可以继续回到完整原文、人物、地点、金额和来源字段。因此系统给出的不是一句不可核验的答案，而是一条“查询—命中片段—完整记录”的证据链。
 
-## 9:55–10:00 Runtime Boundary
+不过，有些问题不是某一段文字单独能够回答的，而是隐藏在多封侨批共同形成的人物和主题关系中。于是我们引入第三种能力。
 
-Show the top-right runtime badge. `VITE_DEMO_MODE=false` is the production
-default and never silently loads Mock JSON. `VITE_DEMO_MODE=true` is reserved
-for an explicitly labelled offline demonstration.
+## 3:55—5:05 例子三：用 GraphRAG 发现跨记录关系
+
+[选择“GraphRAG 检索”，随后打开知识图谱中的对应节点或路径。]
+
+【例子三待补充】
+
+- 查询输入：`__________`
+- 建议包含：亲属称谓 + 汇款/平安等主题，或人物 + 地点
+- 重点展示：种子节点、关系路径、graph score、回填后的全文证据
+
+GraphRAG 会先从问题中识别人物、地点和主题种子，再根据节点稀有度、边类型、置信度和多种子覆盖率召回相关记录。图谱只负责扩展关系和解释路径，最终结果仍然必须回填到真实全文，不能把图谱节点本身冒充原始史料。
+
+如果问题无法识别有效种子，或者图谱不可用，页面会明确显示降级原因并回到普通混合检索，而不是伪造一次 GraphRAG 成功。
+
+前三个例子解决了“在哪里找到”和“为什么相关”。但研究者还需要把历史文本转成可计算、可复核的结构。下面看系统如何拆解一段新输入。
+
+## 5:05—6:15 例子四：让 NLP 处理过程可见、可复核
+
+[进入“在线 NLP”。]
+
+【例子四待补充】
+
+- 输入文本：`__________`
+- 建议包含：人物称谓、地点、金额、日期、寄递或嘱托表达
+- 重点展示：规范化文本、实体、关系、任务槽位、双重偏移、规则版本和复核标记
+
+系统首先规范化空格、换行和常见文本噪声，同时保留规范化文本到原文的位置映射；随后抽取人物、亲属、地点、金额、日期和书信套语，并识别寄信、收信、汇款和地点流向等关系。
+
+每个结果都带有规则编号、版本、置信度和原文位置。低置信度或存在 OCR 不确定性的内容会标记为需要人工复核。这体现了我们的取舍：现阶段宁可明确告诉用户“这里需要确认”，也不把规则判断包装成绝对正确的模型结论。
+
+当检索证据和结构化事实都准备好以后，才进入最容易产生风险、也最需要约束的一步——生成。
+
+## 6:15—8:05 例子五：有证据、有边界的 RAG 生成
+
+[进入“白话释读”或“侨批体转换”。建议选择其中一个作为主演示，另一个用一句话补充。]
+
+【例子五待补充】
+
+- 输入或记录编号：`__________`
+- 重点展示：检索上下文、生成结果、证据引用、句级映射、事实一致性检查、真实运行或降级状态
+
+以白话释读为例，系统不是把整库内容直接交给模型，而是先检索与问题最相关的全文单元，控制 Top-K、去重和单封记录的片段数量，再把 record ID、来源字段和原文片段写入 Prompt。Prompt 明确禁止新增人物、金额、日期和地点，并要求返回结构化结果。
+
+[展示一条生成句及其证据映射。]
+
+生成后，系统把句子映射回实际使用的原文证据，并独立检查人物、金额、地点、日期和事件是否发生增删或替换。知识库负责证明“依据是什么”，一致性规则负责检查“事实有没有漂移”，两者不是同一层判断。
+
+如果演示侨批体转换，逻辑也相同：系统先抽取用户输入中的事实，再按称谓、问安、汇款、关怀、嘱托和落款等功能槽位检索真实侨批表达；每个槽位只有最佳样例进入 Prompt。这样模型学习的是表达方式，而人物和金额仍以用户输入为准。
+
+页面还会显示实际生成后端、模型与 Prompt/索引版本、缓存状态和降级原因。外部模型没有配置或调用失败时，系统返回明确标注的本地确定性结果，不会把兜底文本冒充在线模型输出。
+
+从第一个目录查询到这里，我们完成了一条完整链路：先发现线索，再找到全文，通过关系扩展和 NLP 解析理解内容，最后在证据约束下生成结果。
+
+## 8:05—9:05 工程可信度：结果之外，还要知道系统是否真的运行
+
+[快速展示顶部运行状态、接口文档或测试结果。]
+
+这个项目不仅实现页面，也强调运行状态的真实性。正式接口模式下，后端失败会直接显示错误，不会静默切换到 Mock；只有主动启用演示模式时，页面才使用带有明确标签的确定性演示数据。
+
+目录和全文使用两套独立索引及 Manifest。运行时会检查模型、向量维度、语料指纹和记录 ID 是否一致，避免旧索引与新数据库错位。接口字段由 Pydantic 和 OpenAPI 固定，检索、GraphRAG、生成、校验和前端呈现逻辑都有自动化测试。
+
+因此，我们不只回答“系统能不能给出结果”，也回答“这次用了什么数据、什么方法，失败时退到了哪里，以及结果能否重建”。
+
+## 9:05—10:00 总结：把 AI 变成可核验的档案助手
+
+最后总结一下。这个系统的价值不在于堆叠关键词检索、向量模型、知识图谱和大语言模型，而在于让它们各自承担清楚的职责：
+
+目录检索扩大发现范围；全文检索提供可引用证据；GraphRAG 发现并解释跨记录关系；在线 NLP 把文本转成可复核结构；受控生成降低阅读与表达门槛；来源追溯、一致性检查和显式降级共同守住可信边界。
+
+目前系统仍有局限，例如全文规模有限、规则抽取需要更多人工标注数据、生成校验还可以引入更强的事实对齐方法。但它已经证明了一条可行路线：AI 不必替代档案研究者，而可以成为一个会说明依据、允许追问、也知道何时应该谨慎的档案助手。
+
+我的展示到这里，谢谢大家。
+
+## 五个例子的统一填写模板
+
+为了让现场叙事连贯，建议五个例子围绕同一主题组织。每个例子补充以下四项即可：
+
+1. 输入：现场实际输入的查询、原文或记录编号。
+2. 预期：提前确认能够稳定出现的结果。
+3. 指向：现场需要点击或放大的字段、分数、路径或证据。
+4. 收束：用一句话说明该例子证明了什么，并自然引出下一个例子。

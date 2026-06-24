@@ -32,7 +32,7 @@
 
         <h1>检索跨海家书中的人、地与汇款线索</h1>
         <p>
-          支持关键词检索、语义检索与混合检索，从侨批文本中定位相关记录、证据片段与匹配原因，帮助用户追溯书信中的人物关系、来源地与文化记忆。
+          支持关键词、语义、混合与 GraphRAG 检索，从侨批文本和知识图谱中定位相关记录、证据片段与关系路径，帮助用户追溯书信中的人物关系、来源地与文化记忆。
         </p>
 
         <div class="search-header-badges">
@@ -45,9 +45,25 @@
     <div class="archive-search-layout">
       <main class="archive-search-main">
         <section class="archive-search-panel">
+          <div class="search-corpus-tabs" aria-label="检索数据范围">
+            <button
+              type="button"
+              :class="{ active: corpusScope === 'fulltext' }"
+              @click="setCorpusScope('fulltext')"
+            >
+              全文证据 · 213
+            </button>
+            <button
+              type="button"
+              :class="{ active: corpusScope === 'metadata' }"
+              @click="setCorpusScope('metadata')"
+            >
+              目录元数据 · 50,064
+            </button>
+          </div>
           <div class="search-mode-tabs" role="tablist" aria-label="检索模式">
             <button
-              v-for="item in searchModes"
+              v-for="item in availableSearchModes"
               :key="item.value"
               type="button"
               :class="{ active: mode === item.value }"
@@ -64,7 +80,7 @@
               <input
                 v-model="query"
                 type="search"
-                placeholder="输入关键词、亲属称谓、地名或语义问题，例如：八元 母亲 新加坡"
+                :placeholder="searchPlaceholder"
                 @keyup.enter="runSearch"
               />
               <button v-if="query" type="button" aria-label="清空关键词" @click="query = ''">×</button>
@@ -76,6 +92,20 @@
                 {{ loading ? '检索中' : '开始检索' }}
               </button>
               <button class="search-secondary" type="button" @click="clearConditions">清空条件</button>
+            </div>
+
+            <div class="archive-search-examples" aria-label="可选检索词">
+              <span>可选词示例</span>
+              <button
+                v-for="example in searchExamples"
+                :key="example.query"
+                type="button"
+                :class="{ active: isActiveExample(example) }"
+                :title="example.desc"
+                @click="applySearchExample(example)"
+              >
+                {{ example.query }}
+              </button>
             </div>
 
             <div class="archive-filter-chips" aria-label="检索筛选条件">
@@ -117,16 +147,43 @@
           <em>{{ execution.dataLabel }}</em>
         </section>
 
+        <section
+          v-if="hasSearched && lastRequestedMode === 'graphrag'"
+          class="graph-search-summary"
+          :class="{ 'is-fallback': response.graph_fallback }"
+        >
+          <header>
+            <div>
+              <span>GraphRAG 图谱召回</span>
+              <strong>
+                {{ response.graph_enabled ? '图谱已参与排序' : '已自动降级' }}
+              </strong>
+            </div>
+            <em>{{ response.graph_candidate_count || 0 }} 条候选记录</em>
+          </header>
+          <div v-if="response.graph_seed_nodes?.length" class="graph-seed-list">
+            <span
+              v-for="seed in response.graph_seed_nodes"
+              :key="seed.id"
+            >
+              {{ seed.matched_term }} → {{ seed.label }}
+            </span>
+          </div>
+          <p>
+            {{ response.graph_fallback_reason || response.graph_message || '图谱结果已与原检索链路融合。' }}
+          </p>
+        </section>
+
         <section class="archive-result-summary">
           <div>
-            <span>命中单元：</span>
+            <span>{{ corpusScope === 'metadata' ? '命中目录：' : '命中单元：' }}</span>
             <strong>{{ resultCount }}</strong>
             <span>条</span>
           </div>
           <div>
-            <span>涉及记录：</span>
+            <span>{{ corpusScope === 'metadata' ? '目录条目：' : '涉及记录：' }}</span>
             <strong>{{ recordCount }}</strong>
-            <span>封</span>
+            <span>{{ corpusScope === 'metadata' ? '条' : '封' }}</span>
           </div>
           <i></i>
           <div>
@@ -149,8 +206,15 @@
 
         <section v-loading="loading" class="archive-result-list">
           <SearchResultCard
-            v-for="(result, index) in response.results"
+            v-for="(result, index) in corpusScope === 'fulltext' ? response.results : []"
             :key="result.unit_id || `${result.record_id}-${index}`"
+            :result="result"
+            :rank="index + 1"
+            :execution="execution"
+          />
+          <MetadataSearchResultCard
+            v-for="(result, index) in corpusScope === 'metadata' ? response.results : []"
+            :key="result.metadata_id || index"
             :result="result"
             :rank="index + 1"
             :execution="execution"
@@ -167,7 +231,12 @@
             当前显式启用了演示模式；接口失败时才会加载本地演示结果，并清楚标记为测试数据。
           </p>
           <p v-else>
-            正式接口模式不会静默回退到 Mock。混合检索降级时，页面会明确显示“关键词检索（混合降级）”。
+            <template v-if="corpusScope === 'metadata'">
+              目录元数据用于发现档案线索，不会作为 RAG 生成的全文证据；仅已关联记录可以跳转查看全文。
+            </template>
+            <template v-else>
+              正式接口模式不会静默回退到 Mock。GraphRAG 无法识别有效节点时，会明确降级到现有混合检索。
+            </template>
           </p>
         </aside>
       </main>
@@ -196,7 +265,7 @@
           <footer>
             <span></span>
             <p>
-              BM25、余弦相似度与 RRF 属于不同排序尺度。页面仅展示各自的排序贡献，不换算为百分比。
+              BM25、余弦相似度、图谱分与 RRF 属于不同排序尺度。页面仅展示各自的排序贡献，不换算为百分比。
             </p>
           </footer>
         </div>
@@ -209,7 +278,9 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { hybridSearch, keywordSearch, semanticSearch } from '../api/search'
+import { graphRagSearch, hybridSearch, keywordSearch, semanticSearch } from '../api/search'
+import { searchMetadata } from '../api/metadata'
+import MetadataSearchResultCard from '../components/MetadataSearchResultCard.vue'
 import SearchResultCard from '../components/SearchResultCard.vue'
 import {
   apiFailureMessage,
@@ -223,9 +294,10 @@ import {
 } from '../utils/searchPresentation'
 
 const route = useRoute()
+const corpusScope = ref('fulltext')
 const mode = ref('hybrid')
 const lastRequestedMode = ref('hybrid')
-const query = ref(String(route.query.query || '').trim() || '母亲 寄款 查收')
+const query = ref(String(route.query.query || '').trim() || '母亲')
 const filters = reactive({
   place: '',
   year_normalized: '',
@@ -239,23 +311,96 @@ const loading = ref(false)
 const error = ref('')
 const requestFailed = ref(false)
 const hasSearched = ref(false)
+const searchResultLimit = 100
 
 const searchModes = [
   { value: 'keyword', label: '关键词检索' },
   { value: 'semantic', label: '语义检索' },
-  { value: 'hybrid', label: '混合检索' }
+  { value: 'hybrid', label: '混合检索' },
+  { value: 'graphrag', label: 'GraphRAG' }
 ]
+
+const searchExamples = [
+  {
+    query: '壹佰元',
+    scope: 'fulltext',
+    mode: 'keyword',
+    desc: '精确词：命中金额原文，避免语义召回其他金额。'
+  },
+  {
+    query: '新春',
+    scope: 'fulltext',
+    mode: 'keyword',
+    desc: '节令词：命中新春相关祝语与时令问候。'
+  },
+  {
+    query: '成婚',
+    scope: 'fulltext',
+    mode: 'semantic',
+    desc: '语义检索：关键词无命中，但可召回完婚、婚事等相关表达。'
+  },
+  {
+    query: '宋树钊',
+    scope: 'fulltext',
+    mode: 'keyword',
+    desc: '精确检索：展示同一寄批人多封侨批记录的聚合发现。'
+  },
+  {
+    query: '读书',
+    scope: 'fulltext',
+    mode: 'hybrid',
+    desc: '混合检索：展示教育、勤学、学业相关嘱咐。'
+  },
+  {
+    query: '母亲',
+    scope: 'fulltext',
+    mode: 'graphrag',
+    desc: 'GraphRAG：展示母亲、家慈、慈亲等亲属称谓的图谱关联。'
+  },
+  {
+    query: '平安',
+    scope: 'fulltext',
+    mode: 'graphrag',
+    desc: 'GraphRAG：展示 safety 主题节点参与召回。'
+  },
+  {
+    query: '新加坡',
+    scope: 'metadata',
+    mode: 'hybrid',
+    desc: '目录元数据：展示海外地点字段的档案发现。'
+  },
+  {
+    query: '广东',
+    scope: 'metadata',
+    mode: 'hybrid',
+    desc: '目录元数据：展示侨乡地点字段的档案发现。'
+  }
+]
+
+const availableSearchModes = computed(() =>
+  corpusScope.value === 'metadata'
+    ? searchModes.filter((item) => item.value !== 'graphrag')
+    : searchModes
+)
+
+const searchPlaceholder = computed(() =>
+  corpusScope.value === 'metadata'
+    ? '搜索目录题名、寄收批人、年代、地点或亲属关系，例如：新加坡 母亲 1973'
+    : '输入关键词、亲属称谓、地名或语义问题，例如：八元 母亲 新加坡'
+)
 
 const searchers = {
   keyword: keywordSearch,
   semantic: semanticSearch,
-  hybrid: hybridSearch
+  hybrid: hybridSearch,
+  graphrag: graphRagSearch
 }
 
 const evidenceGuide = [
   { title: 'BM25 原始值', desc: 'FTS5 关键词排序信号；只在同一查询内比较。', tone: 'red' },
   { title: '余弦相似度', desc: '同一向量模型下的语义接近程度，不是置信百分比。', tone: 'green' },
   { title: 'RRF 融合值', desc: '融合关键词名次和语义名次，不与余弦值直接比较。', tone: 'teal' },
+  { title: '图谱关联分', desc: '综合节点匹配、关系置信度、节点稀有度与多节点覆盖率。', tone: 'green' },
   { title: '证据追溯', desc: '每个命中保留记录、检索单元与来源字段。', tone: 'brown' }
 ]
 
@@ -269,6 +414,7 @@ const execution = computed(() =>
 
 const resultCount = computed(() => response.value.results?.length ?? 0)
 const recordCount = computed(() => {
+  if (corpusScope.value === 'metadata') return response.value.results?.length ?? 0
   if (response.value.grouped_by_record?.length) return response.value.grouped_by_record.length
   return new Set((response.value.results || []).map((item) => item.record_id).filter(Boolean)).size
 })
@@ -301,7 +447,7 @@ const filterChips = computed(() => [
       filters.year_normalized = filters.year_normalized ? '' : '1933'
     }
   },
-  {
+  ...(corpusScope.value === 'fulltext' ? [{
     key: 'remittanceUnit',
     label: '仅汇款证据单元',
     mark: '证',
@@ -309,7 +455,7 @@ const filterChips = computed(() => [
     apply: () => {
       uiFilters.remittanceUnit = !uiFilters.remittanceUnit
     }
-  }
+  }] : [])
 ])
 
 function toggleChip(chip) {
@@ -324,10 +470,50 @@ function clearConditions() {
   uiFilters.remittanceUnit = false
 }
 
+function clearFiltersOnly() {
+  filters.place = ''
+  filters.year_normalized = ''
+  filters.has_remittance = false
+  uiFilters.remittanceUnit = false
+}
+
+function setCorpusScope(scope) {
+  corpusScope.value = scope
+  if (scope === 'metadata' && mode.value === 'graphrag') {
+    mode.value = 'hybrid'
+  }
+  lastRequestedMode.value = mode.value
+  response.value = { results: [], grouped_by_record: [] }
+  hasSearched.value = false
+}
+
 function activeFilters() {
-  return Object.fromEntries(
+  const selected = Object.fromEntries(
     Object.entries(filters).filter(([, value]) => value !== '' && value !== false)
   )
+  if (corpusScope.value === 'metadata' && selected.year_normalized) {
+    selected.year_from = selected.year_normalized
+    selected.year_to = selected.year_normalized
+    delete selected.year_normalized
+  }
+  return selected
+}
+
+function isActiveExample(example) {
+  return (
+    corpusScope.value === example.scope &&
+    mode.value === example.mode &&
+    query.value === example.query
+  )
+}
+
+async function applySearchExample(example) {
+  corpusScope.value = example.scope
+  mode.value = example.mode
+  lastRequestedMode.value = example.mode
+  query.value = example.query
+  clearFiltersOnly()
+  await runSearch()
 }
 
 async function runSearch() {
@@ -338,13 +524,21 @@ async function runSearch() {
   const payload = {
     query: query.value,
     filters: activeFilters(),
-    top_k: 10,
+    top_k: searchResultLimit,
     unit_types: uiFilters.remittanceUnit ? ['remittance'] : [],
     expansion_mode: 'balanced'
   }
 
   try {
-    response.value = await searchers[mode.value](payload)
+    response.value =
+      corpusScope.value === 'metadata'
+        ? await searchMetadata({
+            query: payload.query,
+            filters: payload.filters,
+            top_k: payload.top_k,
+            retrieval_mode: mode.value
+          })
+        : await searchers[mode.value](payload)
   } catch (requestError) {
     if (demoMode) {
       response.value = buildDemoSearchResponse(fallbackResults, mode.value, query.value)

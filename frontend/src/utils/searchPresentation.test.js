@@ -66,3 +66,60 @@ test('score contributions keep BM25 cosine and RRF on separate scales', () => {
   )
   assert.ok(rows.every((row) => !row.value.includes('%')))
 })
+
+test('GraphRAG response is labelled as graph-enhanced retrieval', () => {
+  const state = resolveSearchExecution('graphrag', {
+    semantic_enabled: false,
+    semantic_quality: 'disabled',
+    fusion_method: 'graph_rrf',
+    graph_enabled: true,
+    graph_message: '图谱与关键词已融合。'
+  })
+
+  assert.equal(state.effectiveMode, 'graphrag')
+  assert.equal(state.effectiveLabel, 'GraphRAG 检索')
+  assert.equal(state.degraded, false)
+  assert.deepEqual(
+    state.sources,
+    ['SQLite 知识图谱', 'FTS5 / BM25', 'GraphRAG RRF 融合']
+  )
+})
+
+test('GraphRAG fallback is explicitly labelled', () => {
+  const state = resolveSearchExecution('graphrag', {
+    semantic_enabled: false,
+    semantic_quality: 'disabled',
+    fusion_method: 'keyword_fallback',
+    graph_enabled: false,
+    graph_fallback: true,
+    graph_fallback_reason: '未识别到图谱节点。'
+  })
+
+  assert.equal(state.effectiveMode, 'keyword')
+  assert.equal(state.effectiveLabel, '关键词检索（GraphRAG 降级）')
+  assert.equal(state.degraded, true)
+})
+
+test('GraphRAG score contribution is displayed independently', () => {
+  const state = resolveSearchExecution('graphrag', {
+    semantic_enabled: false,
+    semantic_quality: 'disabled',
+    fusion_method: 'graph_rrf',
+    graph_enabled: true
+  })
+  const rows = buildScoreContributions(
+    {
+      bm25_score: -4.5,
+      semantic_score: 0,
+      graph_score: 0.91,
+      final_score: 0.041,
+      retrieval_sources: ['keyword', 'graph']
+    },
+    state
+  )
+
+  assert.deepEqual(
+    rows.map((row) => row.label),
+    ['BM25 原始值', '图谱关联分', 'GraphRAG 融合值']
+  )
+})

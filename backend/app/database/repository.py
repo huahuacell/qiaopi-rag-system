@@ -811,6 +811,60 @@ def fetch_retrieval_units(record_id: str) -> list[dict[str, Any]]:
     return _rows_to_dicts(rows)
 
 
+def fetch_retrieval_units_for_records(
+    record_ids: Iterable[str],
+) -> list[dict[str, Any]]:
+    unique_record_ids = sorted({str(record_id) for record_id in record_ids if record_id})
+    if not unique_record_ids:
+        return []
+    placeholders = ", ".join("?" for _ in unique_record_ids)
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT
+                r.unit_id,
+                r.record_id,
+                r.unit_type,
+                r.source_column,
+                r.unit_text,
+                r.title_reference,
+                r.sender,
+                r.recipient,
+                r.date_text,
+                r.main_intent,
+                r.theme_tags,
+                r.style_keywords,
+                r.relationship_type,
+                r.place_mentions_normalized,
+                r.retrieval_keywords,
+                r.weight,
+                r.evidence_type,
+                r.fts_text,
+                t.text_quality_level,
+                t.has_remittance,
+                t.year_normalized,
+                COALESCE(p.normalized_places, '') AS normalized_places,
+                COALESCE(p.countries_or_regions, '') AS countries_or_regions
+            FROM qiaopi_retrieval_units AS r
+            JOIN qiaopi_text_records AS t
+              ON t.record_id = r.record_id
+            LEFT JOIN (
+                SELECT
+                    record_id,
+                    GROUP_CONCAT(DISTINCT normalized_place) AS normalized_places,
+                    GROUP_CONCAT(DISTINCT country_or_region) AS countries_or_regions
+                FROM qiaopi_place_mentions
+                GROUP BY record_id
+            ) AS p
+              ON p.record_id = r.record_id
+            WHERE r.record_id IN ({placeholders})
+            ORDER BY r.record_id, r.unit_id
+            """,
+            unique_record_ids,
+        ).fetchall()
+    return _rows_to_dicts(rows)
+
+
 def fetch_all_retrieval_units(
     db_path: Path | str | None = None,
 ) -> list[dict[str, Any]]:
@@ -905,6 +959,13 @@ def _matches_filters(row: Mapping[str, Any], filters: Mapping[str, Any]) -> bool
             if _safe_int(row.get("has_remittance")) != expected:
                 return False
     return True
+
+
+def matches_retrieval_filters(
+    row: Mapping[str, Any],
+    filters: Mapping[str, Any],
+) -> bool:
+    return _matches_filters(row, filters)
 
 
 def _fetch_top_retrieval_units(top_k: int, unit_types: Iterable[str] | None) -> list[dict[str, Any]]:
@@ -1422,6 +1483,46 @@ def search_metadata_records(
                 """,
                 [*filter_params, top_k],
             ).fetchall()
+    return _rows_to_dicts(rows)
+
+
+def fetch_all_metadata_records(
+    db_path: Path | str | None = None,
+) -> list[dict[str, Any]]:
+    with get_connection(db_path) as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                metadata_id,
+                source_index,
+                title_clean,
+                sender_raw,
+                recipient_raw,
+                sender_name_clean,
+                recipient_name_clean,
+                date_text,
+                date_standard,
+                year_normalized,
+                origin_place,
+                destination_place,
+                place_mentions,
+                country_or_region,
+                remittance_raw,
+                amount_number,
+                currency,
+                has_remittance,
+                kinship_terms,
+                relationship_type,
+                theme_tags,
+                main_intent,
+                has_linked_text,
+                linked_record_id,
+                parse_confidence,
+                needs_review
+            FROM qiaopi_metadata_records
+            ORDER BY metadata_id
+            """
+        ).fetchall()
     return _rows_to_dicts(rows)
 
 

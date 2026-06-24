@@ -9,7 +9,14 @@ from app.search.query_expansion import (
     terms_for_expansion_mode,
 )
 from app.search.reranker import rerank_units
-from app.search.result_aggregator import group_results_by_record
+from app.search.result_aggregator import (
+    deduplicate_results_by_record,
+    group_results_by_record,
+)
+from app.search.semantic_relevance import (
+    row_matches_semantic_guard,
+    semantic_guard_terms,
+)
 
 
 def _query_from_terms(terms: Iterable[str]) -> str:
@@ -111,11 +118,22 @@ def retrieve_keyword(
         rows,
         expansion=query_expansion,
         requested_unit_types=requested_unit_types,
+        top_k=max(top_k * 4, top_k, 20),
+    )
+    guard_terms = semantic_guard_terms(query)
+    if guard_terms:
+        reranked_results = [
+            row
+            for row in reranked_results
+            if row_matches_semantic_guard(row, guard_terms, query=query)
+        ]
+    deduplicated_results = deduplicate_results_by_record(
+        reranked_results,
         top_k=top_k,
     )
     return {
         "expansion": query_expansion,
         "expansion_mode": expansion_mode if expansion_mode in {"strict", "balanced", "broad"} else "balanced",
-        "results": reranked_results,
-        "grouped_by_record": group_results_by_record(reranked_results),
+        "results": deduplicated_results,
+        "grouped_by_record": group_results_by_record(deduplicated_results),
     }
