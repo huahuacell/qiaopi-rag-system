@@ -76,7 +76,7 @@ Core tables:
 fresh checkout, run from `backend/` before starting Uvicorn:
 
 ```bash
-python -m app.ingestion.build_all --embedding-provider hash --promote
+python -m app.ingestion.build_all --embedding-provider local --promote
 ```
 
 The command rebuilds all derived assets from the raw Excel workbooks in an
@@ -84,7 +84,8 @@ isolated directory under `backend/data/builds/`, validates them, then promotes
 the accepted database, manifest, processed files, and semantic index to the
 runtime paths. The ordered stages are full-text preprocessing, text database
 and FTS5, metadata database and FTS5, text-metadata linking, SQLite knowledge
-graph, semantic index, and acceptance validation.
+graph, full-text semantic index, metadata semantic index, and acceptance
+validation.
 
 Promotion prepares temporary sibling files and restores the previous live
 assets if any replacement fails. Omitting `--promote` is supported for CI and
@@ -1440,25 +1441,33 @@ QWEN_EMBEDDING_BASE_URL=
 QWEN_EMBEDDING_MODEL=
 ```
 
-Build command:
+Production build command:
 
 ```powershell
 cd backend
-python -m app.ingestion.build_database
-python -m app.ingestion.build_semantic_index
+python -m app.ingestion.build_all `
+  --embedding-provider local `
+  --promote
 ```
+
+This single command builds and promotes the SQLite database, full-text semantic
+index, and metadata-catalog semantic index together.
 
 For deterministic local tests without external models:
 
 ```powershell
 python -m app.ingestion.build_semantic_index --provider hash
+python -m app.ingestion.build_metadata_semantic_index --provider hash
 ```
+
+`hash` is test-only plumbing. It is deterministic and useful for CI, but it is
+not accepted as production semantic retrieval.
 
 `backend/data/index/*` is generated artifact data and should not contain committed secrets. `.env.example` is documentation only; real runtime configuration is read from `.env` files, not from `.env.example`.
 
 Current limitations:
 
-- Semantic search is disabled by default and requires an index build plus `SEMANTIC_SEARCH_ENABLED=true`.
+- Semantic search is disabled by default and requires a production index build plus `SEMANTIC_SEARCH_ENABLED=true`.
 - Qwen requires environment variables before live generation.
 - Generated content is not historical source material.
 - Generated content must be displayed with evidence references.
@@ -1471,9 +1480,17 @@ Build commands:
 
 ```powershell
 cd backend
-python -m app.ingestion.build_metadata_database
-python -m app.ingestion.link_metadata_text_records
+python -m app.ingestion.build_all `
+  --embedding-provider local `
+  --promote
 ```
+
+The one-step build creates `qiaopi_metadata_records`, metadata FTS5, text-metadata
+links, and the independent metadata semantic index. For isolated diagnostics,
+`python -m app.ingestion.build_metadata_database`,
+`python -m app.ingestion.link_metadata_text_records`, and
+`python -m app.ingestion.build_metadata_semantic_index --provider local` can still
+be run separately.
 
 Tables:
 
@@ -1485,7 +1502,7 @@ Tables:
 Evidence boundary:
 
 - Metadata-only records are not full-text evidence.
-- Metadata-only records must not be used in `qiaopi_retrieval_units`, `qiaopi_retrieval_units_fts`, FAISS semantic retrieval, RAG context, or Qwen prompts.
+- Metadata-only records must not be used in `qiaopi_retrieval_units`, `qiaopi_retrieval_units_fts`, full-text FAISS semantic retrieval, RAG context, or Qwen prompts. The separate metadata semantic index is for catalog discovery only.
 - If a metadata record is linked, generation must use the linked 213 full-text `record_id` as evidence, not the metadata-only fields.
 
 Linking rules:

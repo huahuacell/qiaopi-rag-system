@@ -15,7 +15,14 @@ from app.database.repository import (
 from app.search.hybrid_retriever import retrieve_hybrid
 from app.search.query_expansion import QueryExpansion, expand_query
 from app.search.reranker import rerank_units
-from app.search.result_aggregator import group_results_by_record
+from app.search.result_aggregator import (
+    deduplicate_results_by_record,
+    group_results_by_record,
+)
+from app.search.semantic_relevance import (
+    row_matches_semantic_guard,
+    semantic_guard_terms,
+)
 
 
 RRF_K = 60
@@ -26,7 +33,7 @@ MAX_PATHS_PER_RESULT = 4
 TOTAL_FULL_TEXT_RECORDS = 213
 
 GRAPH_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
-    "person:母亲": ("母亲", "妈妈", "阿母", "阿妈", "慈亲", "慈母", "娘亲"),
+    "person:母亲": ("母亲", "妈妈", "阿母", "阿妈", "慈亲", "家慈", "慈母", "娘亲"),
     "person:父亲": ("父亲", "爸爸", "阿爸", "严亲", "严父"),
     "person:祖母": ("祖母", "阿嬷", "阿嫲", "奶奶", "祖慈"),
     "person:祖父": ("祖父", "阿公", "爷爷"),
@@ -459,6 +466,7 @@ def retrieve_graph_rag(
         expansion_mode=expansion_mode,
     )
     expansion: QueryExpansion = base_result.get("expansion") or expand_query(query)
+    guard_terms = semantic_guard_terms(query)
 
     if not settings.GRAPH_RAG_ENABLED:
         return {
@@ -536,7 +544,8 @@ def retrieve_graph_rag(
         prepared.setdefault("graph_score", 0.0)
         prepared.setdefault("graph_seed_count", 0)
         prepared.setdefault("graph_paths", [])
-        fused_rows.append(prepared)
+        if row_matches_semantic_guard(prepared, guard_terms, query=query):
+            fused_rows.append(prepared)
     fused_rows.sort(
         key=lambda item: (
             -float(item.get("fusion_score") or 0.0),
@@ -545,7 +554,7 @@ def retrieve_graph_rag(
             str(item.get("unit_id") or ""),
         )
     )
-    selected = fused_rows[:top_k]
+    selected = deduplicate_results_by_record(fused_rows, top_k=top_k)
     semantic_participated = bool(base_result.get("semantic_enabled", False))
     graph_message = (
         "图谱候选已与关键词、语义结果进行 RRF 融合。"

@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app.api.analysis import router as analysis_router
 from app.api.dashboard import router as dashboard_router
@@ -62,6 +63,14 @@ def create_app() -> FastAPI:
             version="0.1.0",
             message="Qiaopi RAG backend is running",
         )
+
+    @app.get("/", include_in_schema=False)
+    def root() -> RedirectResponse:
+        return RedirectResponse(url="/docs")
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> Response:
+        return Response(status_code=204)
 
     app.include_router(dashboard_router)
     app.include_router(analysis_router)

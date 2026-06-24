@@ -214,10 +214,6 @@
       </div>
     </section>
 
-    <aside class="archive-plain-note">
-      <span>i</span>
-      <p>在线模型不可用时，系统会明确标注“本地降级模式”，并保留白话释读、证据映射与一致性检查流程。</p>
-    </aside>
   </section>
 </template>
 

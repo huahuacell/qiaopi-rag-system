@@ -89,40 +89,6 @@
             </button>
           </nav>
 
-          <div class="kg-filter-bar">
-            <el-input
-              v-model="searchQuery"
-              clearable
-              placeholder="搜索人物、地点、记录编号或主题"
-              @keyup.enter="focusSearchResult"
-            />
-            <el-select v-model="themeFilter" clearable placeholder="全部主题">
-              <el-option
-                v-for="option in filterOptions.themes"
-                :key="option.value"
-                :label="option.label"
-                :value="option.value"
-              />
-            </el-select>
-            <el-select v-model="yearFilter" clearable placeholder="全部年份">
-              <el-option
-                v-for="year in filterOptions.years"
-                :key="year"
-                :label="`${year} 年`"
-                :value="year"
-              />
-            </el-select>
-            <label class="kg-evidence-toggle">
-              <input v-model="evidenceOnly" type="checkbox" />
-              <span>只看有证据关系</span>
-            </label>
-            <div class="kg-toolbar-actions">
-              <button type="button" @click="resetGraphView">重置视图</button>
-              <button type="button" @click="expandGraph">展开相关记录</button>
-              <button type="button" @click="exportGraphImage">导出截图</button>
-            </div>
-          </div>
-
           <div v-if="currentView === 'record'" class="kg-record-drill-bar">
             <span>侨批编号</span>
             <el-input

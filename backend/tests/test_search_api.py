@@ -185,6 +185,42 @@ def test_hybrid_search_reports_actual_semantic_runtime_state():
         assert payload["fusion_method"] == "keyword_fallback"
 
 
+def test_hybrid_search_deduplicates_results_by_record():
+    response = client.post(
+        "/api/search/hybrid",
+        json={
+            "query": "壹佰元",
+            "top_k": 10,
+            "unit_types": [],
+            "filters": {},
+            "expansion_mode": "balanced",
+        },
+    )
+
+    payload = response.json()
+    assert response.status_code == 200
+    record_ids = [result["record_id"] for result in payload["results"]]
+    assert len(record_ids) == len(set(record_ids))
+
+
+def test_graphrag_search_deduplicates_results_by_record():
+    response = client.post(
+        "/api/search/graphrag",
+        json={
+            "query": "壹佰元",
+            "top_k": 10,
+            "unit_types": [],
+            "filters": {},
+            "expansion_mode": "balanced",
+        },
+    )
+
+    payload = response.json()
+    assert response.status_code == 200
+    record_ids = [result["record_id"] for result in payload["results"]]
+    assert len(record_ids) == len(set(record_ids))
+
+
 def test_strict_expansion_mode_omits_medium_and_weak_terms_from_expanded_query():
     response = client.post(
         "/api/search/keyword",

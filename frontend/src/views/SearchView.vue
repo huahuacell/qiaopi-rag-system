@@ -94,6 +94,20 @@
               <button class="search-secondary" type="button" @click="clearConditions">清空条件</button>
             </div>
 
+            <div class="archive-search-examples" aria-label="可选检索词">
+              <span>可选词示例</span>
+              <button
+                v-for="example in searchExamples"
+                :key="example.query"
+                type="button"
+                :class="{ active: isActiveExample(example) }"
+                :title="example.desc"
+                @click="applySearchExample(example)"
+              >
+                {{ example.query }}
+              </button>
+            </div>
+
             <div class="archive-filter-chips" aria-label="检索筛选条件">
               <button
                 v-for="chip in filterChips"
@@ -283,7 +297,7 @@ const route = useRoute()
 const corpusScope = ref('fulltext')
 const mode = ref('hybrid')
 const lastRequestedMode = ref('hybrid')
-const query = ref(String(route.query.query || '').trim() || '母亲 寄款 查收')
+const query = ref(String(route.query.query || '').trim() || '母亲')
 const filters = reactive({
   place: '',
   year_normalized: '',
@@ -297,12 +311,70 @@ const loading = ref(false)
 const error = ref('')
 const requestFailed = ref(false)
 const hasSearched = ref(false)
+const searchResultLimit = 100
 
 const searchModes = [
   { value: 'keyword', label: '关键词检索' },
   { value: 'semantic', label: '语义检索' },
   { value: 'hybrid', label: '混合检索' },
   { value: 'graphrag', label: 'GraphRAG' }
+]
+
+const searchExamples = [
+  {
+    query: '壹佰元',
+    scope: 'fulltext',
+    mode: 'keyword',
+    desc: '精确词：命中金额原文，避免语义召回其他金额。'
+  },
+  {
+    query: '新春',
+    scope: 'fulltext',
+    mode: 'keyword',
+    desc: '节令词：命中新春相关祝语与时令问候。'
+  },
+  {
+    query: '成婚',
+    scope: 'fulltext',
+    mode: 'semantic',
+    desc: '语义检索：关键词无命中，但可召回完婚、婚事等相关表达。'
+  },
+  {
+    query: '宋树钊',
+    scope: 'fulltext',
+    mode: 'keyword',
+    desc: '精确检索：展示同一寄批人多封侨批记录的聚合发现。'
+  },
+  {
+    query: '读书',
+    scope: 'fulltext',
+    mode: 'hybrid',
+    desc: '混合检索：展示教育、勤学、学业相关嘱咐。'
+  },
+  {
+    query: '母亲',
+    scope: 'fulltext',
+    mode: 'graphrag',
+    desc: 'GraphRAG：展示母亲、家慈、慈亲等亲属称谓的图谱关联。'
+  },
+  {
+    query: '平安',
+    scope: 'fulltext',
+    mode: 'graphrag',
+    desc: 'GraphRAG：展示 safety 主题节点参与召回。'
+  },
+  {
+    query: '新加坡',
+    scope: 'metadata',
+    mode: 'hybrid',
+    desc: '目录元数据：展示海外地点字段的档案发现。'
+  },
+  {
+    query: '广东',
+    scope: 'metadata',
+    mode: 'hybrid',
+    desc: '目录元数据：展示侨乡地点字段的档案发现。'
+  }
 ]
 
 const availableSearchModes = computed(() =>
@@ -398,6 +470,13 @@ function clearConditions() {
   uiFilters.remittanceUnit = false
 }
 
+function clearFiltersOnly() {
+  filters.place = ''
+  filters.year_normalized = ''
+  filters.has_remittance = false
+  uiFilters.remittanceUnit = false
+}
+
 function setCorpusScope(scope) {
   corpusScope.value = scope
   if (scope === 'metadata' && mode.value === 'graphrag') {
@@ -420,6 +499,23 @@ function activeFilters() {
   return selected
 }
 
+function isActiveExample(example) {
+  return (
+    corpusScope.value === example.scope &&
+    mode.value === example.mode &&
+    query.value === example.query
+  )
+}
+
+async function applySearchExample(example) {
+  corpusScope.value = example.scope
+  mode.value = example.mode
+  lastRequestedMode.value = example.mode
+  query.value = example.query
+  clearFiltersOnly()
+  await runSearch()
+}
+
 async function runSearch() {
   loading.value = true
   error.value = ''
@@ -428,7 +524,7 @@ async function runSearch() {
   const payload = {
     query: query.value,
     filters: activeFilters(),
-    top_k: 10,
+    top_k: searchResultLimit,
     unit_types: uiFilters.remittanceUnit ? ['remittance'] : [],
     expansion_mode: 'balanced'
   }

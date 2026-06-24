@@ -6137,6 +6137,45 @@ h3 {
   background: #ede7d9;
 }
 
+.archive-search-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: -6px 0 16px;
+}
+
+.archive-search-examples > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  color: var(--search-muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.archive-search-examples button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(122, 104, 75, 0.28);
+  border-radius: 999px;
+  color: var(--search-ink);
+  background: rgba(252, 249, 241, 0.68);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.archive-search-examples button:hover,
+.archive-search-examples button.active {
+  border-color: var(--search-green);
+  background: rgba(240, 246, 242, 0.92);
+  transform: translateY(-1px);
+}
+
 .archive-filter-chips {
   display: flex;
   flex-wrap: wrap;
@@ -10151,6 +10190,7 @@ h3 {
   --plain-green: #0f4a43;
   --plain-green-soft: #1a6b61;
   --plain-red: #a74432;
+  --plain-amber: #8a6a16;
   --plain-text: #1f2a28;
   --plain-sub: #6f7c78;
   --plain-border: #ddd6c8;
@@ -10787,9 +10827,9 @@ h3 {
 }
 
 .archive-plain-section-title em.failed {
-  border-color: var(--plain-red);
-  background: rgba(167, 68, 50, 0.06);
-  color: var(--plain-red);
+  border-color: rgba(138, 106, 22, 0.36);
+  background: rgba(138, 106, 22, 0.08);
+  color: var(--plain-amber);
 }
 
 .archive-summary-card-grid {
@@ -10922,7 +10962,7 @@ h3 {
   min-height: 18px;
   flex: 0 0 auto;
   border-radius: 2px;
-  background: var(--plain-red);
+  background: var(--plain-green);
 }
 
 .archive-plain-evidence-type strong {
@@ -10946,9 +10986,9 @@ h3 {
 
 .archive-plain-evidence-card blockquote {
   margin: 0;
-  border-left: 2px solid var(--plain-red);
+  border-left: 2px solid var(--plain-green);
   padding: 5px 10px;
-  background: rgba(167, 68, 50, 0.05);
+  background: rgba(15, 74, 67, 0.055);
   color: var(--plain-text);
   font-family: var(--plain-serif);
   font-size: 13px;
@@ -11018,11 +11058,11 @@ h3 {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--plain-red);
+  background: var(--plain-green);
 }
 
 .archive-validation-grid article span {
-  color: var(--plain-red);
+  color: var(--plain-green);
   font-family: var(--plain-mono);
   font-size: 10px;
 }
@@ -11035,7 +11075,11 @@ h3 {
 
 .archive-validation-grid article.failed span,
 .archive-validation-grid article.failed p {
-  color: var(--plain-red);
+  color: var(--plain-amber);
+}
+
+.archive-validation-grid article.failed i {
+  background: var(--plain-amber);
 }
 
 .archive-plain-validation-card footer {
